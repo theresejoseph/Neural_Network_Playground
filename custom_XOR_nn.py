@@ -46,3 +46,24 @@ def recurse(current_neuron,inputs):
     
 print(recurse(output,np.array([1,0])))
 
+##############################################################################
+from pyvis.network import Network
+
+net = Network()
+
+net.add_node(1, label='input1')
+net.add_node(2, label='input2')
+net.add_node(3, label='hidden1')
+net.add_node(4, label='hidden2')
+net.add_node(5, label='output')
+
+# weights -1.5 = 1, -1 =1.5, -0.5 = 2, 0 = 2.5, 0.5 = 3, 1 = 3.5, 1.5=4
+net.add_edge(1, 3,titile="1")
+net.add_edge(1, 4,title="-1")
+net.add_edge(2, 3,title="1")
+net.add_edge(2, 4,title="-1")
+net.add_edge(3, 5,title="1")
+net.add_edge(4, 5,title="1")
+
+
+net.show('nodes.html')
