@@ -6,7 +6,7 @@ import time
 
 img=np.asarray(PIL.Image.open("./data/dog.jpeg").convert("L"))
 plt.imshow(img,cmap="gray")
-plt.show()
+
 
 kernel=np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
 
@@ -20,7 +20,8 @@ def conv(img,kernel):
             output[i,j]=sum(sum(img[i:i+kh, j:j+kw]*kernel))
             
     return output 
-conv_img=conv(img,kernel)
-plt.savefig(conv_img,cmap="gray")
 
+conv_img=conv(img,kernel)
+plt.imshow(conv_img,cmap="gray")
+plt.show()
 
