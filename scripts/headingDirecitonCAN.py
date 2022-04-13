@@ -15,34 +15,33 @@ def col_round(x):
 #simulation
 sim_speed=10
 iters=400
+prediction,current, true=[],[],[]
 
 #network
 N=40 #number of neurons
 N_inc=360/N # number of degrees per neuron
 neurons=np.arange(0,N)
 curr_theta=0
-delta=-1
-angles = np.arange(0,360,abs(delta))
+delta=1
 prev_weights=np.zeros(N)
 inhbit_val=0.05
 num_links=4
 lndmrk_confidence=1
+input_error=0
 
 #landmarks
 inc=60 # increment angle for landmarks 
 ang_rate=1 #deg per iteration for the robot
 radius=1.8  #meter
-prediction,current, true=[],[],[]
 
-#robot parameters
+'''#robot parameters
 whl_wdth=0.8 # meter
 tic_rate=0.1 # meter per wheel tick 
 dt=0.2 #sampling rate
 left_speed,right_speed=0,10 #ticks/sec
-start_x,start_y=0,-1.2
+start_x,start_y=0,-1.2'''
 ################################################################
-
-class Robot:
+'''class Robot:
     def __init__(self, wheels_width, wheels_scale):
         # State is a vector of [x,y,theta]'
         self.state = np.zeros((3,1))
@@ -105,6 +104,7 @@ def robotState(whl_wdth, tic_rate, left_speed, right_speed, start_x, start_y, dt
     x,y,theta=np.array(state)[:,0], np.array(state)[:,1], np.array(state)[:,2]
     lin_vel,ang_vel=np.array(vels)[:,0], np.array(vels)[:,1]
     return x,y,theta
+'''
 
 class attractorNetwork:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
@@ -118,9 +118,7 @@ class attractorNetwork:
         self.lndmrk_confidence=lndmrk_confidence
 
     def theta_update(self,curr_theta):
-        # angles=np.arange(360)
-        x= curr_theta+self.delta 
-        return x % 360
+        return (curr_theta+self.delta) % 360
         
     def inhibitions(self,id):
         ''' each nueuron inhibits all other nueurons but itself'''
@@ -192,67 +190,72 @@ def selfMotionLandmark_integration(radius,inc,iters):
     lndmrks=np.stack((np.array(mark_x),np.array(mark_y)),axis=1)
 
     # create the figure and axes objects
-    fig = plt.figure(figsize=(7,8))
+    fig = plt.figure(figsize=(7,7.5))
     gs = fig.add_gridspec(4,2)
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     ax3 = fig.add_subplot(gs[1, :])
     ax4= fig.add_subplot(gs[2, :])
     ax5= fig.add_subplot(gs[3, :])
+    fig.tight_layout()
     def animate(i):
         if i >= 1:
-            global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights
-            ax1.clear()
-            ax2.clear()
-            ax3.clear()
-            ax4.clear()
-        #robot arena
-            ax1.grid(True)
-            ax1. set_aspect('equal')
-            ax1.set_xlim([-2,2])
-            ax1.set_ylim([-2,2])
-        #landmarks
-            ax1.scatter(mark_x, mark_y, marker="*", c='b')
-        #robot angle 
-            ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04)
-        #detecting landmark
+            global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error
+            ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear()
+
+            '''calculating values'''
+            #detecting landmark
             if delta in (np.array(lndmrk_angles)-curr_theta):
                 lndmrk_id=np.argmin(abs(np.array(lndmrk_angles)-curr_theta))
                 lndmrk_neuron=int(lndmrk_angles[lndmrk_id])
                 ax1.scatter(lndmrks[lndmrk_id,0], lndmrks[lndmrk_id,1], marker="*", c='r')
                 print("landmark:" + str(lndmrk_neuron))
             else: lndmrk_neuron=None 
-        # shifting network with delta
-            net=attractorNetwork(delta,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
+            # shifting network with delta
+            net=attractorNetwork(delta+input_error,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
             curr_theta=net.theta_update(curr_theta)
             prev_weights, landmark_weights=net.update_weights(prev_weights,curr_theta)
-        #predicting theta
+            #predicting theta
             theta_pred,x,y=activity_center(prev_weights)
-        #plotting arrows of bumps
+
+            '''plotting and printing results'''
+            #plotting robot arena
+            ax1.set_title('Robot Arena')
+            ax1.grid(True)
+            ax1. set_aspect('equal')
+            ax1.set_xlim([-2,2])
+            ax1.set_ylim([-2,2])
+            ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
+            ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04) #robot angle
+
+            #plotting arrows of bumps
+            ax2.set_title('Head Direction Activity')
             ax2.set_xlim([-0.2*5,0.2*5])
             ax2.set_ylim([-0.2*5,0.2*5])
             ax2. set_aspect('equal')
             for j in range(0,N):
                 ax2.arrow(0,0,x[j]*15,y[j]*15)
-        #plotting activity for self motion 
+
+            #plotting activity for self motion 
+            ax3.set_title('Self motion activity')
             ax3.bar(neurons, prev_weights,width=0.8)
             ax3.set_ylim([-0.2,0.3])
 
-        #plotting activity for landmark 
+            #plotting activity for landmark 
             if landmark_weights is not None:
+                ax4.set_title('Landmark Activity')
                 ax4.bar(neurons, landmark_weights,width=0.8, color='green')
                 ax4.set_ylim([-0.2,0.3])
 
-        # printing parameters and plotting error 
-            print(i)
+            #plotting error and printing parameters
             print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
             prediction.append(abs((i*delta % 360) - theta_pred))
             current.append(abs((i*delta % 360) -curr_theta))
 
             line1, =ax5.plot(np.arange(len(prediction)),np.array(prediction),'b-')
             line2, =ax5.plot(np.arange(len(current)),np.array(current),'r-')
+            ax5.set_title('Error from true angle')
             ax5.legend([line1, line2], ['prediction error', 'input error'])
-
 
     '''animation for driving in a circle'''
     ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
