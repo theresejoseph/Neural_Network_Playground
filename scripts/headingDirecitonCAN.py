@@ -1,9 +1,6 @@
-from turtle import width
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from pyrsistent import inc
-from scipy import spatial
 import math 
 
 def col_round(x):
@@ -13,26 +10,28 @@ def col_round(x):
   
 ######################--VARABLES--############################
 #simulation
-sim_speed=10
+sim_speed=100
 iters=400
 prediction,current, true=[],[],[]
 
 #network
-N=40 #number of neurons
+N=60 #number of neurons
 N_inc=360/N # number of degrees per neuron
 neurons=np.arange(0,N)
 curr_theta=0
-delta=1
+iteration=1
+delta=2
 prev_weights=np.zeros(N)
 inhbit_val=0.05
-num_links=4
+num_links=3
 lndmrk_confidence=1
 input_error=0
 
 #landmarks
-inc=60 # increment angle for landmarks 
+inc=40 # increment angle for landmarks 
 ang_rate=1 #deg per iteration for the robot
 radius=1.8  #meter
+landmark_dect_toler=2
 
 '''#robot parameters
 whl_wdth=0.8 # meter
@@ -133,15 +132,15 @@ class attractorNetwork:
 
     def frac_weights(self):
         " returns weights for the exitation connections with a normal disrtibution"
-        frac=(curr_theta*(N/360))-np.floor(curr_theta*(N/360))
-        iteration=round(frac*(360/N))#*np.sign(delta)
-        resolution=(self.num_links*2+1)*(360/N)
+        if (360/N)-round(360/N) ==0:
+            resolution=(self.num_links*2+1)*(360/N)
+            iteration =curr_theta % (360/N)
 
-        x_angles=np.arange(-resolution/2,(resolution/2))
-        distr_angles=1/(np.std(x_angles) * np.sqrt(2 * np.pi)) * np.exp( - (x_angles - iteration)**2 / (2 * np.std(x_angles)**2))
-        distr_reduced=np.add.reduceat(distr_angles, np.arange(0, len(distr_angles), round(360/N)))
-
-        return distr_reduced
+            x_angles=np.arange(-resolution/2,(resolution/2))
+            distr_angles=1/(np.std(x_angles) * np.sqrt(2 * np.pi)) * np.exp( - (x_angles - iteration)**2 / (2 * np.std(x_angles)**2))
+            return np.add.reduceat(distr_angles, np.arange(0, len(distr_angles), round(360/N)))
+        else: 
+            return self.full_weights()
 
     def full_weights(self):
         x=np.arange(-self.num_links,self.num_links+1)
@@ -150,7 +149,7 @@ class attractorNetwork:
     def update_weights(self,prev_weights,theta):
         '''excites (num_links x 2)+1  neurons with distributed weights and inhibits all but current '''
         #exite and inhibit robot angle 
-        prev_weights=np.zeros(self.N)
+        #prev_weights=np.zeros(self.N)
         
         prev_weights[self.excitations(int(theta*(N/360)))]=self.frac_weights()
         prev_weights[self.inhibitions(int(theta*(N/360)))]-=self.inhibit_val
@@ -162,6 +161,13 @@ class attractorNetwork:
           
         return prev_weights/np.linalg.norm(prev_weights), landmark_weights
 
+    def update_weights_dynamics(self,prev_weights,theta):
+        prev_weights[self.excitations(int(theta*(N/360)))]+=self.full_weights()
+        prev_weights[self.inhibitions(int(theta*(N/360)))]-=self.inhibit_val
+        activity=np.zeros(N)
+        activity[self.excitations(int(theta*(N/360)))]=self.full_weights()
+        return prev_weights/np.linalg.norm(prev_weights), activity
+
 def activity_center(prev_weights):
     '''Takes the previous weights as inputs and finds the activity center with pdf as polar coordinates'''
     indexes=np.arange(0,N)
@@ -170,7 +176,7 @@ def activity_center(prev_weights):
     if non_zero_idx is not np.empty:
         non_zero_weights[non_zero_idx]=prev_weights[non_zero_idx]
         x,y=non_zero_weights*np.cos(np.deg2rad(neurons*360/N)), non_zero_weights*np.sin(np.deg2rad(neurons*360/N))
-        vect_sum=round(np.rad2deg(np.arctan2(sum(y),sum(x))))
+        vect_sum=np.round(np.rad2deg(np.arctan2(sum(y),sum(x))), 10)
         # changing range from [-179, 180] to [0,360]
         if vect_sum<0:
             shifted_vec=vect_sum+360
@@ -178,7 +184,7 @@ def activity_center(prev_weights):
             shifted_vec=vect_sum
     return shifted_vec, x, y
 
-def selfMotionLandmark_integration(radius,inc,iters):
+def selfMotion_Landmark(radius,inc,iters):
     # Landmarks position and angle -> every inc degrees with radius of 1.8m
     mark_x=[]
     mark_y=[]
@@ -202,7 +208,7 @@ def selfMotionLandmark_integration(radius,inc,iters):
         if i >= 1:
             global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error
             ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear()
-
+            ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
             '''calculating values'''
             #detecting landmark
             if delta in (np.array(lndmrk_angles)-curr_theta):
@@ -225,30 +231,30 @@ def selfMotionLandmark_integration(radius,inc,iters):
             ax1. set_aspect('equal')
             ax1.set_xlim([-2,2])
             ax1.set_ylim([-2,2])
-            ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
             ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04) #robot angle
 
             #plotting arrows of bumps
             ax2.set_title('Head Direction Activity')
-            ax2.set_xlim([-0.2*5,0.2*5])
-            ax2.set_ylim([-0.2*5,0.2*5])
+            ax2.set_xlim([-0.2*12,0.2*12])
+            ax2.set_ylim([-0.2*12,0.2*12])
             ax2. set_aspect('equal')
             for j in range(0,N):
-                ax2.arrow(0,0,x[j]*15,y[j]*15)
+                ax2.arrow(0,0,x[j]*10,y[j]*10)
 
             #plotting activity for self motion 
             ax3.set_title('Self motion activity')
             ax3.bar(neurons, prev_weights,width=0.8)
-            ax3.set_ylim([-0.2,0.3])
+            ax3.set_ylim([-0.2,0.5])
 
             #plotting activity for landmark 
             if landmark_weights is not None:
                 ax4.set_title('Landmark Activity')
                 ax4.bar(neurons, landmark_weights,width=0.8, color='green')
-                ax4.set_ylim([-0.2,0.3])
+                ax4.set_ylim([-0.2,0.5])
 
             #plotting error and printing parameters
-            print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
+            #print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
+            #print(theta_pred)
             prediction.append(abs((i*delta % 360) - theta_pred))
             current.append(abs((i*delta % 360) -curr_theta))
 
@@ -261,72 +267,116 @@ def selfMotionLandmark_integration(radius,inc,iters):
     ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
     plt.show()
 
-def plotting_CAN_dynamics(landmark):
-    fig, (ax1) = plt.subplots()
+def landmark_learning(radius,inc,iters):
+    # Landmarks position and angle -> every inc degrees with radius of 1.8m
+    mark_x=[]
+    mark_y=[]
+    lndmrk_angles=[]
+    for phi in range (0,360,inc):
+        mark_x.append(radius * math.cos(np.deg2rad(phi)) )
+        mark_y.append(radius * math.sin(np.deg2rad(phi)))
+        lndmrk_angles.append(phi)
+    lndmrks=np.stack((np.array(mark_x),np.array(mark_y)),axis=1)
+    stored_activity=np.zeros((len(lndmrks),N))
+        
+    # create the figure and axes objects
+    fig = plt.figure(figsize=(7,7.5))
+    gs = fig.add_gridspec(3,2)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
+    ax4= fig.add_subplot(gs[2, :])
+    fig.tight_layout()
     def animate(i):
-        global prev_weights, inhbit_val,lndmrk_weight , curr_theta
-        ax1.clear()
-        '''distributed weights with excitations and inhibitions'''
-        net=attractorNetwork(delta,None,N,inhbit_val,num_links,lndmrk_weight)
-        net1=attractorNetwork(delta,landmark,N,inhbit_val,num_links,lndmrk_weight)
+        global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error, landmark_dect_toler
+        ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear()
+        ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
+        if (i >= 1) and  (i <= (360/delta)):
+            '''calculating values'''
+            #detecting landmark
+            if any(i < landmark_dect_toler for i in abs(np.array(lndmrk_angles)-curr_theta)):
+                lndmrk_id=np.argmin(abs(np.array(lndmrk_angles)-curr_theta))
+                lndmrk_neuron=int(lndmrk_angles[lndmrk_id])
+                ax1.scatter(lndmrks[lndmrk_id,0], lndmrks[lndmrk_id,1], marker="*", c='r')
+                print("landmark:" + str(lndmrk_neuron))
+                stored_activity[lndmrk_id,:]=prev_weights
+            else: lndmrk_neuron=None 
 
-        stored_activity=np.zeros((40,N))
-        stored_activity[i,:]=prev_weights
-    
-        if i==0:
-            curr_theta=30
-        if i < 3:
-            curr_theta=net1.theta_update(curr_theta)
-            prev_weights= net1.update_weights(prev_weights,curr_theta)
-            plt.title("Landmark at 90, 3 iters")
-        elif (i>10)&(i<20):
-            curr_theta=net1.theta_update(curr_theta)
-            prev_weights= net1.update_weights(prev_weights,curr_theta)
-            plt.title("Landmark at 90, 10 iters")
-        else:
+            # shifting network with delta
+            net=attractorNetwork(delta+input_error,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
             curr_theta=net.theta_update(curr_theta)
-            prev_weights= net.update_weights(prev_weights,curr_theta)
-            plt.title("Shifting Forwards")
-        
-        
-        ax1.bar(neurons*(360/N), prev_weights,width=(360/N)-1)
-        ax1.set_ylim([-0.2,0.4])
+            prev_weights, landmark_weights=net.update_weights(prev_weights,curr_theta)
 
-        '''printing outputs'''
-        print(np.round(activity_center(prev_weights)*360/N))
+            #plotting activity for self motion 
+            ax3.set_title('Learning self motion at landmark')
+            ax3.bar(neurons, prev_weights,width=0.8)
+            ax3.set_ylim([-0.2,0.3])
+
+        elif (i > (360/delta)):
+            net=attractorNetwork(delta+input_error,None,N,inhbit_val,num_links,lndmrk_confidence)
+            curr_theta=net.theta_update(curr_theta)
+            if any(i < landmark_dect_toler for i in abs(np.array(lndmrk_angles)-curr_theta)):
+                lndmrk_id=np.argmin(abs(np.array(lndmrk_angles)-curr_theta))
+                lndmrk_neuron=int(lndmrk_angles[lndmrk_id])
+                ax1.scatter(lndmrks[lndmrk_id,0], lndmrks[lndmrk_id,1], marker="*", c='r')
+                print("landmark:" + str(lndmrk_neuron))
+                prev_weights=stored_activity[lndmrk_id,:]
+                #plotting selfmotion activity at landmark 
+                ax3.set_title('Replaying self motion at landmark')
+                ax3.bar(neurons, prev_weights,width=0.8, color='green')
+                ax3.set_ylim([-0.2,0.3])
+            else: 
+                lndmrk_neuron=None 
+                prev_weights, landmark_weights=net.update_weights(prev_weights,curr_theta)
+                #plotting activity for self motion 
+                ax3.set_title('Self motion at landmark')
+                ax3.bar(neurons, prev_weights,width=0.8)
+                ax3.set_ylim([-0.2,0.3])
+            
+        if (i >= 0):
+            '''plotting and printing results'''
+            #plotting robot arena
+            ax1.set_title('Robot Arena')
+            ax1.grid(True)
+            ax1. set_aspect('equal')
+            ax1.set_xlim([-2,2])
+            ax1.set_ylim([-2,2])
+            ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04) #robot angle
+
+            #plotting arrows of bumps
+            #predicting theta
+            theta_pred,x,y=activity_center(prev_weights)
+            ax2.set_title('Head Direction Activity')
+            ax2.set_xlim([-0.2*10,0.2*10])
+            ax2.set_ylim([-0.2*10,0.2*10])
+            ax2. set_aspect('equal')
+            for j in range(0,N):
+                ax2.arrow(0,0,x[j]*10,y[j]*10)
+
+            #plotting error and printing parameters
+            print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
+            prediction.append(abs((i*delta % 360) - theta_pred))
+            current.append(abs((i*delta % 360) -curr_theta))
+
+            line1, =ax4.plot(np.arange(len(prediction)),np.array(prediction),'b-')
+            line2, =ax4.plot(np.arange(len(current)),np.array(current),'r-')
+            ax4.set_title('Error from true angle')
+            ax4.legend([line1, line2], ['prediction error', 'input error'])
+        
 
     '''animation for driving in a circle'''
-    ani = FuncAnimation(fig, animate, frames=30, interval= 10, repeat=False)
-    plt.show() 
-
-def plotting_CAN_velocity():
-    fig, (ax1) = plt.subplots()
-   
-    def animate(i):
-        global prev_weights, inhbit_val,lndmrk_weight, curr_theta
-        '''distributed weights with excitations and inhibitions'''
-        net=attractorNetwork(delta,None,N,inhbit_val,num_links,lndmrk_weight)
-        curr_theta=net.theta_update(curr_theta)
-        prev_weights=net.update_weights(prev_weights,curr_theta)
-        
-        ax1.clear()
-        ax1.bar(neurons*(360/N), prev_weights,width=2)
-        ax1.set_ylim([-0.2,0.6])
-
-        '''printing outputs'''
-        center=activity_center(prev_weights)*360/N
-        print(np.round(center), curr_theta)
-
-    '''animation for driving in a circle'''
-    ani = FuncAnimation(fig, animate, frames=iters, interval= 1000, repeat=False)
-    plt.show() 
+    ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
+    plt.show()
 
 ##### TEST AREA #####  
-selfMotionLandmark_integration(radius,inc,iters)  #online learning 
 
-#plotting_CAN_dynamics(90)
+#selfMotion_Landmark(radius,inc,iters)  #online learning 
 
-#plotting_CAN_velocity()
+delta=+10
+landmark_dect_toler=5
+input_error=0.005
+landmark_learning(radius,inc,iters)
+
 
 
 # def mean(neurons, distr_reduced):
