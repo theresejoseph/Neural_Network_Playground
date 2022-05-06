@@ -150,8 +150,10 @@ class attractorNetwork:
         '''excites (num_links x 2)+1  neurons with distributed weights and inhibits all but current '''
         #exite and inhibit robot angle 
         #prev_weights=np.zeros(self.N)
-        
-        prev_weights[self.excitations(int(theta*(N/360)))]=self.frac_weights()
+        selfmotion_weights=np.zeros(self.N)
+        selfmotion_weights[self.excitations(int(theta*(N/360)))]=self.full_weights()
+
+        prev_weights[self.excitations(int(theta*(N/360)))]+=self.full_weights()
         prev_weights[self.inhibitions(int(theta*(N/360)))]-=self.inhibit_val
         
         landmark_weights=np.zeros(self.N)
@@ -159,7 +161,7 @@ class attractorNetwork:
             landmark_weights[self.excitations(int(self.landmark*(N/360)))]=self.full_weights()*self.lndmrk_confidence 
             #landmark_weights = landmark_weights/np.linalg.norm(landmark_weights)
           
-        return prev_weights/np.linalg.norm(prev_weights), landmark_weights
+        return prev_weights/np.linalg.norm(prev_weights), landmark_weights, selfmotion_weights
 
     def update_weights_dynamics(self,prev_weights,theta):
         prev_weights[self.excitations(int(theta*(N/360)))]+=self.full_weights()
@@ -207,7 +209,7 @@ def selfMotion_Landmark(radius,inc,iters):
     def animate(i):
         if i >= 1:
             global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error
-            ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear()
+            ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear()
             ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
             '''calculating values'''
             #detecting landmark
@@ -220,7 +222,7 @@ def selfMotion_Landmark(radius,inc,iters):
             # shifting network with delta
             net=attractorNetwork(delta+input_error,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
             curr_theta=net.theta_update(curr_theta)
-            prev_weights, landmark_weights=net.update_weights(prev_weights,curr_theta)
+            prev_weights, landmark_weights, selfmotion_weights=net.update_weights(prev_weights,curr_theta)
             #predicting theta
             theta_pred,x,y=activity_center(prev_weights)
 
@@ -242,26 +244,33 @@ def selfMotion_Landmark(radius,inc,iters):
                 ax2.arrow(0,0,x[j]*10,y[j]*10)
 
             #plotting activity for self motion 
-            ax3.set_title('Self motion activity')
+            ax3.set_title('Attractor Network Dynamics')
             ax3.bar(neurons, prev_weights,width=0.8)
             ax3.set_ylim([-0.2,0.5])
 
+            ax4.set_title('Selfmotion Activity')
+            ax4.bar(neurons, selfmotion_weights,width=0.8, color='purple')
+            ax4.set_ylim([-0.2,0.5])
+
             #plotting activity for landmark 
             if landmark_weights is not None:
-                ax4.set_title('Landmark Activity')
-                ax4.bar(neurons, landmark_weights,width=0.8, color='green')
-                ax4.set_ylim([-0.2,0.5])
+                ax5.set_title('Landmark Activity')
+                ax5.bar(neurons, landmark_weights,width=0.8, color='green')
+                ax5.set_ylim([-0.2,0.5])
+            
+                
+
 
             #plotting error and printing parameters
             #print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
             #print(theta_pred)
-            prediction.append(abs((i*delta % 360) - theta_pred))
-            current.append(abs((i*delta % 360) -curr_theta))
+            # prediction.append(abs((i*delta % 360) - theta_pred))
+            # current.append(abs((i*delta % 360) -curr_theta))
 
-            line1, =ax5.plot(np.arange(len(prediction)),np.array(prediction),'b-')
-            line2, =ax5.plot(np.arange(len(current)),np.array(current),'r-')
-            ax5.set_title('Error from true angle')
-            ax5.legend([line1, line2], ['prediction error', 'input error'])
+            # line1, =ax5.plot(np.arange(len(prediction)),np.array(prediction),'b-')
+            # line2, =ax5.plot(np.arange(len(current)),np.array(current),'r-')
+            # ax5.set_title('Error from true angle')
+            # ax5.legend([line1, line2], ['prediction error', 'input error'])
 
     '''animation for driving in a circle'''
     ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
@@ -370,12 +379,12 @@ def landmark_learning(radius,inc,iters):
 
 ##### TEST AREA #####  
 
-#selfMotion_Landmark(radius,inc,iters)  #online learning 
+selfMotion_Landmark(radius,inc,iters)  #online learning 
 
-delta=+10
-landmark_dect_toler=5
-input_error=0.005
-landmark_learning(radius,inc,iters)
+# delta=+10
+# landmark_dect_toler=5
+# input_error=0.005
+# landmark_learning(radius,inc,iters)
 
 
 
