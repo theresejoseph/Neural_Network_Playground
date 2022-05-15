@@ -25,7 +25,7 @@ curr_theta=0
 curr_Neuron=0
 iteration=1
 prev_weights=np.zeros(N)
-num_links=4
+num_links=2
 lndmrk_confidence=1
 input_error=0
 decodingRadius=4 #meter
@@ -78,35 +78,39 @@ class attractorNetwork:
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(N),np.zeros(N),np.zeros(N),0
 
         '''copied and shifted activity'''
-        non_zero_idx=indexes[prev_weights>0] # all non zero prev_weights
-        non_zero_weights[non_zero_idx]=prev_weights[non_zero_idx] 
-        non_zero_weights_shifted[(non_zero_idx+self.delta)%N]=prev_weights[non_zero_idx] #non zero weights shifted by delta
-       
+        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        
+        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
+        
+        non_zero_weights_shifted[(non_zero_idxs+self.delta)%N]=prev_weights[non_zero_idxs] #non zero weights shifted by delta
+        
+        intermediate_activity=non_zero_weights_shifted+non_zero_weights
+
         '''inhibition'''
         for i in range(len(non_zero_weights_shifted)):
             inhbit_val+=non_zero_weights_shifted[i]*inhibit_scale
         
         '''excitation'''
-        excitations_store=np.zeros((len(non_zero_idx),N))
+        excitations_store=np.zeros((len(non_zero_idxs),N))
         excitation_array,excite=np.zeros(N),np.zeros(N)
-        for i in range(len(non_zero_idx)):
-            excitation_array[self.excitations(non_zero_idx[i])]=self.full_weights()*prev_weights[non_zero_idx[i]]
+        for i in range(len(non_zero_idxs)):
+            excitation_array[self.excitations(non_zero_idxs[i])]=self.full_weights()*prev_weights[non_zero_idxs[i]]
             excitations_store[i,:]=excitation_array
-            excite[self.excitations(non_zero_idx[i])]+=self.full_weights()*prev_weights[non_zero_idx[i]]
- 
+            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights()*prev_weights[non_zero_idxs[i]]
+
         prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
         
-
+        # 
         # norm_prev_weights=(prev_weights - np.min(prev_weights)) / (np.max(prev_weights) - np.min(prev_weights))
-        return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, [inhbit_val]*N, excitations_store
+        return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*N, excitations_store
 
 def activity_center(prev_weights):
     '''Takes the previous weights as inputs and finds the activity center with pdf as polar coordinates'''
     indexes=np.arange(0,N)
-    non_zero_idx=indexes[prev_weights>0]
+    non_zero_idxs=indexes[prev_weights>0]
     non_zero_weights=np.zeros(N)
-    if non_zero_idx is not np.empty:
-        non_zero_weights[non_zero_idx]=prev_weights[non_zero_idx]
+    if non_zero_idxs is not np.empty:
+        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs]
         x,y=non_zero_weights*np.cos(np.deg2rad(neurons*360/N)), non_zero_weights*np.sin(np.deg2rad(neurons*360/N))
         vect_sum=np.round(np.rad2deg(np.arctan2(sum(y),sum(x))), 10)
         # changing range from [-179, 180] to [0,360]
@@ -152,13 +156,14 @@ def logLikelyhood(prev_weights, radius):
     return np.sum(ll)
 
 def plotting_CAN_dynamics(activity_mag,delta):
-    fig = plt.figure(figsize=(7,7))
-    gs = fig.add_gridspec(5,1)
+    fig = plt.figure(figsize=(8,8))
+    gs = fig.add_gridspec(6,1)
     ax1 = fig.add_subplot(gs[0, :])
     ax2 = fig.add_subplot(gs[1, :])
     ax3 = fig.add_subplot(gs[2,:])
     ax4 =  fig.add_subplot(gs[3,:])
     ax5 =  fig.add_subplot(gs[4,:])
+    ax6 =  fig.add_subplot(gs[5,:])
     fig.tight_layout()
 
     current,prediction, velocity=[],[],[]
@@ -166,32 +171,37 @@ def plotting_CAN_dynamics(activity_mag,delta):
     prev_weights[net.excitations(delta)]=net.full_weights()
     def animate(i):
         global prev_weights,lndmrk_confidence, curr_Neuron,iteration
-        ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear()
+        ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
         if i>0:
             '''distributed weights with excitations and inhibitions'''
             net=attractorNetwork(delta,None,N,num_links,lndmrk_confidence,activity_mag)
             curr_Neuron=net.neuron_update(curr_Neuron)
-            prev_weights,activity, activity_shifted,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights,curr_Neuron)
+            prev_weights,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights,curr_Neuron)
             
             ax1.set_title("Network Activity Shifting by " + str(delta) + " Neurons")
-            ax1.bar(neurons, activity,width=0.9)
+            ax1.bar(neurons, activity,width=0.9,color='green')
             # ax1.set_ylim([-0.2,0.3])
                 
-            ax2.bar(neurons, activity_shifted, width=0.9)
+            ax2.bar(neurons, activity_shifted, width=0.9,color='blue')
             # ax2.set_ylim([0,0.3])
             ax2.set_title('Shifted Copy')
 
-            ax3.bar(neurons,inhbit_val,width=0.9,color='purple')
+            # ax3.bar(neurons, activity,width=0.9,color='green')
+            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
+            ax3.bar(neurons, intermediate_activity, width=0.9)
+            # ax3.set_ylim([0,0.3])
+            ax3.set_title('Sum of Activity and Shifted Copy')
+
+            ax4.bar(neurons,inhbit_val,width=0.9,color='purple')
             # ax3.set_ylim([-0.5,0])
-            ax3.set_title('Inhibition')
+            ax4.set_title('Inhibition')
 
             for i in range(len(excitations_store)):
-                ax4.bar(np.arange(N),excitations_store[i])
-                ax4.set_title('Excitation')
+                ax5.bar(np.arange(N),excitations_store[i])
+                ax5.set_title('Excitation')
 
-            ax5.set_title("Activity with Excitation and Inhibition")
-            ax5.bar(neurons, prev_weights,width=0.9)
-            # ax5.set_ylim([-0.2,0.3])
+            ax6.set_title("Activity with Excitation and Inhibition")
+            ax6.bar(neurons, prev_weights,width=0.9,color='pink')
 
             
             # neuron_pred=activityDecoding(prev_weights,decodingRadius)
@@ -214,7 +224,6 @@ def plotting_CAN_dynamics(activity_mag,delta):
             #     print(curr_Neuron, neuron_pred, velocity[-1])
        
     '''animation for driving in a circle'''
-
     ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
     plt.show() 
 
@@ -292,14 +301,14 @@ plotting_CAN_dynamics(1,2)
 # net=attractorNetwork(None,N,inhbit_val,num_links,lndmrk_confidence,activity_mag)
 # prev_weights[net.excitations(delta)]=net.full_weights()
 
-# non_zero_idx=indexes[prev_weights>0] # all non zero prev_weights
-# non_zero_weights[(non_zero_idx+delta)%N]=prev_weights[non_zero_idx] #non zero weights shifted by delta
+# non_zero_idxs=indexes[prev_weights>0] # all non zero prev_weights
+# non_zero_weights[(non_zero_idxs+delta)%N]=prev_weights[non_zero_idxs] #non zero weights shifted by delta
       
 
-# excitations_store=np.zeros((len(non_zero_idx),N))
+# excitations_store=np.zeros((len(non_zero_idxs),N))
 # excitation_array=np.zeros(N)
-# for i in range(len(non_zero_idx)):
-#     excitation_array[net.excitations(non_zero_idx[i])]=net.full_weights()
+# for i in range(len(non_zero_idxs)):
+#     excitation_array[net.excitations(non_zero_idxs[i])]=net.full_weights()
 #     excitations_store[i,:]=excitation_array
     
 #     # excitations_store[i,curr_exite]=net.full_weights
