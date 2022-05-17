@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import math 
-import pandas as pd
-import seaborn as sns
-import plotly.express as px
-import plotly.graph_objects as go
+# import pandas as pd
+# import seaborn as sns
+# import plotly.express as px
+# import plotly.graph_objects as go
 
 def col_round(x):
   frac = x - math.floor(x)
@@ -177,8 +177,8 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
             ax0.clear(), axx.clear(), axy.clear()
             ax0.set_title("2D Activity")
             ax0.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
-            axx.bar(neurons,prev_weights_x)
-            axy.barh(neurons,prev_weights_y)
+            axx.bar(neurons,prev_weights_x,width=1)
+            axy.barh(neurons,prev_weights_y,height=1)
            
 
         
@@ -188,6 +188,6 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
     plt.show() 
 
 '''Testing''' 
-inhibit_scale=0.005
-num_links=180
-plotting_CAN_dynamics(1,20,20)
+inhibit_scale=0.01
+num_links=80
+plotting_CAN_dynamics(1,10,10)
