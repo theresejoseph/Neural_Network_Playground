@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import math 
-import pandas as pd
-import seaborn as sns
-import plotly.express as px
-import plotly.graph_objects as go
+# import pandas as pd
+# import seaborn as sns
+# import plotly.express as px
+# import plotly.graph_objects as go
 
 def col_round(x):
   frac = x - math.floor(x)
@@ -255,31 +255,31 @@ def CANdynamics(activity_mag,delta):
     # return np.mean(velocity) #[:-(steady_state_val-1)])
     # return (len(velocity)-steady_state_val)
  
-def heatmap(activity_mags,shifts,plotType):
-    dynamics=np.zeros((len(activity_mags),len(shifts)))
-    for i in range(len(activity_mags)):
-        for j in range(len(shifts)):
-            dynamics[i][j]=CANdynamics(activity_mags[i],shifts[j])
+# def heatmap(activity_mags,shifts,plotType):
+#     dynamics=np.zeros((len(activity_mags),len(shifts)))
+#     for i in range(len(activity_mags)):
+#         for j in range(len(shifts)):
+#             dynamics[i][j]=CANdynamics(activity_mags[i],shifts[j])
      
-    dynamics_df = pd.DataFrame(dynamics, 
-        index=[str(val) for val in activity_mags],
-        columns=[str(val) for val in shifts])
+#     dynamics_df = pd.DataFrame(dynamics, 
+#         index=[str(val) for val in activity_mags],
+#         columns=[str(val) for val in shifts])
 
-    if plotType==0:
-        fig, ax = plt.subplots(figsize=(7, 7))
-        sns.heatmap(dynamics_df,linewidth=0.001,cbar_kws={'label': 'Steady State Velocity'})
-        ax.set_xlabel('Shifts [Neurons]')
-        ax.set_ylabel('Activity Magnitude')
-        plt.show()
+#     if plotType==0:
+#         fig, ax = plt.subplots(figsize=(7, 7))
+#         sns.heatmap(dynamics_df,linewidth=0.001,cbar_kws={'label': 'Steady State Velocity'})
+#         ax.set_xlabel('Shifts [Neurons]')
+#         ax.set_ylabel('Activity Magnitude')
+#         plt.show()
     
-    elif plotType==1:
-        fig = go.Figure(data=[go.Surface(z=dynamics, x=shifts, y=activity_mags)])
-        fig.update_layout(title='Average Velocity of Activity', 
-        scene = dict(
-                    xaxis_title='Input Shift [Neurons]',
-                    yaxis_title='Magnitude of Activity',
-                    zaxis_title='Steady State Velocity'))
-        fig.show()
+#     elif plotType==1:
+#         fig = go.Figure(data=[go.Surface(z=dynamics, x=shifts, y=activity_mags)])
+#         fig.update_layout(title='Average Velocity of Activity', 
+#         scene = dict(
+#                     xaxis_title='Input Shift [Neurons]',
+#                     yaxis_title='Magnitude of Activity',
+#                     zaxis_title='Steady State Velocity'))
+#         fig.show()
 
 
 
