@@ -1,7 +1,8 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from matplotlib.widgets import Slider, Button
+import matplotlib.widgets as wig
+import mpl_toolkits.axes_grid1
 
 import math 
 # import pandas as pd
@@ -18,6 +19,7 @@ def col_round(x):
 #simulation
 sim_speed=10
 iters=400
+pause=False
 
 #network
 
@@ -32,13 +34,14 @@ landmark_dect_toler=2
 class attractorNetwork:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
     along with inhitory and excitatory connections to update the weights'''
-    def __init__(self, delta1, delta2,N,num_links, excite_radius, activity_mag):
+    def __init__(self, delta1, delta2,N,num_links, excite_radius, activity_mag,inhibit_scale):
         self.delta1=delta1
         self.delta2=delta2
         self.excite_radius=excite_radius
         self.N=N  
         self.num_links=num_links
         self.activity_mag=activity_mag
+        self.inhibit_scale=inhibit_scale
 
     def neuron_update(self,prev_weights_x,prev_weights_y):
         indexes=np.arange(N)
@@ -83,7 +86,7 @@ class attractorNetwork:
 
         '''inhibition'''
         for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*inhibit_scale
+            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
         
         '''excitation'''
         excitations_store=np.zeros((len(non_zero_idxs),N))
@@ -96,6 +99,7 @@ class attractorNetwork:
         prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
         # print(prev_weights)
         return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*N, excitations_store
+
 
 def activityDecoding(prev_weights,radius):
     '''Isolating activity at a radius around the peak to decode position'''
@@ -114,49 +118,44 @@ def activityDecoding(prev_weights,radius):
         shifted_vec=vect_sum
     return shifted_vec*(N/360)
 
+
 def plotting_CAN_dynamics(activity_mag,delta1,delta2):
-    # fig = plt.figure(figsize=(8,8))
-    # gs = fig.add_gridspec(6,1)
-    # ax1 = fig.add_subplot(gs[0, :])
-    # ax2 = fig.add_subplot(gs[1, :])
-    # ax3 = fig.add_subplot(gs[2,:])
-    # ax4 =  fig.add_subplot(gs[3,:])
-    # ax5 =  fig.add_subplot(gs[4,:])
-    # ax6 =  fig.add_subplot(gs[5,:])
-    # fig.tight_layout()
-
-
-    fig1 = plt.figure(figsize=(7, 7))
-    gs = fig1.add_gridspec(12,12)
-    ax0 = plt.subplot(gs[4:9, 0:6])
-    axx = plt.subplot(gs[0:3, 0:9])
-    axy = plt.subplot(gs[3:9, 6:9])
-    plt.subplots_adjust(bottom=0.35)
+    fig1 = plt.figure(figsize=(7, 6))
+   
+    gs = fig1.add_gridspec(15,12)
+    ax0 = plt.subplot(gs[4:12, 0:8])
+    axx = plt.subplot(gs[0:3, 0:8])
+    axy = plt.subplot(gs[4:12, 9:12])
+    # plt.subplots_adjust(bottom=0.3)
     fig1.tight_layout()
 
+    '''Slider for Parameters'''
+    button_ax = plt.axes([.05, .05, .05, .04]) # x, y, width, height
+    exciteax = plt.axes([0.25, 0.15, 0.65, 0.03])
+    delta1ax = plt.axes([0.25, 0.1, 0.65, 0.03])
+    delta2ax = plt.axes([0.25, 0.05, 0.65, 0.03])
+    inhax = plt.axes([0.25, 0.0, 0.65, 0.03])
+    # Create a slider from 0.0 to 20.0 in axes axfreq with 3 as initial value
+    start_stop=wig.Button(button_ax,label='$\u25B6$')
+    inhibit_scale=wig.Slider(inhax, 'Scale of Inhibition', 0, 0.05, 0.01)
+    excite = wig.Slider(exciteax, 'Excitation Radius', 1, 40, 5, valstep=1)
+    delta1 = wig.Slider(delta1ax, 'Delta 1', 1, N, 1, valstep=1)
+    delta2 = wig.Slider(delta2ax, 'Delta 2', 1, N, 1, valstep=1)
 
+    '''Initalise network'''                
     current,prediction, velocity=[],[],[]
-    net=attractorNetwork(delta1,delta2,N,num_links,excite_radius, activity_mag)
-    prev_weights_x[net.activation(delta1)]=net.full_weights(num_links)
-    prev_weights_y[net.activation(delta2)]=net.full_weights(num_links)
+    net=attractorNetwork(int(delta1.val),int(delta2.val),N,num_links,int(excite.val), activity_mag,inhibit_scale.val)
+    prev_weights_x[net.activation(int(delta1.val))]=net.full_weights(num_links)
+    prev_weights_y[net.activation(int(delta2.val))]=net.full_weights(num_links)
+
     def animate(i):
-        global prev_weights_x,prev_weights_y
+        global prev_weights_x,prev_weights_y, num_links
         # ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
-        ax0.clear(), axx.clear(), axy.clear()
-        if i>0:
-            '''Slider for Parameters'''
-            axfreq = plt.axes([0.25, 0.15, 0.65, 0.03])
-            axamplitude = plt.axes([0.25, 0.1, 0.65, 0.03])
-            # Create a slider from 0.0 to 20.0 in axes axfreq
-            # with 3 as initial value
-            excite = Slider(axfreq, 'Excitation Radius', 0, 20, 3)
-            # Create a slider from 0.0 to 10.0 in axes axfreq
-            # with 5 as initial value and valsteps of 1.0
-            links = Slider(axamplitude, 'Activity Radius', 0,
-                            50, 10, valstep=5.0)
-            
+       
+        if not pause:
+            ax0.clear(), axx.clear(), axy.clear()
             '''distributed weights with excitations and inhibitions'''
-            net=attractorNetwork(delta1,delta2,N,num_links,excite_radius,activity_mag)
+            net=attractorNetwork(int(delta1.val),int(delta2.val),N,num_links,int(excite.val),activity_mag,inhibit_scale.val)
             Neurons1,Neurons2=net.neuron_update(prev_weights_x,prev_weights_y)
             prev_weights_x,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_x,Neurons1)
             prev_weights_y,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_y,Neurons2)
@@ -166,69 +165,45 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
             
             ax0.set_title("2D Activity")
             axy.invert_yaxis()
-            a=ax0.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
-            b= axx.bar(neurons,prev_weights_y,width=1)
-            c=axy.barh(neurons,prev_weights_x,height=1)
+            ax0.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
+            axx.bar(neurons,prev_weights_y,width=1)
+            axy.barh(neurons,prev_weights_x,height=1)
+   
 
-            
-            '''Slider Update'''
-            def update(val):
-                global prev_weights_x,prev_weights_y
-                net=attractorNetwork(delta1,delta2,N,int(links.val),int(excite.val),activity_mag)
-                Neurons1,Neurons2=net.neuron_update(prev_weights_x,prev_weights_y)
-                prev_weights_x,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_x,Neurons1)
-                prev_weights_y,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_y,Neurons2)
-                prev_weights_x[prev_weights_x<0]=0
-                prev_weights_y[prev_weights_y<0]=0     
+    def update(val):
+        global prev_weights_x,prev_weights_y, num_links
+        net=attractorNetwork(int(delta1.val),int(delta2.val),N,num_links,int(excite.val),activity_mag,inhibit_scale.val)
+        Neurons1,Neurons2=net.neuron_update(prev_weights_x,prev_weights_y)
+        prev_weights_x,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_x,Neurons1)
+        prev_weights_y,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_y,Neurons2)
+        prev_weights_x[prev_weights_x<0]=0
+        prev_weights_y[prev_weights_y<0]=0   
 
-                a.set_data(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
-                for rect, h in zip(b, prev_weights_y):
-                    rect.set_height(h)
-                # c.set_height(prev_weights_x)
+    def onClick(event):
+        global pause
+        (xm,ym),(xM,yM) = start_stop.label.clipbox.get_points()
+        if xm < event.x < xM and ym < event.y < yM:
+            pause ^= True
+  
 
-            # Call update function when slider value is changed
-            excite.on_changed(update)
-            links.on_changed(update)
-
-            
-            '''ax1.set_title("Network Activity Shifting by " + str(delta) + " Neurons")
-            # ax1.bar(neurons, activity,width=0.9,color='green')
-            # ax1.set_ylim([-0.2,0.3])
-                
-            # ax2.bar(neurons, activity_shifted, width=0.9,color='blue')
-            # ax2.set_ylim([0,0.3])
-            ax2.set_title('Shifted Copy')
-
-            # ax3.bar(neurons, activity,width=0.9,color='green')
-            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
-            # ax3.bar(neurons, intermediate_activity, width=0.9)
-            # ax3.set_ylim([0,0.3])
-            ax3.set_title('Sum of Activity and Shifted Copy')
-
-            # ax4.bar(neurons,inhbit_val,width=0.9,color='purple')
-            # ax3.set_ylim([-0.5,0])
-            ax4.set_title('Inhibition')
-
-            for i in range(len(excitations_store)):
-                # ax5.bar(np.arange(N),excitations_store[i])
-                ax5.set_title('Excitation')'''
-            
-
-        
-       
-    '''animation for driving in a circle'''
-    ani = FuncAnimation(fig1, animate, frames=iters, interval= sim_speed, repeat=False)
+    '''animation for Place Cells'''
+    excite.on_changed(update)
+    delta1.on_changed(update)
+    delta2.on_changed(update)
+    inhibit_scale.on_changed(update)
+    fig1.canvas.mpl_connect('button_press_event', onClick)
+    ani = FuncAnimation(fig1, animate, frames=iters)
     plt.show() 
 
 '''Testing''' 
-N=90 #number of neurons
+N=60 #number of neurons
 neurons=np.arange(0,N)
 curr_Neuron=0
 prev_weights_x=np.zeros(N)
 prev_weights_y=np.zeros(N)
 
-inhibit_scale=0.01
-excite_radius=9
-num_links=9
+# inhibit_scale=0.05
+excite_radius=4
+num_links=10
 
-plotting_CAN_dynamics(1,40,40)
+plotting_CAN_dynamics(1,2,4)
