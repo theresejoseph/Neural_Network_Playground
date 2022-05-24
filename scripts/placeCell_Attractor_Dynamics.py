@@ -120,12 +120,12 @@ def activityDecoding(prev_weights,radius):
 
 
 def plotting_CAN_dynamics(activity_mag,delta1,delta2):
-    fig1 = plt.figure(figsize=(7, 6))
+    fig1 = plt.figure(figsize=(7, 8))
    
-    gs = fig1.add_gridspec(15,12)
+    gs = fig1.add_gridspec(16,12)
     ax0 = plt.subplot(gs[4:12, 0:8])
     axx = plt.subplot(gs[0:3, 0:8])
-    axy = plt.subplot(gs[4:12, 9:12])
+    axy = plt.subplot(gs[4:12, 8:11])
     # plt.subplots_adjust(bottom=0.3)
     fig1.tight_layout()
 
@@ -163,7 +163,7 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
             prev_weights_y[prev_weights_y<0]=0
 
             
-            ax0.set_title("2D Activity")
+            ax0.set_title("2D Attractor Network")
             axy.invert_yaxis()
             ax0.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
             axx.bar(neurons,prev_weights_y,width=1)
