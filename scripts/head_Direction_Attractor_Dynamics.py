@@ -290,7 +290,7 @@ plot_Type=1
 # heatmap(activity_mags,shifts,plot_Type)
 
 
-plotting_CAN_dynamics(1,2)
+plotting_CAN_dynamics(1,1)
 
 # print(CANdynamics(1,2.5))
 

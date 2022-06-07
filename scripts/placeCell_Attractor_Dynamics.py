@@ -21,9 +21,6 @@ sim_speed=10
 iters=400
 pause=False
 
-#network
-
-
 #landmarks
 inc=40 # increment angle for landmarks 
 ang_rate=1 #deg per iteration for the robot
@@ -48,7 +45,6 @@ class attractorNetwork:
         non_zero_idxs_x=indexes[prev_weights_x>0]
         non_zero_idxs_y=indexes[prev_weights_y>0]
         return (non_zero_idxs_x+self.delta1) % N, (non_zero_idxs_y+self.delta2) % N
-
         
     def inhibitions(self,id):
         ''' each nueuron inhibits all other nueurons but itself'''
@@ -120,12 +116,25 @@ def activityDecoding(prev_weights,radius):
 
 
 def plotting_CAN_dynamics(activity_mag,delta1,delta2):
-    fig1 = plt.figure(figsize=(7, 8))
+    fig1 = plt.figure(figsize=(18, 7))
    
-    gs = fig1.add_gridspec(16,12)
-    ax0 = plt.subplot(gs[4:12, 0:8])
-    axx = plt.subplot(gs[0:3, 0:8])
-    axy = plt.subplot(gs[4:12, 8:11])
+    gs = fig1.add_gridspec(32,36)
+    ax0 = plt.subplot(gs[8:24, 12:20])
+    axx = plt.subplot(gs[0:5, 12:20])
+    axy = plt.subplot(gs[9:23, 21:24])
+
+    axy1 = plt.subplot(gs[0:3, 0:10])
+    axy2 = plt.subplot(gs[6:9, 0:10])
+    axy3 = plt.subplot(gs[12:15, 0:10])
+    axy4 = plt.subplot(gs[18:21, 0:10])
+    axy5 = plt.subplot(gs[24:27, 0:10])
+
+    axx1 = plt.subplot(gs[0:3, 26:36])
+    axx2 = plt.subplot(gs[6:9, 26:36])
+    axx3 = plt.subplot(gs[12:15, 26:36])
+    axx4 = plt.subplot(gs[18:21, 26:36])
+    axx5 = plt.subplot(gs[24:27, 26:36])
+
     # plt.subplots_adjust(bottom=0.3)
     fig1.tight_layout()
 
@@ -153,12 +162,13 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
         # ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
        
         if not pause:
-            ax0.clear(), axx.clear(), axy.clear()
+            ax0.clear(), axx.clear(), axy.clear(), axx1.clear(), axx2.clear(), axx3.clear(), axx4.clear(), axx5.clear()
+            axy1.clear(), axy2.clear(), axy3.clear(), axy4.clear(), axy5.clear(), 
             '''distributed weights with excitations and inhibitions'''
             net=attractorNetwork(int(delta1.val),int(delta2.val),N,num_links,int(excite.val),activity_mag,inhibit_scale.val)
             Neurons1,Neurons2=net.neuron_update(prev_weights_x,prev_weights_y)
-            prev_weights_x,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_x,Neurons1)
-            prev_weights_y,activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights_y,Neurons2)
+            prev_weights_x,activity_x, activity_shifted_x,intermediate_activity_x,inhbit_val_x, excitations_store_x= net.update_weights_dynamics(prev_weights_x,Neurons1)
+            prev_weights_y,activity_y, activity_shifted_y,intermediate_activity_y,inhbit_val_y, excitations_store_y= net.update_weights_dynamics(prev_weights_y,Neurons2)
             prev_weights_x[prev_weights_x<0]=0
             prev_weights_y[prev_weights_y<0]=0
 
@@ -168,6 +178,53 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
             ax0.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
             axx.bar(neurons,prev_weights_y,width=1)
             axy.barh(neurons,prev_weights_x,height=1)
+
+
+            axx1.set_title("Network Activity Shifting by " + str(delta1.val) + " Neurons")
+            axx1.bar(neurons, activity_x,width=0.9,color='green')
+            # ax1.set_ylim([-0.2,0.3])
+                
+            axx2.bar(neurons, activity_shifted_x, width=0.9,color='blue')
+            # ax2.set_ylim([0,0.3])
+            axx2.set_title('Shifted Copy')
+
+            # ax3.bar(neurons, activity,width=0.9,color='green')
+            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
+            axx3.bar(neurons, intermediate_activity_x, width=0.9, color='red')
+            # ax3.set_ylim([0,0.3])
+            axx3.set_title('Sum of Activity and Shifted Copy')
+
+            axx4.bar(neurons,inhbit_val_x,width=0.9,color='purple')
+            # ax3.set_ylim([-0.5,0])
+            axx4.set_title('Inhibition')
+
+            for i in range(len(excitations_store_x)):
+                axx5.bar(np.arange(N),excitations_store_x[i])
+                axx5.set_title('Excitation')
+
+
+
+            axy1.set_title("Network Activity Shifting by " + str(delta2.val) + " Neurons")
+            axy1.bar(neurons, activity_y,width=0.9,color='green')
+            # ax1.set_ylim([-0.2,0.3])
+                
+            axy2.bar(neurons, activity_shifted_y, width=0.9,color='blue')
+            # ax2.set_ylim([0,0.3])
+            axy2.set_title('Shifted Copy')
+
+            # ax3.bar(neurons, activity,width=0.9,color='green')
+            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
+            axy3.bar(neurons, intermediate_activity_y, width=0.9, color='red')
+            # ax3.set_ylim([0,0.3])
+            axy3.set_title('Sum of Activity and Shifted Copy')
+
+            axy4.bar(neurons,inhbit_val_y,width=0.9,color='purple')
+            # ax3.set_ylim([-0.5,0])
+            axy4.set_title('Inhibition')
+
+            for i in range(len(excitations_store_y)):
+                axy5.bar(np.arange(N),excitations_store_y[i])
+                axy5.set_title('Excitation')
    
 
     def update(val):
@@ -196,7 +253,7 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
     plt.show() 
 
 '''Testing''' 
-N=60 #number of neurons
+N=30 #number of neurons
 neurons=np.arange(0,N)
 curr_Neuron=0
 prev_weights_x=np.zeros(N)
