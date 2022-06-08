@@ -114,11 +114,34 @@ def activityDecoding(prev_weights,radius):
         shifted_vec=vect_sum
     return shifted_vec*(N/360)
 
+def plotting_decomposed_CAN(ax1,ax2,ax3,ax4,ax5,delta, activity, activity_shifted, intermediate_activity, inhbit_val, excitations_store):
+    ax1.set_title("Network Activity Shifting by " + str(delta) + " Neurons")
+    ax1.bar(neurons, activity,width=0.9,color='green')
+    # ax1.set_ylim([-0.2,0.3])
+        
+    ax2.bar(neurons, activity_shifted, width=0.9,color='blue')
+    # ax2.set_ylim([0,0.3])
+    ax2.set_title('Shifted Copy')
+
+    # ax3.bar(neurons, activity,width=0.9,color='green')
+    # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
+    ax3.bar(neurons, intermediate_activity, width=0.9, color='red')
+    # ax3.set_ylim([0,0.3])
+    ax3.set_title('Sum of Activity and Shifted Copy')
+
+    ax4.bar(neurons,inhbit_val,width=0.9,color='purple')
+    # ax3.set_ylim([-0.5,0])
+    ax4.set_title('Inhibition')
+
+    for i in range(len(excitations_store)):
+        ax5.bar(np.arange(N),excitations_store[i])
+        ax5.set_title('Excitation')
+
 
 def plotting_CAN_dynamics(activity_mag,delta1,delta2):
-    fig1 = plt.figure(figsize=(18, 7))
+    fig1 = plt.figure(figsize=(10, 7))
    
-    gs = fig1.add_gridspec(32,36)
+    gs = fig1.add_gridspec(32,24)
     ax0 = plt.subplot(gs[8:24, 12:20])
     axx = plt.subplot(gs[0:5, 12:20])
     axy = plt.subplot(gs[9:23, 21:24])
@@ -129,11 +152,11 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
     axy4 = plt.subplot(gs[18:21, 0:10])
     axy5 = plt.subplot(gs[24:27, 0:10])
 
-    axx1 = plt.subplot(gs[0:3, 26:36])
-    axx2 = plt.subplot(gs[6:9, 26:36])
-    axx3 = plt.subplot(gs[12:15, 26:36])
-    axx4 = plt.subplot(gs[18:21, 26:36])
-    axx5 = plt.subplot(gs[24:27, 26:36])
+    # axx1 = plt.subplot(gs[0:3, 26:36])
+    # axx2 = plt.subplot(gs[6:9, 26:36])
+    # axx3 = plt.subplot(gs[12:15, 26:36])
+    # axx4 = plt.subplot(gs[18:21, 26:36])
+    # axx5 = plt.subplot(gs[24:27, 26:36])
 
     # plt.subplots_adjust(bottom=0.3)
     fig1.tight_layout()
@@ -162,8 +185,9 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
         # ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
        
         if not pause:
-            ax0.clear(), axx.clear(), axy.clear(), axx1.clear(), axx2.clear(), axx3.clear(), axx4.clear(), axx5.clear()
-            axy1.clear(), axy2.clear(), axy3.clear(), axy4.clear(), axy5.clear(), 
+            ax0.clear(), axx.clear(), axy.clear(),
+            axy1.clear(), axy2.clear(), axy3.clear(), axy4.clear(), axy5.clear(),
+            #  axx1.clear(), axx2.clear(), axx3.clear(), axx4.clear(), axx5.clear()
             '''distributed weights with excitations and inhibitions'''
             net=attractorNetwork(int(delta1.val),int(delta2.val),N,num_links,int(excite.val),activity_mag,inhibit_scale.val)
             Neurons1,Neurons2=net.neuron_update(prev_weights_x,prev_weights_y)
@@ -179,52 +203,9 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
             axx.bar(neurons,prev_weights_y,width=1)
             axy.barh(neurons,prev_weights_x,height=1)
 
+            # plotting_decomposed_CAN(axx1,axx2,axx3,axx4,axx5,delta1.val, activity_x, activity_shifted_x, intermediate_activity_x, inhbit_val_x, excitations_store_x)
 
-            axx1.set_title("Network Activity Shifting by " + str(delta1.val) + " Neurons")
-            axx1.bar(neurons, activity_x,width=0.9,color='green')
-            # ax1.set_ylim([-0.2,0.3])
-                
-            axx2.bar(neurons, activity_shifted_x, width=0.9,color='blue')
-            # ax2.set_ylim([0,0.3])
-            axx2.set_title('Shifted Copy')
-
-            # ax3.bar(neurons, activity,width=0.9,color='green')
-            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
-            axx3.bar(neurons, intermediate_activity_x, width=0.9, color='red')
-            # ax3.set_ylim([0,0.3])
-            axx3.set_title('Sum of Activity and Shifted Copy')
-
-            axx4.bar(neurons,inhbit_val_x,width=0.9,color='purple')
-            # ax3.set_ylim([-0.5,0])
-            axx4.set_title('Inhibition')
-
-            for i in range(len(excitations_store_x)):
-                axx5.bar(np.arange(N),excitations_store_x[i])
-                axx5.set_title('Excitation')
-
-
-
-            axy1.set_title("Network Activity Shifting by " + str(delta2.val) + " Neurons")
-            axy1.bar(neurons, activity_y,width=0.9,color='green')
-            # ax1.set_ylim([-0.2,0.3])
-                
-            axy2.bar(neurons, activity_shifted_y, width=0.9,color='blue')
-            # ax2.set_ylim([0,0.3])
-            axy2.set_title('Shifted Copy')
-
-            # ax3.bar(neurons, activity,width=0.9,color='green')
-            # ax3.bar(neurons, activity_shifted, width=0.9,color='blue')
-            axy3.bar(neurons, intermediate_activity_y, width=0.9, color='red')
-            # ax3.set_ylim([0,0.3])
-            axy3.set_title('Sum of Activity and Shifted Copy')
-
-            axy4.bar(neurons,inhbit_val_y,width=0.9,color='purple')
-            # ax3.set_ylim([-0.5,0])
-            axy4.set_title('Inhibition')
-
-            for i in range(len(excitations_store_y)):
-                axy5.bar(np.arange(N),excitations_store_y[i])
-                axy5.set_title('Excitation')
+            plotting_decomposed_CAN(axy1,axy2,axy3,axy4,axy5,delta2.val, activity_y, activity_shifted_y, intermediate_activity_y, inhbit_val_y, excitations_store_y)
    
 
     def update(val):
@@ -253,7 +234,7 @@ def plotting_CAN_dynamics(activity_mag,delta1,delta2):
     plt.show() 
 
 '''Testing''' 
-N=30 #number of neurons
+N=50 #number of neurons
 neurons=np.arange(0,N)
 curr_Neuron=0
 prev_weights_x=np.zeros(N)

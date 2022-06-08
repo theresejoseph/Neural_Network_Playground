@@ -4,17 +4,17 @@ import os
 import pandas as pd
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D 
-from mayavi import mlab
+# from mayavi import mlab
 
 '''Parameters'''
-N=5 #number of neurons
+N=200 #number of neurons
 neurons=np.arange(0,N)
 curr_Neuron=0
 prev_weights_x=np.zeros(N)
 prev_weights_y=np.zeros(N)
 prev_weights_z=np.zeros(N)
-num_links=1
-excite=1
+num_links=40
+excite=20
 activity_mag=1
 inhibit_scale=0.005
 curr_x,curr_y,curr_z=0,0,0 
@@ -91,7 +91,7 @@ class attractorNetwork:
         return prev_weights/np.linalg.norm(prev_weights)
 
 def data_processing():
-    poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
+    poses = pd.read_csv('./data/dataset/poses/08.txt', delimiter=' ', header=None)
     gt = np.zeros((len(poses), 3, 4))
     for i in range(len(poses)):
         gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
@@ -100,7 +100,7 @@ def data_processing():
 def visualise(sparse_gt):
     fig = plt.figure(figsize=(13, 4))
     ax0 = fig.add_subplot(1, 3, 1,projection='3d')
-    ax1 = fig.add_subplot(1, 3, 2, projection='3d')
+    ax1 = fig.add_subplot(1, 3, 2)
     ax2 = fig.add_subplot(1, 3, 3,projection='3d')
 
     '''Initalise network'''            
@@ -119,12 +119,11 @@ def visualise(sparse_gt):
         ax0.scatter(sparse_gt[:, :, 3][i, 0],sparse_gt[:, :, 3][i, 2], sparse_gt[:, :, 3][i, 1],s=15)
         ax0.set_xlim([-300,300])
         ax0.set_ylim([-100,500])
-        ax0.set_zlim([0,100])
+        ax0.set_zlim([-50,50])
         ax0.invert_yaxis()
         ax0.view_init(elev=39, azim=140)
 
         global prev_weights_x,prev_weights_y, prev_weights_z, num_links, excite, activity_mag,inhibit_scale, curr_x, curr_y, curr_z
-        # ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
         ax1.clear()
         if i>=1:
             '''distributed weights with excitations and inhibitions'''
@@ -146,10 +145,7 @@ def visualise(sparse_gt):
             prev_weights_z[prev_weights_z<0]=0
 
             ax1.set_title("2D Attractor Network")
-            data=(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))*np.tile(prev_weights_z,(N,1,1))
-            print(data)
-            
-            ax1.scatter(data)
+            ax1.imshow(np.tile(prev_weights_x,(N,1)).T*np.tile(prev_weights_y,(N,1)))
             # ax1.pts = mlab.points3d(prev_weights_x, prev_weights_y, prev_weights_z, scale_mode='none', scale_factor=0.07)
             # ax1.scatter(prev_weights_x, prev_weights_y, prev_weights_z)
 
@@ -161,13 +157,13 @@ def visualise(sparse_gt):
             curr_y=curr_y+del_y
             curr_z=curr_z+del_z
 
-            # print(delta2, delta1, np.argmax(prev_weights_y), prev_y)
+            print(delta1, delta2, del_y,del_x)
             ax2.set_title("Decoded Pose")
             
             ax2.scatter(curr_x, curr_y,curr_z,c='b',s=15)
-            ax2.set_xlim([0,200])
-            ax2.set_ylim([0,200])
-            ax2.set_zlim([0,200])
+            ax2.set_xlim([0,N])
+            ax2.set_ylim([0,N])
+            ax2.set_zlim([0,N])
             ax2.invert_yaxis()
             ax2.view_init(elev=39, azim=140)
             
