@@ -15,7 +15,7 @@ curr_Neuron=0
 prev_weights_trans=np.zeros(N)
 prev_weights_angle=np.zeros(N)
 # prev_weights_z=np.zeros(N)
-num_links=40
+num_links=50
 excite=20
 activity_mag=1
 inhibit_scale=0.005
@@ -93,7 +93,48 @@ def data_processing():
         gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
     return gt
 
-def visualise(sparse_gt):
+def testing_Conversion(sparse_gt):
+    fig = plt.figure(figsize=(13, 4))
+    ax0 = fig.add_subplot(1, 2, 1)
+    ax1 = fig.add_subplot(1, 2, 2)
+    def animate(i):
+        global curr_x, curr_y, x, y
+        if i>0:
+            x1=sparse_gt[:,:,3][i-1,0]
+            y1=sparse_gt[:,:,3][i-1,2]
+
+            x2=sparse_gt[:,:,3][i,0]
+            y2=sparse_gt[:,:,3][i,2]
+
+            delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+            if (x2-x1)==0:
+                assert False 
+                # delta2=np.pi/2
+            else:
+                delta2=(np.arctan2(y2-y1,x2-x1)) #angle
+
+            curr_x=curr_x + (delta1*np.cos(delta2))
+            curr_y=curr_y + (delta1*np.sin(delta2))
+
+            x=x+(x2-x1)
+            y=y+(y2-y1)
+
+            print(delta1, delta2)
+
+            ax1.set_title('Converted')
+            ax1.scatter(curr_x, curr_y,c='b',s=15)
+            ax1.set_xlim([-300,300])
+            ax1.set_ylim([-100,500])
+
+            ax0.set_title('Original')
+            ax0.scatter(x, y,c='b',s=15)
+            ax0.set_xlim([-300,300])
+            ax0.set_ylim([-100,500])
+
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=False)
+    plt.show()
+
+def visualise(data_x,data_y):
     fig = plt.figure(figsize=(13, 4))
     ax0 = fig.add_subplot(1, 3, 1)
     ax1 = fig.add_subplot(1, 3, 2)
@@ -101,8 +142,9 @@ def visualise(sparse_gt):
 
     '''Initalise network'''            
     current,prediction, velocity=[],[],[]
-    delta1=sparse_gt[:, :, 3][0,2] #y_axis
-    delta2=sparse_gt[:, :, 3][0,0] #x_axis
+    delta1=0 #y_axis
+    delta2=0 #x_axis
+    print(delta1,delta2)
     # delta3=sparse_gt[:, :, 3][0,1] #x_axis
     net=attractorNetwork(int(delta1),int(delta2),N,num_links,int(excite), activity_mag,inhibit_scale)
     prev_weights_trans[net.activation(int(delta1))]=net.full_weights(num_links)
@@ -112,24 +154,28 @@ def visualise(sparse_gt):
     
     def animate(i):
         ax0.set_title("Ground Truth Pose")
-        ax0.scatter(sparse_gt[:, :, 3][i, 0],sparse_gt[:, :, 3][i, 2],s=15)
-        ax0.set_xlim([-300,300])
-        ax0.set_ylim([-100,500])
+        ax0.scatter(data_x[i],data_y[i],s=15)
+        # ax0.set_xlim([-300,300])
+        # ax0.set_ylim([-100,500])
         # ax0.set_zlim([-50,50])
-        ax0.invert_yaxis()
+        # ax0.invert_yaxis()
         # ax0.view_init(elev=39, azim=140)
 
         global prev_weights_trans,prev_weights_angle, num_links, excite, activity_mag,inhibit_scale, curr_x, curr_y, curr_z
         ax1.clear()
         if i>=1:
             '''distributed weights with excitations and inhibitions'''
-            x1=sparse_gt[:, :, 3][i-1,0]
-            x2=sparse_gt[:, :, 3][i,1]
-            y1=sparse_gt[:, :, 3][i-1,2]
-            y2=sparse_gt[:, :, 3][i,2]
+            x1=data_x[i-1]
+            x2=data_x[i]
+            y1=data_y[i-1]
+            y2=data_y[i]
             
-            delta1=np.sqrt(((x2-x1)**2)+((y2-y2)**2)) #translation
-            delta2=np.rad2deg(np.arctan2(y2-y1,x2-x1)) #angle
+            delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+            if (x2-x1)==0:
+                # assert False 
+                delta2=np.pi/2
+            else:
+                delta2=np.rad2deg(np.arctan2(y2-y1,x2-x1)) #angle
             # delta3=sparse_gt[:, :, 3][i,1]-sparse_gt[:, :, 3][i-1,1] #z_axis
             prev_angle=np.argmax(prev_weights_angle)
             prev_trans=np.argmax(prev_weights_trans)
@@ -156,7 +202,7 @@ def visualise(sparse_gt):
             trans=np.argmax(prev_weights_trans)
             angle=np.deg2rad(np.argmax(prev_weights_angle))
             curr_x=curr_x + (trans*np.cos(angle))
-            curr_y=curr_y+(trans*np.sin(angle))
+            curr_y=curr_y+( trans*np.sin(angle))
             # curr_z=curr_z+del_z
 
             # print(delta1, delta2, del_y,del_x)
@@ -168,53 +214,25 @@ def visualise(sparse_gt):
             # ax2.invert_yaxis()
             # ax2.view_init(elev=39, azim=140)
 
-            print(str(delta1 )+"--"+str( delta2)+ "------"+str(trans )+"--"+str( np.rad2deg(angle)))
-            # print(x2-x1, y2-y1)
+            # print(str(delta1 )+"--"+str( delta2)+ "------"+str(trans )+"--"+str( np.rad2deg(angle)))
+            print(x2-x1, y2-y1)
             # print(len(signal.find_peaks(prev_weights_trans)[0]),len(signal.find_peaks(prev_weights_angle)[0]) )
             
 
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=False)
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
 
 '''Test Area'''
-sparse_gt=data_processing()[0::10]
-# visualise(sparse_gt)
+sparse_gt=data_processing()#[0::2]
+data_x=sparse_gt[:, :, 3][:,0]
+data_y=sparse_gt[:, :, 3][:,2]
+
+data_x=np.arange(100)*-1
+data_y=np.zeros((100))
+
+visualise(data_x,data_y)
+# print(data_y[2])
 
 
-def testing_Conversion(sparse_gt):
-    fig = plt.figure(figsize=(13, 4))
-    ax0 = fig.add_subplot(1, 2, 1)
-    ax1 = fig.add_subplot(1, 2, 2)
-    def animate(i):
-        global curr_x, curr_y, x, y
-        x1=sparse_gt[:,:,3][i,0]
-        y1=sparse_gt[:,:,3][i,2]
-
-        x2=sparse_gt[:,:,3][i+1,0]
-        y2=sparse_gt[:,:,3][i+1,2]
-
-        delta1=np.sqrt(((x2-x1)**2)+((y2-y2)**2)) #translation
-        delta2=(np.arctan2(y2-y1,x2-x1)) #angle
-
-        curr_x=curr_x + (delta1*np.cos(delta2))
-        curr_y=curr_y+(delta1*np.sin(delta2))
-
-        x=x+(x2-x1)
-        y=y+(y2-y1)
-
-        ax1.set_title('Converted')
-        ax1.scatter(curr_x, curr_y,c='b',s=15)
-        ax1.set_xlim([-300,300])
-        ax1.set_ylim([-100,500])
-
-        ax0.set_title('Original')
-        ax0.scatter(x, y,c='b',s=15)
-        ax0.set_xlim([-300,300])
-        ax0.set_ylim([-100,500])
-
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=False)
-    plt.show()
-
-
-testing_Conversion(sparse_gt)
+# testing_Conversion(sparse_gt)
