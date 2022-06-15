@@ -9,15 +9,15 @@ from scipy import signal
 # from mayavi import mlab
 
 '''Parameters'''
-N=[200,360] #number of neurons
+N=[200,200] #number of neurons
 neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
 # prev_weights_z=np.zeros(N)
-num_links=[10,36]
-excite=[5,24]
+num_links=[10,10]
+excite=[5,5]
 activity_mag=[1,1]
-inhibit_scale=[0.01,0.005]
+inhibit_scale=[0.01,0.01]
 curr_parameter=[0,0]
 
 # print(prev_weights[0][:])
@@ -102,15 +102,31 @@ def activityDecoding(prev_weights,radius,N,neurons):
     for i in range(-radius,radius+1):
         local_activity_idx.append((peak + i) % N)
     local_activity[local_activity_idx]=prev_weights[local_activity_idx]
+
+    weighted_sum=0
+    for i in range(len(local_activity_idx)):
+        weighted_sum+=local_activity_idx[i]*prev_weights[local_activity_idx[i]]
+    return weighted_sum
+
+def activityDecodingAngle(prev_weights,radius,N,neurons):
+    '''Isolating activity at a radius around the peak to decode position'''
+    peak=np.argmax(prev_weights) 
+    local_activity=np.zeros(N)
+    local_activity_idx=[]
+    for i in range(-radius,radius+1):
+        local_activity_idx.append((peak + i) % N)
+    local_activity[local_activity_idx]=prev_weights[local_activity_idx]
+
     x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
     vect_sum=np.rad2deg(np.arctan2(sum(y),sum(x)))
     # changing range from [-179, 180] to [0,360]
-    if vect_sum<0:
-        shifted_vec=vect_sum+360
-    else:
-        shifted_vec=vect_sum
-    return shifted_vec*(N/360)
-    # return vect_sum
+    # if vect_sum<0:
+    #     shifted_vec=vect_sum+360
+    # else:
+    #     shifted_vec=vect_sum
+    # return shifted_vec*(N/360)
+    return vect_sum
+
 
 def data_processing():
     poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
@@ -171,6 +187,7 @@ def visualise(data_x,data_y):
     for i in range(len(delta)):
         net=attractorNetwork(delta[i],N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
         prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
+        prev_weights[i][prev_weights[i][:]<0]=0
 
     
     def animate(i):
@@ -192,19 +209,18 @@ def visualise(data_x,data_y):
             y2=data_y[i]
             
             delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-            delta[1]=np.rad2deg(np.arctan2(y2-y1,x2-x1)) #angle
+            delta[1]=np.arctan2(y2-y1,x2-x1)#angle
             
             '''updating network'''
             prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
                 # prev_trans=np.argmax(prev_weights[0][:])
             prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
-            num=3
-            for n in range(num):
-
+            
                 
-                for j in range(len(delta)):
-                    net=attractorNetwork(delta[j],N[j],num_links[j],excite[j], activity_mag[j],inhibit_scale[j])
-                    prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
+            for j in range(len(delta)):
+                net=attractorNetwork(delta[j],N[j],num_links[j],excite[j], activity_mag[j],inhibit_scale[j])
+                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
+                prev_weights[j][prev_weights[j][:]<0]=0
                     
             ax1.set_title("2D Attractor Network")
             # im=np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1))
@@ -212,9 +228,9 @@ def visualise(data_x,data_y):
             ax1.imshow(im)
     
             '''decoding mangnitude and direction of movement'''
-            trans=(activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])-prev_trans)/num
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])-prev_trans
             # trans=np.argmax(prev_weights[0][:])-prev_trans
-            angle=np.deg2rad((activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])-prev_angle)/num)
+            angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])-prev_angle
 
             curr_parameter[0]=curr_parameter[0] + (trans*np.cos(angle))
             curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(angle))
@@ -223,12 +239,12 @@ def visualise(data_x,data_y):
             # print(delta1, delta2, del_y,del_x)
             ax2.set_title("Decoded Pose")
             ax2.scatter(curr_parameter[0], curr_parameter[1],c='b',s=15)
-            ax2.set_xlim([-100,100])
-            ax2.set_ylim([-100,100])
+            # ax2.set_xlim([-100,100])
+            # ax2.set_ylim([-100,100])
             # ax2.set_zlim([0,N])
 
 
-            print(str(delta[0])+"__"+str( delta[1])+ "------"+str(trans )+"__"+str(np.rad2deg(angle)))
+            print(str(delta[0])+"__"+str( delta[1])+ "------"+str(trans )+"__"+str(angle))
             # print(x2-x1, y2-y1)
             # print(len(signal.find_peaks(prev_weights_trans)[0]),len(signal.find_peaks(prev_weights_angle)[0]) )
             
@@ -237,48 +253,51 @@ def visualise(data_x,data_y):
     plt.show()
 
 def encodingDecodingMotion(data_x,data_y):
-    global prev_weights_trans,prev_weights_angle, num_links, excite, activity_mag,inhibit_scale
+    global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
 
     '''Initalise network'''            
-    current,prediction, velocity=[],[],[]
-    delta1=0 #y_axis
-    delta2=0 #x_axis
-    print(delta1,delta2)
+    
+    delta=[0,0]
+    for i in range(len(delta)):
+        net=attractorNetwork(delta[i],N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
+        prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
+   
     # [1,:]ev_weights_angle[net.activation(delta2)]=net.full_weights(num_links)
     # prev_weights_z[net.activation(int(delta3))]=net.full_weights(num_links)
-
+    
     curr_x,curr_y=np.zeros((len(data_x))), np.zeros((len(data_y)))
     for i in range(len(data_x)):
         if i>=1:
-            '''distributed weights with excitations and inhibitions'''
+            '''encoding mangnitude and direction of movement'''
             x1=data_x[i-1]
             x2=data_x[i]
             y1=data_y[i-1]
-            y2=data_y[i]    
-            delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-            delta2=np.rad2deg(np.arctan2(y2-y1,x2-x1)) #angle
+            y2=data_y[i]
+            
+            delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+            delta[1]=np.arctan2(y2-y1,x2-x1)#angle
+            
+            '''updating network'''
+            prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
+                # prev_trans=np.argmax(prev_weights[0][:])
+            prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
+                
+            for j in range(len(delta)):
+                net=attractorNetwork(delta[j],N[j],num_links[j],excite[j], activity_mag[j],inhibit_scale[j])
+                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
+                    
+    
+            '''decoding mangnitude and direction of movement'''
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])-prev_trans
+            # trans=np.argmax(prev_weights[0][:])-prev_trans
+            angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])-prev_angle
 
-            #angle and translation before shift
-            prev_angle=activityDecoding(prev_weights_angle,num_links)
-            prev_trans=activityDecoding(prev_weights_trans,num_links)
+            curr_x[i]=curr_x[i-1]+ (trans*np.cos(angle))
+            curr_y[i]=curr_y[i-1]+ (trans*np.sin(angle))
+        
 
 
-            net=attractorNetwork(delta1,delta2,N,num_links,int(excite),activity_mag,inhibit_scale)
-            Neurons1,Neurons2=net.neuron_update(prev_weights_trans,prev_weights_angle)
-            prev_weights_trans= net.update_weights_dynamics(prev_weights_trans,Neurons1,delta1)
-            prev_weights_angle= net.update_weights_dynamics(prev_weights_angle,Neurons2,delta2)
-            prev_weights_trans[prev_weights_trans<0]=0
-            prev_weights_angle[prev_weights_angle<0]=0
-
-            #angle and trasnlation after shift 
-            trans=activityDecoding(prev_weights_trans,num_links)-prev_trans
-            angle=np.deg2rad(activityDecoding(prev_weights_angle,num_links)-prev_angle)
-            # update decoded posotion based on shift in network 
-            curr_x[i]=curr_x[i-1] + (trans*np.cos(angle))
-            curr_y[i]=curr_y[i-1]+( trans*np.sin(angle))
-
-
-            print(str(delta1 )+"  "+str( delta2)+ "____________"+str(trans )+"  "+str(np.rad2deg(angle)))
+            print(str(delta[0])+"  "+str( delta[1])+ "_______"+str(trans )+"  "+str(angle))
 
     fig = plt.figure(figsize=(13, 4))
     ax0 = fig.add_subplot(1, 2, 1)
@@ -300,18 +319,18 @@ def encodingDecodingMotion(data_x,data_y):
 
 '''Test Area'''
 sparse_gt=data_processing()#[0::2]
-data_x=sparse_gt[:, :, 3][:,0]
-data_y=sparse_gt[:, :, 3][:,2]
+data_x=sparse_gt[:, :, 3][:,0][:700]
+data_y=sparse_gt[:, :, 3][:,2][:700]
 
-data_y=np.arange(100)
-data_x=np.zeros((100))
+# data_y=np.arange(100)*-1
+# data_x=np.zeros((100))
 
-visualise(data_x,data_y)
+# visualise(data_x,data_y)
 # print(data_y[2])
 
 # data_y=data_y[500:1000]
 # data_x=data_x[500:1000]
-# encodingDecodingMotion(data_x,data_y)
+encodingDecodingMotion(data_x,data_y)
 
 
 

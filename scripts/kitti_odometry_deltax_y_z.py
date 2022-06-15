@@ -101,9 +101,9 @@ def data_processing():
 
 def visualise(sparse_gt):
     fig = plt.figure(figsize=(13, 4))
-    ax0 = fig.add_subplot(1, 3, 1,projection='3d')
-    ax1 = fig.add_subplot(1, 3, 2)
-    ax2 = fig.add_subplot(1, 3, 3,projection='3d')
+    ax0 = fig.add_subplot(1, 2, 1)
+    ax1 = fig.add_subplot(1, 2, 2)
+    # ax2 = fig.add_subplot(1, 3, 3)
 
     '''Initalise network'''            
     current,prediction, velocity=[],[],[]
@@ -117,13 +117,20 @@ def visualise(sparse_gt):
 
     
     def animate(i):
+        if i==len(sparse_gt)-1:
+            ax0.clear()
         ax0.set_title("Ground Truth Pose")
-        ax0.scatter(sparse_gt[:, :, 3][i, 0],sparse_gt[:, :, 3][i, 2], sparse_gt[:, :, 3][i, 1],s=15)
-        ax0.set_xlim([-300,300])
         ax0.set_ylim([-100,500])
-        ax0.set_zlim([-50,50])
+        ax0.set_xlim([-400,500])
         ax0.invert_yaxis()
-        ax0.view_init(elev=39, azim=140)
+        ax0.scatter(sparse_gt[:, :, 3][i, 0],sparse_gt[:, :, 3][i, 2],s=15)
+        
+        # ax0.set_xlim([-300,300])
+        # ax0.set_ylim([-100,500])
+        # ax0.set_zlim([-50,50])
+        # ax0.set_ylim(ax0.get_ylim()[::-1])
+        
+        # ax0.view_init(elev=39, azim=140)
 
         global prev_weights_x,prev_weights_y, prev_weights_z, num_links, excite, activity_mag,inhibit_scale, curr_x, curr_y, curr_z
         ax1.clear()
@@ -160,17 +167,17 @@ def visualise(sparse_gt):
             curr_z=curr_z+del_z
 
             print(delta1, delta2, del_y,del_x)
-            ax2.set_title("Decoded Pose")
+            # ax2.set_title("Decoded Pose")
             
-            ax2.scatter(curr_x, curr_y,curr_z,c='b',s=15)
-            ax2.set_xlim([0,N])
-            ax2.set_ylim([0,N])
-            ax2.set_zlim([0,N])
-            ax2.invert_yaxis()
-            ax2.view_init(elev=39, azim=140)
+            # ax2.scatter(curr_x, curr_y,c='b',s=15)
+            # ax2.set_xlim([0,N])
+            # ax2.set_ylim([0,N])
+            # # ax2.set_zlim([0,N])
+            # ax2.invert_yaxis()
+            # # ax2.view_init(elev=39, azim=140)
             
 
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=False)
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=True)
     plt.show()
 
 
