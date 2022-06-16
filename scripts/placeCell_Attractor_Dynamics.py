@@ -147,11 +147,11 @@ def activityDecoding(prev_weights,radius):
 
 def plotting_decomposed_CAN(ax1,ax2,ax3,delta, activity, activity_shifted, intermediate_activity, inhbit_val, excitations_store,N):
     ax1.set_title("Network Activity Shifting by " + str(delta) + " Neurons")
-    ax1.bar(neurons, activity)
+    ax1.bar(neurons, activity, color= '#C79FEF')
     ax1.axis('off')
     # ax1.set_ylim([-0.2,0.3])
         
-    ax2.bar(neurons, activity_shifted)
+    ax2.bar(neurons, activity_shifted, color= '#04D8B2')
     # ax2.set_ylim([0,0.3])
     ax2.set_title('Shifted Copy')
     ax2.axis('off')
@@ -185,15 +185,15 @@ def plotting_CAN_dynamics(delta1,delta2):
     gs = fig1.add_gridspec(32,32)
     #place cell
     ax0 = plt.subplot(gs[8:24, 12:20])
-    axx = plt.subplot(gs[0:5, 12:20])
-    axy = plt.subplot(gs[9:23, 20:23])
+    axx = plt.subplot(gs[3:8, 12:20])
+    axy = plt.subplot(gs[8:24, 20:23])
     
     #deconstructed CANN
-    axy1 = plt.subplot(gs[0:6, 0:10])
-    axy2 = plt.subplot(gs[9:15, 0:10])
-    axy3 = plt.subplot(gs[18:27, 0:10])
+    axy1 = plt.subplot(gs[0:7, 0:10])
+    axy2 = plt.subplot(gs[10:17, 0:10])
+    axy3 = plt.subplot(gs[20:27, 0:10])
 
-    ax4 = plt.subplot(gs[0:27, 24:32])
+    ax4 = plt.subplot(gs[9:23, 24:32])
 
     # axx1 = plt.subplot(gs[0:3, 26:36])
     # axx2 = plt.subplot(gs[6:9, 26:36])
@@ -245,7 +245,7 @@ def plotting_CAN_dynamics(delta1,delta2):
                 prev_weights[j][:],activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights[j][:])
                 prev_weights[j][prev_weights[j][:]<0]=0
             
-            ax0.set_title("2D Attractor Network")
+            # ax0.set_title("2D Attractor Network")
             ax0.imshow(np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1)))
             axy.invert_yaxis()
             axx.bar(neurons,prev_weights[1][:],width=1)
@@ -258,7 +258,7 @@ def plotting_CAN_dynamics(delta1,delta2):
             curr_x=curr_x+del_x
             curr_y=curr_y+del_y
 
-            ax4.scatter(curr_x, curr_y,c='b',s=15)
+            ax4.scatter(np.argmax(prev_weights[1][:]), np.argmax(prev_weights[0][:]),c='b',s=15)
             ax4.set_xlim([0,N[0]])
             ax4.set_ylim([0,N[1]])
             ax4.invert_yaxis()

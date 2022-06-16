@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 import os
 import pandas as pd
 from matplotlib.animation import FuncAnimation
@@ -19,6 +20,8 @@ excite=[5,5]
 activity_mag=[1,1]
 inhibit_scale=[0.01,0.01]
 curr_parameter=[0,0]
+curr_x,curr_y=0,0
+x,y=0,0
 
 # print(prev_weights[0][:])
 class attractorNetwork:
@@ -118,7 +121,7 @@ def activityDecodingAngle(prev_weights,radius,N,neurons):
     local_activity[local_activity_idx]=prev_weights[local_activity_idx]
 
     x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
-    vect_sum=np.rad2deg(np.arctan2(sum(y),sum(x)))
+    vect_sum=math.atan2(sum(y),sum(x))
     # changing range from [-179, 180] to [0,360]
     # if vect_sum<0:
     #     shifted_vec=vect_sum+360
@@ -153,7 +156,7 @@ def testing_Conversion(sparse_gt):
                 assert False 
                 # delta2=np.pi/2
             else:
-                delta2=(np.arctan2(y2-y1,x2-x1)) #angle
+                delta2=(math.atan2(y2-y1,x2-x1)) #angle
 
             curr_x=curr_x + (delta1*np.cos(delta2))
             curr_y=curr_y + (delta1*np.sin(delta2))
@@ -193,6 +196,7 @@ def visualise(data_x,data_y):
     def animate(i):
         ax0.set_title("Ground Truth Pose")
         ax0.scatter(data_x[i],data_y[i],s=15)
+        ax0.axis('equal')
         # ax0.set_xlim([-300,300])
         # ax0.set_ylim([-100,500])
         # ax0.set_zlim([-50,50])
@@ -201,27 +205,33 @@ def visualise(data_x,data_y):
         
         global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
         ax1.clear()
-        if i>=1:
+        if i>=2:
             '''encoding mangnitude and direction of movement'''
+            x0=data_x[i-2]
             x1=data_x[i-1]
             x2=data_x[i]
+            
+            y0=data_y[i-2]
             y1=data_y[i-1]
             y2=data_y[i]
             
             delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-            delta[1]=np.arctan2(y2-y1,x2-x1)#angle
+            delta[1]=math.atan2(y2-y1,x2-x1)#angle
             
             '''updating network'''
             prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
                 # prev_trans=np.argmax(prev_weights[0][:])
             prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
             
+          
+            net=attractorNetwork(delta[1],N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
+            prev_weights[1][:]= net.update_weights_dynamics(prev_weights[1][:])
+            prev_weights[1][prev_weights[1][:]<0]=0
+            
+            net=attractorNetwork(delta[0],N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:])
+            prev_weights[0][prev_weights[0][:]<0]=0
                 
-            for j in range(len(delta)):
-                net=attractorNetwork(delta[j],N[j],num_links[j],excite[j], activity_mag[j],inhibit_scale[j])
-                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
-                prev_weights[j][prev_weights[j][:]<0]=0
-                    
             ax1.set_title("2D Attractor Network")
             # im=np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1))
             im=np.outer(prev_weights[0][:],prev_weights[1][:])
@@ -239,6 +249,7 @@ def visualise(data_x,data_y):
             # print(delta1, delta2, del_y,del_x)
             ax2.set_title("Decoded Pose")
             ax2.scatter(curr_parameter[0], curr_parameter[1],c='b',s=15)
+            ax2.axis('equal')
             # ax2.set_xlim([-100,100])
             # ax2.set_ylim([-100,100])
             # ax2.set_zlim([0,N])
@@ -256,16 +267,18 @@ def encodingDecodingMotion(data_x,data_y):
     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
 
     '''Initalise network'''            
-    
-    delta=[0,0]
-    for i in range(len(delta)):
-        net=attractorNetwork(delta[i],N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
-        prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
+    for j in range(20):
+        delta=[1,0]
+        for i in range(len(delta)):
+            net=attractorNetwork(delta[i],N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
+            prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
    
     # [1,:]ev_weights_angle[net.activation(delta2)]=net.full_weights(num_links)
     # prev_weights_z[net.activation(int(delta3))]=net.full_weights(num_links)
     
     curr_x,curr_y=np.zeros((len(data_x))), np.zeros((len(data_y)))
+    tran,rot=np.zeros((len(data_x))), np.zeros((len(data_y)))
+    tran_out,rot_out=np.zeros((len(data_x))), np.zeros((len(data_y)))
     for i in range(len(data_x)):
         if i>=1:
             '''encoding mangnitude and direction of movement'''
@@ -275,11 +288,14 @@ def encodingDecodingMotion(data_x,data_y):
             y2=data_y[i]
             
             delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-            delta[1]=np.arctan2(y2-y1,x2-x1)#angle
+            delta[1]=math.atan2(y2-y1,x2-x1)#angle
+            print(np.rad2deg(math.atan2(y2-y1,x2-x1)))
             
             '''updating network'''
+            # prev_trans=np.argmax(prev_weights[0][:])
+            # prev_angle=np.argmax(prev_weights[1][:])
+
             prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
-                # prev_trans=np.argmax(prev_weights[0][:])
             prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
                 
             for j in range(len(delta)):
@@ -288,29 +304,52 @@ def encodingDecodingMotion(data_x,data_y):
                     
     
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])-prev_trans
             # trans=np.argmax(prev_weights[0][:])-prev_trans
+            # angle=np.argmax(prev_weights[1][:])-prev_angle
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])-prev_trans
             angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])-prev_angle
 
             curr_x[i]=curr_x[i-1]+ (trans*np.cos(angle))
             curr_y[i]=curr_y[i-1]+ (trans*np.sin(angle))
         
 
+            tran[i]=delta[0]
+            rot[i]= delta[1]
 
+            tran_out[i]=trans
+            rot_out[i]=angle
             print(str(delta[0])+"  "+str( delta[1])+ "_______"+str(trans )+"  "+str(angle))
 
-    fig = plt.figure(figsize=(13, 4))
-    ax0 = fig.add_subplot(1, 2, 1)
-    ax1 = fig.add_subplot(1, 2, 2)
+    fig = plt.figure(figsize=(13, 7))
+    ax0 = fig.add_subplot(2, 1, 1)
+    ax1 = fig.add_subplot(2, 1, 2)
     ax1.set_title('Converted')
     ax1.scatter(curr_x, curr_y,c='b',s=15)
+    ax1.axis('equal')
     # ax1.set_xlim([-300,300])
     # ax1.set_ylim([-100,500])
 
     ax0.set_title('Original')
     ax0.scatter(data_x, data_y,c='b',s=15)
+    ax0.axis('equal')
     # ax0.set_xlim([-300,300])
     # ax0.set_ylim([-100,500])
+
+    # ax2 = fig.add_subplot(3, 2, 3)
+    # ax3 = fig.add_subplot(3, 2, 4)
+    # ax4 = fig.add_subplot(3, 2, 5)
+    # ax5 = fig.add_subplot(3, 2, 6)
+
+    # ax2.set_title('Traslation ')
+    # ax2.plot(tran)
+    # ax2.axis('equal')
+    # ax4.scatter(np.arange(len(tran_out)),tran_out)
+
+    # ax3.set_title('Rotation')
+    # ax3.plot(rot)
+    # ax5.scatter(np.arange(len(rot_out)),rot_out)
+    # ax5.axis('equal')
+
     plt.show()
 
 
@@ -322,17 +361,19 @@ sparse_gt=data_processing()#[0::2]
 data_x=sparse_gt[:, :, 3][:,0][:700]
 data_y=sparse_gt[:, :, 3][:,2][:700]
 
-# data_y=np.arange(100)*-1
-# data_x=np.zeros((100))
+# data_y=np.zeros((200))
+# data_x=np.concatenate([np.arange(100), np.arange(100)*-1])
 
-# visualise(data_x,data_y)
-# print(data_y[2])
-
-# data_y=data_y[500:1000]
-# data_x=data_x[500:1000]
-encodingDecodingMotion(data_x,data_y)
+data_y=np.zeros((200))
+data_x=np.arange(200)
 
 
+visualise(data_x,data_y)
+# encodingDecodingMotion(data_x,data_y)
+
+# print(np.rad2deg(math.atan2(0,-1)))
+
+# testing_Conversion(sparse_gt)
 
 # testing_Conversion(sparse_gt)
 
