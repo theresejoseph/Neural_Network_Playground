@@ -29,7 +29,7 @@ num_links=2
 lndmrk_confidence=1
 input_error=0
 decodingRadius=4 #meter
-inhibit_scale=0.05
+inhibit_scale=0.07
 steady_state_val=10
 
 #landmarks
@@ -173,6 +173,7 @@ def plotting_CAN_dynamics(activity_mag,delta):
         global prev_weights,lndmrk_confidence, curr_Neuron,iteration
         ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear(), ax6.clear()
         if i>0:
+            prev_angle=activityDecoding(prev_weights,num_links)
             '''distributed weights with excitations and inhibitions'''
             net=attractorNetwork(delta,None,N,num_links,lndmrk_confidence,activity_mag)
             curr_Neuron=net.neuron_update(curr_Neuron)
@@ -202,6 +203,8 @@ def plotting_CAN_dynamics(activity_mag,delta):
 
             ax6.set_title("Activity with Excitation and Inhibition")
             ax6.bar(neurons, prev_weights,width=0.9,color='pink')
+
+            print((activityDecoding(prev_weights,num_links)-prev_angle)%N)
 
             
             # neuron_pred=activityDecoding(prev_weights,decodingRadius)
@@ -290,7 +293,7 @@ plot_Type=1
 # heatmap(activity_mags,shifts,plot_Type)
 
 
-plotting_CAN_dynamics(1,1)
+plotting_CAN_dynamics(1,30)
 
 # print(CANdynamics(1,2.5))
 
