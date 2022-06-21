@@ -1,4 +1,4 @@
-__credits__ = ["Andrea PIERRÉ"]
+# pip __credits__ = ["Andrea PIERRÉ"]
 
 import math
 from multiprocessing.dummy import freeze_support
@@ -37,7 +37,7 @@ WINDOW_W = 550
 WINDOW_H = 800
 
 SCALE = 6.0  # Track scale
-TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
+TRACK_RAD = 600 / SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD = 2000 / SCALE  # Game over boundary
 FPS = 50  # Frames per second
 ZOOM = 2.7  # Camera zoom
