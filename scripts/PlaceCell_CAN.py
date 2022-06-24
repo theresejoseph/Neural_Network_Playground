@@ -1,10 +1,11 @@
 import numpy as np 
+import math 
+
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.widgets as wig
-import mpl_toolkits.axes_grid1
 
-import math 
+from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork
 # import pandas as pd
 # import seaborn as sns
 # import plotly.express as px
@@ -17,16 +18,15 @@ def col_round(x):
 
 ######################--VARABLES--############################
 N=[50,50] #number of neurons
-neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
+# neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
-# prev_weights_z=np.zeros(N)
 num_links=[10,10]
 activity_mag=[1,1]
 curr_parameter=[0,0]
 
 neurons=np.arange(0,N[0])
-curr_Neuron=0
+# curr_Neuron=0
 curr_x,curr_y=[0,0]
 
 inhibit_scale=0.05
@@ -46,105 +46,6 @@ landmark_dect_toler=2
 
 
 ################################################################
-
-class attractorNetwork:
-    '''defines 1D attractor network with N neurons, angles associated with each neurons 
-    along with inhitory and excitatory connections to update the weights'''
-    def __init__(self, delta, N, num_links, excite_radius, activity_mag,inhibit_scale):
-        self.delta=delta
-        self.excite_radius=excite_radius
-        self.N=N  
-        self.num_links=num_links
-        self.activity_mag=activity_mag
-        self.inhibit_scale=inhibit_scale
-
-    def neuron_update(self,prev_weights):
-        indexes=np.arange(self.N)
-        non_zero_idxs=indexes[prev_weights>0]
-        return (non_zero_idxs+ int(self.delta)) % self.N
-        
-    def inhibitions(self,id):
-        ''' each nueuron inhibits all other nueurons but itself'''
-        return np.delete(np.arange(self.N),self.excitations(id))
-
-    def excitations(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.excite_radius,self.excite_radius+1):
-            excite.append((id + i) % self.N)
-        return np.array(excite)
-
-    def activation(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.num_links,self.num_links+1):
-            excite.append((int(id) + i) % self.N)
-        return np.array(excite)
-
-    def full_weights(self,radius):
-        x=np.arange(-radius,radius+1)
-        return 1/(np.std(x) * np.sqrt(2 * np.pi)) * np.exp( - (x - np.mean(x))**2 / (2 * np.std(x)**2))  
-
-    def fractional_weights(self,non_zero_prev_weights,delta):
-        frac=delta%1
-        if frac == 0:
-            return non_zero_prev_weights
-        else: 
-            inv_frac=1-frac
-            frac_weights=np.zeros((len(non_zero_prev_weights)))
-            frac_weights[0]=non_zero_prev_weights[0]*inv_frac
-            for i in range(1,len(non_zero_prev_weights)):
-                frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
-            return frac_weights
-
-    def update_weights_dynamics(self,prev_weights):
-        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-        shifted_indexes=self.neuron_update(prev_weights)
-
-        '''copied and shifted activity'''
-        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        
-        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        
-        non_zero_weights_shifted[shifted_indexes]=self.fractional_weights(prev_weights[non_zero_idxs],self.delta) #non zero weights shifted by delta
-        
-        intermediate_activity=non_zero_weights_shifted+non_zero_weights
-
-        '''inhibition'''
-        for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
-        
-        '''excitation'''
-        excitations_store=np.zeros((len(non_zero_idxs),self.N))
-        excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
-        for i in range(len(non_zero_idxs)):
-            excitation_array[self.excitations(non_zero_idxs[i])]=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
-            excitations_store[i,:]=excitation_array
-            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
-
-        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-        # print(prev_weights)
-        return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
-
-
-def activityDecoding(prev_weights,radius):
-    '''Isolating activity at a radius around the peak to decode position'''
-    peak=np.argmax(prev_weights) 
-    local_activity=np.zeros(N)
-    local_activity_idx=[]
-    for i in range(-radius,radius+1):
-        local_activity_idx.append((peak + i) % N)
-    local_activity[local_activity_idx]=prev_weights[local_activity_idx]
-    x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
-    vect_sum=np.round(np.rad2deg(np.arctan2(sum(y),sum(x))), 10)
-    # # changing range from [-179, 180] to [0,360]
-    # if vect_sum<0:
-    #     shifted_vec=vect_sum+360
-    # else:
-    #     shifted_vec=vect_sum
-    # return shifted_vec*(N/360)
-    return vect_sum
-
 def plotting_decomposed_CAN(ax1,ax2,ax3,delta, activity, activity_shifted, intermediate_activity, inhbit_val, excitations_store,N):
     ax1.set_title("Network Activity Shifting by " + str(delta) + " Neurons")
     ax1.bar(neurons, activity, color= '#C79FEF')
@@ -242,7 +143,7 @@ def plotting_CAN_dynamics(delta1,delta2):
             delta=[int(delta1.val),int(delta2.val)]
             for j in range(len(delta)):
                 net=attractorNetwork(delta[j],N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
-                prev_weights[j][:],activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights[j][:])
+                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
                 prev_weights[j][prev_weights[j][:]<0]=0
             
             # ax0.set_title("2D Attractor Network")
@@ -279,7 +180,7 @@ def plotting_CAN_dynamics(delta1,delta2):
         delta=[int(delta1.val),int(delta2.val)]
         for j in range(len(delta)):
             net=attractorNetwork(delta[j],N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
-            prev_weights[j][:],activity, activity_shifted,intermediate_activity,inhbit_val, excitations_store= net.update_weights_dynamics(prev_weights[j][:])
+            prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
             prev_weights[j][prev_weights[j][:]<0]=0
 
     def onClick(event):
@@ -301,10 +202,6 @@ def plotting_CAN_dynamics(delta1,delta2):
                 prev_weights[i][prev_weights[i][:]<0]=0
             resetDone ^= False
             pause ^=True
-
-
-        
-  
 
     '''animation for Place Cells'''
     excite.on_changed(update)

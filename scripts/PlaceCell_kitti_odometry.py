@@ -7,14 +7,13 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
 
-# from mayavi import mlab
+from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork
+
 
 '''Parameters'''
 N=[100,360] #number of neurons
-neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
-# prev_weights_z=np.zeros(N)
 num_links=[50,60]
 excite=[30,47]
 activity_mag=[1,1]
@@ -23,196 +22,11 @@ curr_parameter=[0,0]
 curr_x,curr_y=0,0
 x,y=0,0
 
-# print(prev_weights[0][:])
+
 def angdiff( th1, th2):
     d = th1 - th2
     d = np.mod(d+np.pi, 2*np.pi) - np.pi
     return d
-
-class attractorNetwork:
-    '''defines 1D attractor network with N neurons, angles associated with each neurons 
-    along with inhitory and excitatory connections to update the weights'''
-    def __init__(self, delta, N, num_links, excite_radius, activity_mag,inhibit_scale):
-        self.delta=delta
-        self.excite_radius=excite_radius
-        self.N=N  
-        self.num_links=num_links
-        self.activity_mag=activity_mag
-        self.inhibit_scale=inhibit_scale
-
-    def neuron_update(self,prev_weights):
-        indexes=np.arange(self.N)
-        non_zero_idxs=indexes[prev_weights>0]
-        return (non_zero_idxs+ int(self.delta)) % self.N
-        
-    def inhibitions(self,id):
-        ''' each nueuron inhibits all other nueurons but itself'''
-        return np.delete(np.arange(self.N),self.excitations(id))
-
-    def excitations(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.excite_radius,self.excite_radius+1):
-            excite.append((id + i) % self.N)
-        return np.array(excite)
-
-    def activation(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.num_links,self.num_links+1):
-            excite.append((int(id) + i) % self.N)
-        return np.array(excite)
-
-    def full_weights(self,radius):
-        x=np.arange(-radius,radius+1)
-        return 1/(np.std(x) * np.sqrt(2 * np.pi)) * np.exp( - (x - np.mean(x))**2 / (2 * np.std(x)**2))  
-
-    def fractional_weights(self,non_zero_prev_weights,delta):
-        frac=delta%1
-        if frac == 0:
-            return non_zero_prev_weights
-        else: 
-            inv_frac=1-frac
-            frac_weights=np.zeros((len(non_zero_prev_weights)))
-            frac_weights[0]=non_zero_prev_weights[0]*inv_frac
-            for i in range(1,len(non_zero_prev_weights)):
-                frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
-            return frac_weights
-
-    def update_weights_dynamics(self,prev_weights):
-        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-        shifted_indexes=self.neuron_update(prev_weights)
-
-        '''copied and shifted activity'''
-        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        
-        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        
-        non_zero_weights_shifted[shifted_indexes]=self.fractional_weights(prev_weights[non_zero_idxs],self.delta) #non zero weights shifted by delta
-        
-        '''inhibition'''
-        for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
-        
-        '''excitation'''
-        excite=np.zeros(self.N)
-        for i in range(len(non_zero_idxs)):
-            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
-
-        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-        return prev_weights/np.linalg.norm(prev_weights)
-
-class attractorNetworkSettling:
-    '''defines 1D attractor network with N neurons, angles associated with each neurons 
-    along with inhitory and excitatory connections to update the weights'''
-    def __init__(self, N, num_links, excite_radius, activity_mag,inhibit_scale):
-        self.excite_radius=excite_radius
-        self.N=N  
-        self.num_links=num_links
-        self.activity_mag=activity_mag
-        self.inhibit_scale=inhibit_scale
-        
-    def inhibitions(self,id):
-        ''' each nueuron inhibits all other nueurons but itself'''
-        return np.delete(np.arange(self.N),self.excitations(id))
-
-    def excitations(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.excite_radius,self.excite_radius+1):
-            excite.append((id + i) % self.N)
-        return np.array(excite)
-
-    def activation(self,id):
-        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
-        excite=[]
-        for i in range(-self.num_links,self.num_links+1):
-            excite.append((int(id) + i) % self.N)
-        return np.array(excite)
-
-    def full_weights(self,radius):
-        x=np.arange(-radius,radius+1)
-        return 1/(np.std(x) * np.sqrt(2 * np.pi)) * np.exp( - (x - np.mean(x))**2 / (2 * np.std(x)**2))  
-
-    def fractional_weights(self,non_zero_prev_weights,activeNeuron):
-        frac=activeNeuron%1
-        if frac == 0:
-            return non_zero_prev_weights
-        else: 
-            inv_frac=1-frac
-            frac_weights=np.zeros((len(non_zero_prev_weights)))
-            frac_weights[0]=non_zero_prev_weights[0]*inv_frac
-            for i in range(1,len(non_zero_prev_weights)):
-                frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
-            return frac_weights
-
-    def update_weights_dynamics(self,prev_weights,activeNeuron):
-
-        delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
-
-        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-        # shifted_indexes=self.neuron_update(prev_weights)
-
-        '''copied and shifted activity'''
-        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-
-        if len(prev_weights[non_zero_idxs])==0:
-            prev_weights[self.activation(activeNeuron)]=self.full_weights(self.num_links)
-            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        
-        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        
-        non_zero_weights_shifted[(non_zero_idxs+delta)%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
-        
-        '''inhibition'''
-        for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
-        
-        '''excitation'''
-        excite=np.zeros(self.N)
-        for i in range(len(non_zero_idxs)):
-            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
-
-        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-        return prev_weights/np.linalg.norm(prev_weights)
-
-def activityDecoding(prev_weights,radius,N,neurons):
-    '''Isolating activity at a radius around the peak to decode position'''
-    peak=np.argmax(prev_weights) 
-    local_activity=np.zeros(N)
-    local_activity_idx=[]
-    for i in range(-radius,radius+1):
-        local_activity_idx.append((peak + i) % N)
-    local_activity[local_activity_idx]=prev_weights[local_activity_idx]
-
-    x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
-    vect_sum=np.rad2deg(math.atan2(sum(y),sum(x))) % 360
-    weighted_sum = N*(vect_sum/360)
-
-
-    # weighted_sum=0
-    # for i in range(len(local_activity_idx)):
-    #     weighted_sum+=local_activity_idx[i]*prev_weights[local_activity_idx[i]]
-    return weighted_sum
-
-def activityDecodingAngle(prev_weights,radius,N,neurons):
-    '''Isolating activity at a radius around the peak to decode position'''
-    peak=np.argmax(prev_weights) 
-    local_activity=np.zeros(N)
-    local_activity_idx=[]
-    for i in range(-radius,radius+1):
-        local_activity_idx.append((peak + i) % N)
-    local_activity[local_activity_idx]=prev_weights[local_activity_idx]
-
-    x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
-    vect_sum=np.rad2deg(math.atan2(sum(y),sum(x))) % 360
-    # changing range from [-179, 180] to [0,360]
-    # if vect_sum<0:
-    #     shifted_vec=vect_sum+360
-    # else:
-    #     shifted_vec=vect_sum
-    # return shifted_vec*(N/360)
-    return vect_sum
 
 def data_processing():
     poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
@@ -312,8 +126,8 @@ def visualise(data_x,data_y):
             prev_weights[1][prev_weights[1][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])/100#-prev_trans
-            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))#-prev_angle
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/100#-prev_trans
+            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))#-prev_angle
 
             curr_parameter[0]=curr_parameter[0] + (trans*np.cos(angle))
             curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(angle))
@@ -370,8 +184,8 @@ def encodingDecodingMotion(data_x,data_y):
             # prev_trans=np.argmax(prev_weights[0][:])
             # prev_angle=np.argmax(prev_weights[1][:])
 
-            prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
-            prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
+            prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])
+            prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1])
                 
             net=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:],delta[0])
@@ -382,8 +196,8 @@ def encodingDecodingMotion(data_x,data_y):
             prev_weights[1][prev_weights[1][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])/100#-prev_trans
-            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))#-prev_angle
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/100#-prev_trans
+            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))#-prev_angle
 
             curr_x[i]=curr_x[i-1]+ (trans*np.cos(angle))
             curr_y[i]=curr_y[i-1]+ (trans*np.sin(angle))
