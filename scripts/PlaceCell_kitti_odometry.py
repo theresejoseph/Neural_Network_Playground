@@ -10,7 +10,7 @@ from scipy import signal
 # from mayavi import mlab
 
 '''Parameters'''
-N=[1200,360] #number of neurons
+N=[100,360] #number of neurons
 neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
@@ -298,35 +298,30 @@ def visualise(data_x,data_y):
             y1=data_y[i-1]
             y2=data_y[i]
             
-            delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+            delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *100#translation
             delta[1]=np.rad2deg(math.atan2(y2-y1,x2-x1)) % 360          #angle
-
-           
+       
             '''updating network'''
-            prev_trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])
-            # prev_angle=activityDecoding(prev_weights[1][:],num_links[1],N[1],neurons[1][:])
-            
-            
-            net=attractorNetwork(delta[0],N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
-            prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:])
+             
+            net=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:],delta[0])
             prev_weights[0][prev_weights[0][:]<0]=0
 
             net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
             prev_weights[1][:]= net.update_weights_dynamics(prev_weights[1][:],delta[1])
             prev_weights[1][prev_weights[1][:]<0]=0
-                
-            ax1.set_title("2D Attractor Network")
-            # im=np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1))
-            im=np.outer(prev_weights[0][:],prev_weights[1][:])
-            ax1.imshow(im,interpolation='nearest', aspect='auto')
-    
+
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:]) - prev_trans
-            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])/100#-prev_trans
+            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))#-prev_angle
 
             curr_parameter[0]=curr_parameter[0] + (trans*np.cos(angle))
             curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(angle))
             # curr_z=curr_z+del_z
+            
+            ax1.set_title("2D Attractor Network")
+            im=np.outer(prev_weights[0][:],prev_weights[1][:])
+            ax1.imshow(im,interpolation='nearest', aspect='auto')
 
             # print(delta1, delta2, del_y,del_x)
             ax2.set_title("Decoded Pose")
@@ -387,8 +382,6 @@ def encodingDecodingMotion(data_x,data_y):
             prev_weights[1][prev_weights[1][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            # trans=np.argmax(prev_weights[0][:])-prev_trans
-            # angle=np.argmax(prev_weights[1][:])-prev_angle
             trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])/100#-prev_trans
             angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))#-prev_angle
 
@@ -449,9 +442,9 @@ def encodingDecodingMotion(data_x,data_y):
 
 
 '''Test Area'''
-sparse_gt=data_processing()[0::4]
-data_x=sparse_gt[:, :, 3][:,0]#[:1000]
-data_y=sparse_gt[:, :, 3][:,2]#[:1000]
+sparse_gt=data_processing()#[0::4]
+data_x=sparse_gt[:, :, 3][:,0][:1000]
+data_y=sparse_gt[:, :, 3][:,2][:1000]
 
 # data_y=np.concatenate([np.zeros(100), np.arange(100), np.ones(100)*100, np.arange(100,5,-1)])
 # data_x=np.concatenate([np.arange(100), np.ones(100)*100, np.arange(100,0,-1), np.zeros(95)])
@@ -462,8 +455,8 @@ data_y=sparse_gt[:, :, 3][:,2]#[:1000]
 # data_y=np.zeros(195)
 # data_x=np.concatenate([np.arange(100), np.arange(100,5,-1)])
 
-# visualise(data_x,data_y)
-encodingDecodingMotion(data_x,data_y)
+visualise(data_x,data_y)
+# encodingDecodingMotion(data_x,data_y)
 
 # print(np.rad2deg(math.atan2(0,-1)))
 

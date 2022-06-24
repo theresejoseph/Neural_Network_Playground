@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 import numpy as np
 from matplotlib.animation import FuncAnimation
+from matplotlib.colors import ListedColormap
 import matplotlib
 # matplotlib.use("Qt4Agg") # set the backend
 import matplotlib.pyplot as plt
@@ -33,8 +34,8 @@ STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
 VIDEO_H = 400
-WINDOW_W = 550
-WINDOW_H = 800
+WINDOW_W = 700
+WINDOW_H = 1000
 
 SCALE = 6.0  # Track scale
 TRACK_RAD = 600 / SCALE  # Track is heavily morphed circle with this radius
@@ -515,7 +516,7 @@ class CarRacing(gym.Env, EzPickle):
             os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
             pygame.init()
             pygame.display.init()
-            self.screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
+            self.screen = pygame.display.set_mode((WINDOW_W, WINDOW_H), pygame.RESIZABLE)
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
@@ -762,7 +763,7 @@ class attractorNetworkSettling:
                 frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
             return frac_weights
 
-    def update_weights_dynamics(self,prev_weights,activeNeuron):
+    def update_weights_dynamics(self,prev_weights,activeNeuron,moreResults=None):
 
         delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
 
@@ -785,16 +786,24 @@ class attractorNetworkSettling:
             inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
         
         '''excitation'''
-        excite=np.zeros(self.N)
+        '''excitation'''
+        excitations_store=np.zeros((len(non_zero_idxs),self.N))
+        excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
         for i in range(len(non_zero_idxs)):
+            excitation_array[self.excitations(non_zero_idxs[i])]=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
+            excitations_store[i,:]=excitation_array
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
         prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-        return prev_weights/np.linalg.norm(prev_weights)
+        if moreResults==True:
+           return prev_weights/np.linalg.norm(prev_weights), excitations_store, excite-inhbit_val
+        else:  
+           return prev_weights/np.linalg.norm(prev_weights)
 
 
-def activityDecoding(prev_weights,radius,N,neurons):
+def activityDecoding(prev_weights,radius,N):
     '''Isolating activity at a radius around the peak to decode position'''
+    neurons=np.arange(N)
     peak=np.argmax(prev_weights) 
     local_activity=np.zeros(N)
     local_activity_idx=[]
@@ -802,14 +811,20 @@ def activityDecoding(prev_weights,radius,N,neurons):
         local_activity_idx.append((peak + i) % N)
     local_activity[local_activity_idx]=prev_weights[local_activity_idx]
 
-    weighted_sum=0
-    for i in range(len(local_activity_idx)):
-        weighted_sum+=local_activity_idx[i]*prev_weights[local_activity_idx[i]]
+    x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
+    vect_sum=np.rad2deg(math.atan2(sum(y),sum(x))) % 360
+    weighted_sum = N*(vect_sum/360)
+
+
+    # weighted_sum=0
+    # for i in range(len(local_activity_idx)):
+    #     weighted_sum+=local_activity_idx[i]*prev_weights[local_activity_idx[i]]
     return weighted_sum
 
 
-def activityDecodingAngle(prev_weights,radius,N,neurons):
+def activityDecodingAngle(prev_weights,radius,N,):
     '''Isolating activity at a radius around the peak to decode position'''
+    neurons = np.arange(N)
     peak=np.argmax(prev_weights) 
     local_activity=np.zeros(N)
     local_activity_idx=[]
@@ -881,12 +896,12 @@ def driving_func(queue):
          
 
          s, r, done, info = env.step(a)
-         queue.put((posX,posY,done,restart))
+         queue.put((posX,posY,done,restart,total_reward))
          total_reward += r
          
-         # if steps % 200 == 0 or done:
-         #       print("\naction " + str([f"{x:+0.2f}" for x in a]))
-         #       print(f"step {steps} total_reward {total_reward:+0.2f}")
+         if done:
+               print("\naction " + str([f"{x:+0.2f}" for x in a]))
+               print(f"step {steps} total_reward {total_reward:+0.2f}")
          steps += 1
          isopen = env.render()
 
@@ -906,28 +921,61 @@ def matplotlib_func(queue):
 
    figw, figh = 9, 8
    fig = plt.figure(figsize=(figw, figh))
+   fig.patch.set_facecolor('dimgrey')
    # plt.get_current_fig_manager().window.setGeometry(500,0,800,800)
-   # ax0 =  plt.subplot2grid(shape=(9, 16), loc=(2, 0), rowspan=7,colspan=7)
-   # axx =  plt.subplot2grid(shape=(9, 16), loc=(0, 0), rowspan=2, colspan=7)
-   # axy =  plt.subplot2grid(shape=(9, 16), loc=(2, 7), rowspan=7, colspan=2)
+   ax0 =  plt.subplot2grid(shape=(9, 16), loc=(2, 0), rowspan=6,colspan=7)
+   # axy2 =  plt.subplot2grid(shape=(9, 16), loc=(8, 0), rowspan=1,colspan=7)
+   axx =  plt.subplot2grid(shape=(9, 16), loc=(0, 0), rowspan=2, colspan=7)
+   axy =  plt.subplot2grid(shape=(9, 16), loc=(2, 7), rowspan=6, colspan=2)
+   ax1 = plt.subplot2grid(shape=(9, 16), loc=(0, 10), colspan=6, rowspan = 9, facecolor="#15B01A")
+   ax2 = plt.subplot2grid(shape=(9, 16), loc=(8, 0), colspan=7, rowspan = 1, facecolor="dimgrey")
+   
 
-   # ax1 = plt.subplot2grid(shape=(9, 16), loc=(0, 10), colspan=6, rowspan = 9, facecolor="#15B01A")
+   # ax1 = plt.subplot(1,2,2, facecolor="#15B01A")
+   # ax0 = plt.subplot(1,2,1)
 
-   ax1 = plt.subplot(1,2,2, facecolor="#15B01A")
-   ax0 = plt.subplot(1,2,1)
-   plt.subplots_adjust(bottom=0.3)
+   # gs = fig.add_gridspec(15,32)
+   # #place cell
+   # ax0 = plt.subplot(gs[4:14, 10:20])
+   # axx = plt.subplot(gs[1:4, 10:20])
+   # axy = plt.subplot(gs[4:14, 20:24])
+   
+   # #deconstructed CANN
+   # axy1 = plt.subplot(gs[0:5, 0:8])
+   # axy2 = plt.subplot(gs[5:10, 0:8])
+   # axy3 = plt.subplot(gs[10:15, 0:8])
+
+   # ax1 = plt.subplot(gs[0:15, 24:32],facecolor="#15B01A")
+
+   plt.subplots_adjust(bottom=0.25)
+   # fig.tight_layout()
 
    '''Slider for Parameters'''
-   button_ax = plt.axes([.05, .03, .05, .04]) # x, y, width, height
-   Nax = plt.axes([0.25, 0.17, 0.65, 0.03])
-   exciteax = plt.axes([0.25, 0.1, 0.65, 0.03])
-   inhax = plt.axes([0.25, 0.03, 0.65, 0.03])
+   button_ax = plt.axes([.05, .03, .05, .04], facecolor='white') # x, y, width, height
+   # button2_ax = plt.axes([.05, .03, .05, .04], facecolor='white')
+   Nax = plt.axes([0.25, 0.17, 0.65, 0.03], facecolor='white')
+   exciteax = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor='white')
+   inhax = plt.axes([0.25, 0.03, 0.65, 0.03], facecolor='white')
+   
+   inhax.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
+   inhax.tick_params(axis='y', colors='white') 
+
    # Create a slider from 0.0 to 20.0 in axes axfreq with 3 as initial value
    start_stop=wig.Button(button_ax,label='$\u25B6$')
-   # reset=wig.Button(button2_ax,'Reset')
-   inhibit_scale=wig.Slider(inhax, 'Inhibition', 0, 0.05, 0.005)
-   excite = wig.Slider(exciteax, 'Excitation', 1, 60, 10, valstep=2)
-   N = wig.Slider(Nax, 'Neurons', 50, 300, 90, valstep=20)
+   # reset=wig.Button(button2_ax,'Total Score')
+   inhibit_scale=wig.Slider(inhax, 'Inhibition', 0, 0.05, 0.01, color='#008000', track_color='white')
+   inhibit_scale.valtext.set_color("white")
+   inhibit_scale.label.set_color('white')
+
+   excite = wig.Slider(exciteax, 'Excitation', 0, 40, 20, valstep=2, color='#008000',track_color='white')
+   excite.valtext.set_color("white")
+   excite.label.set_color('white')
+
+   N = wig.Slider(Nax, 'Neurons', 20, 150, 100, valstep=10, color='#008000',track_color='white')
+   N.valtext.set_color("white")
+   N.label.set_color('white')
+
+   
    # delta2 = wig.Slider(delta2ax, 'Delta 2', -10, 10, 0, valstep=1)
 
    '''Initalise network'''            
@@ -937,20 +985,46 @@ def matplotlib_func(queue):
    #    net=attractorNetworkSettling(int(N.val),num_links[i],int(excite.val), activity_mag[i],inhibit_scale.val)
    #    prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
 
+   def imageHistogram(prev_weights,N,val):
+      prev_weights[prev_weights<0]=0
+      prev_weights/np.linalg.norm(prev_weights)
+      height=100
+     
+      hist1=np.zeros((height,N*2))
+      for n in range(N*2):
+         if n%2==0:
+            coloured=int(np.round(prev_weights[n//2],2)*100)
+            if coloured != 0:
+               hist1[:coloured, n]=[val]*coloured
+      return hist1
+
+   # def imageHistogramMultiple(excite_store,N,val):
+   #    # prev_weights[prev_weights<0]=0
+   #    # prev_weights/np.linalg.norm(prev_weights)
+   #    height=100
+   #    hist1=np.zeros((height,N*2))
+   #    for n in range(N*2):
+   #       if n%2==0 and np.all((hist1[:, n]==0)):
+   #          coloured=int(np.round(prev_weights[n//2],2)*100)
+   #          if coloured != 0:
+   #             hist1[:coloured, n]=[val]*coloured
+   #    return hist1
+
    def animate(i):
       t = time.time()
       global curr_x, curr_y, prev_weights,decoded_x, decoded_y, pause 
       while not queue.empty() and not pause:
-         posX,posY,done,restart = queue.get() 
+         posX,posY,done,restart,reward = queue.get() 
          curr_x.append(posX)
          curr_y.append(posY)
 
          if done or restart:
             curr_x,curr_y=[],[]
+            ax2.clear()
          
-         # if bool(decoded_x) == False or bool(decoded_y) == False:
-         #    decoded_x.append(curr_x[-1])
-         #    decoded_y.append(curr_y[-1])
+         if bool(decoded_x) == False or bool(decoded_y) == False:
+            decoded_x.append(curr_x[-1])
+            decoded_y.append(curr_y[-1])
 
          if i>1 and len(curr_x)>2:
             # '''encoding mangnitude and direction of movement'''
@@ -961,38 +1035,90 @@ def matplotlib_func(queue):
             # y2=curr_y[-1]
             
             # # delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))                  #translation
-            theta=np.rad2deg(math.atan2(curr_y[-1]-curr_y[-2],curr_x[-1]-curr_x[-2]) )          #angle
+            # theta=np.rad2deg(math.atan2(curr_y[-1]-curr_y[-2],curr_x[-1]-curr_x[-2]) )          #angle
             delta[0]=curr_x[-1]
             delta[1]=curr_y[-1]
 
             '''updating network'''
             for j in range(len(delta)):
                net=attractorNetworkSettling(int(N.val),num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
-               prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
+               prev_weights[j][:],excite_store,exciteInhi= net.update_weights_dynamics(prev_weights[j][:],delta[j],moreResults=True)
                prev_weights[j][prev_weights[j][:]<0]=0
 
                # if len(prev_weights[j][:]>0) == 0:
                #    prev_weights[j][net.activation(delta[j])]=net.full_weights(num_links[j])
             im=np.outer(prev_weights[1][:],prev_weights[0][:])
-            
+
+            '''decoding mangnitude and direction of movement'''
+            trans=activityDecoding(prev_weights[0][:],num_links[0],int(N.val))#-prev_trans
+            angle=activityDecoding(prev_weights[1][:],num_links[1],int(N.val))
+
+            # decoded_x.append(#decoded_x[-1]+ (trans*np.cos(angle)))
+            # decoded_y.append#(decoded_y[-1]+ (trans*np.sin(angle)))
+
+            # decoded_x.append(np.argmax(prev_weights[0][:]))
+            # decoded_y.append(np.argmax(prev_weights[1][:]))
+
+
+      
             '''plotting'''
+            ax2.clear()
+            ax2.axis('off')
+            ax2.text(0,0, "Total Score: " + str(np.round(reward,2)), c='r')
+
             ax0.clear()   
+            # ax0.set_title("Attractor Network", color='white')
             ax0.imshow(im, interpolation='nearest', aspect='auto')
             # ax0.axis('off')
             ax0.invert_yaxis()
+            ax0.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
+            ax0.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
+            ax0.tick_params(axis='y', colors='white') 
 
-            # axx.clear()
-            # axx.set_title("Attractor Network")
-            # axx.bar(np.arange(int(N.val)),prev_weights[0][:],width=0.8,color= '#C79FEF')
-            # axx.axis('off')
-            # axy.clear()
-            # axy.barh(np.arange(int(N.val)),prev_weights[1][:],height=0.8,color= '#C79FEF')
-            # axy.axis('off')
+            
+            mapelites_colours = np.vstack((np.array([105/255,105/255,105/255,1]), plt.get_cmap('Set3')(np.arange(256))))
+            mapelites_colours = ListedColormap(mapelites_colours, name='mapelites', N = mapelites_colours.shape[0])
+            simple_colour= ListedColormap(['dimgrey', "#C79FEF"])
+            simple_colour2= ListedColormap(['dimgrey',"#E3E4FA"])
+            color = ListedColormap(['dimgrey', "#728FCE", "#000080","#3090C7","#E3E4FA","#C79FEF","#48D1CC","#045F5F","#50C878","#808000","#254117","#B2C248","#E2F516","#E3F9A6","#FFFFE0","#FFE4C4","#FFE87C","#FBB917","#C8B560","#C19A6B","#C88141","#665D1E","#513B1C","#C04000","#E78A61","#9F000F","#810541","#7E354D","#FDD7E4","#FC6C85","#B048B5","#4E387E","#DCD0FF","#CC6600"])
+
+            axx.clear()
+            axx.set_title("Attractor Network", color='white')
+            axx.imshow(imageHistogram(prev_weights[0][:],N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour)
+            axx.invert_yaxis()
+            axx.axis('off')
+
+            axy.clear()
+            axy.imshow(np.transpose(imageHistogram(prev_weights[1][:],N.val,1)),interpolation='nearest', aspect='auto',cmap=simple_colour)
+            axy.invert_yaxis()
+            axy.axis('off')
+
+
+            # axy3.clear(), axy3.spines[['top', 'left', 'right']].set_visible(False), axy3.spines.bottom.set_color('white')
+            # axy3.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy3.tick_params(axis='x', colors='white')
+            # axy3.imshow(imageHistogram(exciteInhi,N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour), axy3.invert_yaxis()
+
+            # excite_color = np.linspace(0, 1, len(excite_store))
+            # excite_hist=np.zeros((100,N.val*2))
+            # for k in range(len(excite_store)):
+            #    if not np.all((excite_store[k])== 0):
+            #       excite_hist=imageHistogramMultiple(excite_store[k],N.val,excite_color[k],excite_hist)
+            # # print(excite_hist)
+
+            # axy2.clear(), axy2.spines[['top', 'left', 'right']].set_visible(False), axy2.spines.bottom.set_color('white')
+            # axy2.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy2.tick_params(axis='x', colors='white')
+            # axy2.imshow(excite_hist,interpolation='nearest', aspect='auto',cmap=color), axy2.invert_yaxis()
+
+            # axy1.clear(), axy1.spines[['top', 'left', 'right']].set_visible(False), axy1.spines.bottom.set_color('white')
+            # axy1.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy1.tick_params(axis='x', colors='white')
+            # axy1.imshow(imageHistogram(prev_weights[1][:],N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour2), axy1.invert_yaxis()
 
             ax1.clear()
-            ax1.set_title('CarRacer Position')
+            ax1.set_title('CarRacer Position', color='white')
             ax1.axis('equal')
-            # ax0.add_patch(Rectangle((curr_x[-1]-2, curr_y[-1]-2), 8, 8,angle=theta,facecolor = '#929591'))
+            ax1.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
+            ax1.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
+            ax1.tick_params(axis='y', colors='white') 
             ax1.scatter(curr_x, curr_y,s=10,c='r')
             
 
@@ -1014,20 +1140,7 @@ def matplotlib_func(queue):
          pause ^= True
 
 
-            # '''decoding mangnitude and direction of movement'''
-            # trans=activityDecoding(prev_weights[0][:],num_links[0],N[0],neurons[0][:])#-prev_trans
-            # angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1],neurons[1][:]))
-
-            # decoded_x.append(decoded_x[-1]+ (trans*np.cos(angle)))
-            # decoded_y.append(decoded_y[-1]+ (trans*np.sin(angle)))
-
-            # # decoded_x.append(np.argmax(prev_weights[0][:]))
-            # # decoded_y.append(np.argmax(prev_weights[1][:]))
-
-
-            # ax2.set_title("Decoded Attractor Network")
-            # ax2.scatter(decoded_x,decoded_y, s=15)
-            # ax1.axis('equal')
+            
             
             
             

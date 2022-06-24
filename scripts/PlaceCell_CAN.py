@@ -173,7 +173,7 @@ def plotting_decomposed_CAN(ax1,ax2,ax3,delta, activity, activity_shifted, inter
 
 
 def plotting_CAN_dynamics(delta1,delta2):
-    fig1 = plt.figure(figsize=(11, 6))
+    fig1 = plt.figure(figsize=(8, 6))
     # ax0 =  plt.subplot2grid(shape=(3, 5), loc=(1, 2), rowspan=2,colspan=2)
     # axx =  plt.subplot2grid(shape=(3, 5), loc=(0, 2), colspan=2)
     # axy =  plt.subplot2grid(shape=(3, 5), loc=(1, 4), rowspan=2)
@@ -182,18 +182,18 @@ def plotting_CAN_dynamics(delta1,delta2):
     # axy2 = plt.subplot2grid(shape=(3, 5), loc=(1, 0), colspan=2)
     # axy3 = plt.subplot2grid(shape=(3, 5), loc=(2, 0), colspan=2)
    
-    gs = fig1.add_gridspec(32,32)
+    gs = fig1.add_gridspec(32,24)
     #place cell
-    ax0 = plt.subplot(gs[8:24, 12:20])
-    axx = plt.subplot(gs[3:8, 12:20])
-    axy = plt.subplot(gs[8:24, 20:23])
+    ax0 = plt.subplot(gs[6:24, 0:20])
+    axx = plt.subplot(gs[0:5, 0:20])
+    axy = plt.subplot(gs[6:24, 20:24])
     
-    #deconstructed CANN
-    axy1 = plt.subplot(gs[0:7, 0:10])
-    axy2 = plt.subplot(gs[10:17, 0:10])
-    axy3 = plt.subplot(gs[20:27, 0:10])
+    # #deconstructed CANN
+    # axy1 = plt.subplot(gs[0:7, 0:10])
+    # axy2 = plt.subplot(gs[10:17, 0:10])
+    # axy3 = plt.subplot(gs[20:27, 0:10])
 
-    ax4 = plt.subplot(gs[9:23, 24:32])
+    # ax4 = plt.subplot(gs[9:23, 24:32])
 
     # axx1 = plt.subplot(gs[0:3, 26:36])
     # axx2 = plt.subplot(gs[6:9, 26:36])
@@ -234,7 +234,7 @@ def plotting_CAN_dynamics(delta1,delta2):
         if not pause and resetDone:
             ax0.clear(),
             axx.clear(), axy.clear(),
-            axy1.clear(), axy2.clear(), axy3.clear(), 
+            
             #  axx1.clear(), axx2.clear(), axx3.clear(), axx4.clear(), axx5.clear()
             prev_y=np.argmax(prev_weights[1][:])
             prev_x=np.argmax(prev_weights[0][:])
@@ -246,7 +246,9 @@ def plotting_CAN_dynamics(delta1,delta2):
                 prev_weights[j][prev_weights[j][:]<0]=0
             
             # ax0.set_title("2D Attractor Network")
-            ax0.imshow(np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1)))
+            # ax0.imshow(np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1)))
+            im=np.outer(prev_weights[0][:],prev_weights[1][:])
+            ax0.imshow(im, interpolation='nearest', aspect='auto')
             axy.invert_yaxis()
             axx.bar(neurons,prev_weights[1][:],width=1)
             axx.axis('off')
@@ -258,16 +260,17 @@ def plotting_CAN_dynamics(delta1,delta2):
             curr_x=curr_x+del_x
             curr_y=curr_y+del_y
 
-            ax4.scatter(np.argmax(prev_weights[1][:]), np.argmax(prev_weights[0][:]),c='b',s=15)
-            ax4.set_xlim([0,N[0]])
-            ax4.set_ylim([0,N[1]])
-            ax4.invert_yaxis()
+            # ax4.scatter(np.argmax(prev_weights[1][:]), np.argmax(prev_weights[0][:]),c='b',s=15)
+            # ax4.set_xlim([0,N[0]])
+            # ax4.set_ylim([0,N[1]])
+            # ax4.invert_yaxis()
 
 
 
             # plotting_decomposed_CAN(axx1,axx2,axx3,axx4,axx5,delta1.val, activity_x, activity_shifted_x, intermediate_activity_x, inhbit_val_x, excitations_store_x)
             # print(delta1.val,activityDecoding(prev_weights_x,num_links)-prev_x)
-            plotting_decomposed_CAN(axy1,axy2,axy3,delta2.val, activity, activity_shifted, intermediate_activity, inhbit_val, excitations_store,N[-1])
+            # axy1.clear(), axy2.clear(), axy3.clear(), 
+            # plotting_decomposed_CAN(axy1,axy2,axy3,delta2.val, activity, activity_shifted, intermediate_activity, inhbit_val, excitations_store,N[-1])
    
 
     def update(val):
@@ -288,7 +291,7 @@ def plotting_CAN_dynamics(delta1,delta2):
         (xn,yn),(xN,yN) = reset.label.clipbox.get_points()
         if xn < event.x < xN and yn < event.y < yN:
             delta=[0,0]
-            ax4.clear()
+
             for j in range(len(delta)):
                 prev_weights[j][:]=np.zeros(N[j])
             
@@ -309,7 +312,7 @@ def plotting_CAN_dynamics(delta1,delta2):
     delta2.on_changed(update)
     inhibit_scale.on_changed(update)
     fig1.canvas.mpl_connect('button_press_event', onClick)
-    ani = FuncAnimation(fig1, animate, frames=iters)
+    ani = FuncAnimation(fig1, animate)
     plt.show() 
 
 '''Testing''' 
