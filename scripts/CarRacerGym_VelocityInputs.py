@@ -71,16 +71,17 @@ def driving_func(queue):
       while True:
 
          register_input()
-
+         t=time.time()
          posX= env.car.hull.position[0]
          posY= env.car.hull.position[1]
 
          linV=np.sqrt(np.square(env.car.hull.linearVelocity[0])+ np.square(env.car.hull.linearVelocity[1]))
+         linV_x=env.car.hull.linearVelocity[0]
+         linV_y=env.car.hull.linearVelocity[1]
          angV=env.car.hull.angularVelocity
          
 
          s, r, done, info = env.step(a)
-         queue.put((posX,posY,done,restart,total_reward))
          total_reward += r
          
          if done:
@@ -90,6 +91,7 @@ def driving_func(queue):
          isopen = env.render()
 
          time.sleep(0.1)
+         queue.put((posX,posY,linV,linV_x, linV_y,angV,done,restart,total_reward, time.time()-t))
          
          if done or restart or isopen is False:
                break
@@ -98,12 +100,15 @@ def driving_func(queue):
 
 def matplotlib_func(queue):
    # matplotlib stuff
-   global curr_x, curr_y,decoded_x, decoded_y, pause, prev_weights
+   global curr_x, curr_y,decoded_x, decoded_y, pause, prev_weights, angVel
    curr_x, curr_y=[],[]
-   decoded_x,decoded_y=[],[]
+#    decoded_x,decoded_y=[],[]
+   decoded_x=[0]
+   decoded_y=[0]
+   angVel=[]
    pause=False 
 
-   figw, figh = 9, 8
+   figw, figh = 5, 4
    fig = plt.figure(figsize=(figw, figh))
    fig.patch.set_facecolor('dimgrey')
    # plt.get_current_fig_manager().window.setGeometry(500,0,800,800)
@@ -196,20 +201,28 @@ def matplotlib_func(queue):
 
    def animate(i):
       t = time.time()
-      global curr_x, curr_y, prev_weights,decoded_x, decoded_y, pause 
+      global curr_x, curr_y, prev_weights,decoded_x, decoded_y, pause, angVel
       while not queue.empty() and not pause:
-         posX,posY,done,restart,reward = queue.get() 
-         curr_x.append(posX)
-         curr_y.append(posY)
+         posX,posY,linV,linV_x, linV_y,angV,done,restart,reward,del_t = queue.get() 
+         curr_x.append(posX-posX[0])
+         curr_y.append(posY-posY[0])
+         angVel.append(angV)
+
+         
 
          if done or restart:
             curr_x,curr_y=[],[]
             ax2.clear()
          
-         if bool(decoded_x) == False or bool(decoded_y) == False:
-            decoded_x.append(curr_x[-1])
-            decoded_y.append(curr_y[-1])
+        #  if bool(decoded_x) == False or bool(decoded_y) == False:
+        #  decoded_x.append(decoded_x[-1]+linV*np.cos(angVel[-1]))
+        #  decoded_y.append(decoded_y[-1]+linV*np.sin(angVel[-1]))
 
+         decoded_x.append(decoded_x[-1]+linV_x*del_t)
+         decoded_y.append(decoded_y[-1]+linV_y*del_t)
+
+         print(str(curr_x[-1])+"  "+str( curr_y[-1])+ "_______"+str(decoded_x[-1] )+"  "+str(decoded_y[-1]))
+ 
          if i>1 and len(curr_x)>2:
             # '''encoding mangnitude and direction of movement'''
             # x1=curr_x[-2]
@@ -303,7 +316,7 @@ def matplotlib_func(queue):
             ax1.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
             ax1.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
             ax1.tick_params(axis='y', colors='white') 
-            ax1.scatter(curr_x, curr_y,s=10,c='r')
+            ax1.scatter(decoded_x, decoded_y,s=10,c='r')
             
 
 
