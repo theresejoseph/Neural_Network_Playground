@@ -69,9 +69,9 @@ def driving_func(queue):
       global restart
       restart = False
       while True:
-
-         register_input()
          t=time.time()
+         register_input()
+         
          posX= env.car.hull.position[0]
          posY= env.car.hull.position[1]
 
@@ -90,8 +90,10 @@ def driving_func(queue):
          steps += 1
          isopen = env.render()
 
+         queue.put((posX,posY,linV,linV_x, linV_y,angV,done,restart,total_reward, 0.02))
+
          time.sleep(0.1)
-         queue.put((posX,posY,linV,linV_x, linV_y,angV,done,restart,total_reward, time.time()-t))
+         
          
          if done or restart or isopen is False:
                break
@@ -100,11 +102,12 @@ def driving_func(queue):
 
 def matplotlib_func(queue):
    # matplotlib stuff
-   global curr_x, curr_y,decoded_x, decoded_y, pause, prev_weights, angVel
+   global curr_x, curr_y,decoded_pose, pause, prev_weights, angVel,decoded_true_pose
    curr_x, curr_y=[],[]
 #    decoded_x,decoded_y=[],[]
-   decoded_x=[0]
-   decoded_y=[0]
+   decoded_pose=[(0,0,0)]
+   decoded_true_pose=[(0,0,0)]
+   # decoded_y=[0]
    angVel=[]
    pause=False 
 
@@ -160,7 +163,7 @@ def matplotlib_func(queue):
    excite.valtext.set_color("white")
    excite.label.set_color('white')
 
-   N = wig.Slider(Nax, 'Neurons', 20, 150, 100, valstep=10, color='#008000',track_color='white')
+   N = wig.Slider(Nax, 'Neurons', 20, 400, 200, valstep=10, color='#008000',track_color='white')
    N.valtext.set_color("white")
    N.label.set_color('white')
 
@@ -199,13 +202,26 @@ def matplotlib_func(queue):
    #             hist1[:coloured, n]=[val]*coloured
    #    return hist1
 
+   def poseUpdate(pose, linV, angV, dt):
+      theta_old=pose[2]
+
+      xdot=linV*np.cos(theta_old)
+      ydot=linV*np.sin(theta_old)
+      theta_dot=angV
+
+      x=dt*xdot + pose[0]
+      y=dt*ydot + pose[1]
+      theta= dt*theta_dot + theta_old
+
+      return (x,y,theta)
+
    def animate(i):
       t = time.time()
-      global curr_x, curr_y, prev_weights,decoded_x, decoded_y, pause, angVel
+      global curr_x, curr_y, prev_weights,decoded_pose, decoded_true_pose, pause, angVel
       while not queue.empty() and not pause:
          posX,posY,linV,linV_x, linV_y,angV,done,restart,reward,del_t = queue.get() 
-         curr_x.append(posX-posX[0])
-         curr_y.append(posY-posY[0])
+         curr_x.append(posX)
+         curr_y.append(posY)
          angVel.append(angV)
 
          
@@ -213,17 +229,19 @@ def matplotlib_func(queue):
          if done or restart:
             curr_x,curr_y=[],[]
             ax2.clear()
+            ax1.clear()
          
         #  if bool(decoded_x) == False or bool(decoded_y) == False:
         #  decoded_x.append(decoded_x[-1]+linV*np.cos(angVel[-1]))
         #  decoded_y.append(decoded_y[-1]+linV*np.sin(angVel[-1]))
 
-         decoded_x.append(decoded_x[-1]+linV_x*del_t)
-         decoded_y.append(decoded_y[-1]+linV_y*del_t)
+         # decoded_x.append([0,0,0])
+         # decoded_y.append(decoded_y[-1]+linV_y*del_t)
 
-         print(str(curr_x[-1])+"  "+str( curr_y[-1])+ "_______"+str(decoded_x[-1] )+"  "+str(decoded_y[-1]))
+         
  
          if i>1 and len(curr_x)>2:
+            
             # '''encoding mangnitude and direction of movement'''
             # x1=curr_x[-2]
             # x2=curr_x[-1]
@@ -233,8 +251,8 @@ def matplotlib_func(queue):
             
             # # delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))                  #translation
             # theta=np.rad2deg(math.atan2(curr_y[-1]-curr_y[-2],curr_x[-1]-curr_x[-2]) )          #angle
-            delta[0]=curr_x[-1]
-            delta[1]=curr_y[-1]
+            delta[0]=linV
+            delta[1]=angVel[-1]*100
 
             '''updating network'''
             for j in range(len(delta)):
@@ -247,8 +265,8 @@ def matplotlib_func(queue):
             im=np.outer(prev_weights[1][:],prev_weights[0][:])
 
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],int(N.val))#-prev_trans
-            angle=activityDecoding(prev_weights[1][:],num_links[1],int(N.val))
+            linV_attractor=activityDecoding(prev_weights[0][:],num_links[0],int(N.val))#-prev_trans
+            angV_attractor=activityDecoding(prev_weights[1][:],num_links[1],int(N.val))/100
 
             # decoded_x.append(#decoded_x[-1]+ (trans*np.cos(angle)))
             # decoded_y.append#(decoded_y[-1]+ (trans*np.sin(angle)))
@@ -273,23 +291,38 @@ def matplotlib_func(queue):
             ax0.tick_params(axis='y', colors='white') 
 
             
-            mapelites_colours = np.vstack((np.array([105/255,105/255,105/255,1]), plt.get_cmap('Set3')(np.arange(256))))
-            mapelites_colours = ListedColormap(mapelites_colours, name='mapelites', N = mapelites_colours.shape[0])
-            simple_colour= ListedColormap(['dimgrey', "#C79FEF"])
-            simple_colour2= ListedColormap(['dimgrey',"#E3E4FA"])
-            color = ListedColormap(['dimgrey', "#728FCE", "#000080","#3090C7","#E3E4FA","#C79FEF","#48D1CC","#045F5F","#50C878","#808000","#254117","#B2C248","#E2F516","#E3F9A6","#FFFFE0","#FFE4C4","#FFE87C","#FBB917","#C8B560","#C19A6B","#C88141","#665D1E","#513B1C","#C04000","#E78A61","#9F000F","#810541","#7E354D","#FDD7E4","#FC6C85","#B048B5","#4E387E","#DCD0FF","#CC6600"])
+            # mapelites_colours = np.vstack((np.array([105/255,105/255,105/255,1]), plt.get_cmap('Set3')(np.arange(256))))
+            # mapelites_colours = ListedColormap(mapelites_colours, name='mapelites', N = mapelites_colours.shape[0])
+            # simple_colour= ListedColormap(['dimgrey', "#C79FEF"])
+            # simple_colour2= ListedColormap(['dimgrey',"#E3E4FA"])
+            # color = ListedColormap(['dimgrey', "#728FCE", "#000080","#3090C7","#E3E4FA","#C79FEF","#48D1CC","#045F5F","#50C878","#808000","#254117","#B2C248","#E2F516","#E3F9A6","#FFFFE0","#FFE4C4","#FFE87C","#FBB917","#C8B560","#C19A6B","#C88141","#665D1E","#513B1C","#C04000","#E78A61","#9F000F","#810541","#7E354D","#FDD7E4","#FC6C85","#B048B5","#4E387E","#DCD0FF","#CC6600"])
 
-            axx.clear()
-            axx.set_title("Attractor Network", color='white')
-            axx.imshow(imageHistogram(prev_weights[0][:],N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour)
-            axx.invert_yaxis()
-            axx.axis('off')
+            # axx.clear()
+            # axx.set_title("Attractor Network", color='white')
+            # axx.imshow(imageHistogram(prev_weights[0][:],N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour)
+            # axx.invert_yaxis()
+            # axx.axis('off')
 
-            axy.clear()
-            axy.imshow(np.transpose(imageHistogram(prev_weights[1][:],N.val,1)),interpolation='nearest', aspect='auto',cmap=simple_colour)
-            axy.invert_yaxis()
-            axy.axis('off')
+            # axy.clear()
+            # axy.imshow(np.transpose(imageHistogram(prev_weights[1][:],N.val,1)),interpolation='nearest', aspect='auto',cmap=simple_colour)
+            # axy.invert_yaxis()
+            # axy.axis('off')
 
+
+            decoded_pose.append(poseUpdate(decoded_pose[-1], linV_attractor, angV_attractor, del_t))
+            decoded_true_pose.append(poseUpdate(decoded_true_pose[-1], linV, angVel[-1], del_t))
+
+            # ax1.clear()
+            ax1.set_title('CarRacer Position', color='white')
+            ax1.axis('equal')
+            ax1.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
+            ax1.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
+            ax1.tick_params(axis='y', colors='white') 
+            
+            ax1.scatter(decoded_pose[-1][0], decoded_pose[-1][1],s=10,c='r')
+
+            # print(str(decoded_true_pose[-1][0])+"  "+str( decoded_true_pose[-1][1])+ "_______"+str(decoded_pose[-1][0] )+"  "+str(decoded_pose[-1][1]))
+            print(str(linV)+"  "+str( angVel[-1])+ "_______"+str(linV_attractor )+"  "+str(angV_attractor))
 
             # axy3.clear(), axy3.spines[['top', 'left', 'right']].set_visible(False), axy3.spines.bottom.set_color('white')
             # axy3.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy3.tick_params(axis='x', colors='white')
@@ -310,13 +343,7 @@ def matplotlib_func(queue):
             # axy1.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy1.tick_params(axis='x', colors='white')
             # axy1.imshow(imageHistogram(prev_weights[1][:],N.val,1),interpolation='nearest', aspect='auto',cmap=simple_colour2), axy1.invert_yaxis()
 
-            ax1.clear()
-            ax1.set_title('CarRacer Position', color='white')
-            ax1.axis('equal')
-            ax1.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
-            ax1.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
-            ax1.tick_params(axis='y', colors='white') 
-            ax1.scatter(decoded_x, decoded_y,s=10,c='r')
+            
             
 
 
