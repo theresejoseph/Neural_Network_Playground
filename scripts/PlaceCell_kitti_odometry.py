@@ -11,7 +11,7 @@ from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettlin
 
 
 '''Parameters'''
-N=[100,360] #number of neurons
+N=[300,360] #number of neurons
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
 num_links=[50,60]
@@ -257,8 +257,8 @@ def encodingDecodingMotion(data_x,data_y):
 
 '''Test Area'''
 sparse_gt=data_processing()#[0::4]
-data_x=sparse_gt[:, :, 3][:,0][:1000]
-data_y=sparse_gt[:, :, 3][:,2][:1000]
+data_x=sparse_gt[:, :, 3][:,0]#[:1000]
+data_y=sparse_gt[:, :, 3][:,2]#[:1000]
 
 # data_y=np.concatenate([np.zeros(100), np.arange(100), np.ones(100)*100, np.arange(100,5,-1)])
 # data_x=np.concatenate([np.arange(100), np.ones(100)*100, np.arange(100,0,-1), np.zeros(95)])
@@ -269,8 +269,8 @@ data_y=sparse_gt[:, :, 3][:,2][:1000]
 # data_y=np.zeros(195)
 # data_x=np.concatenate([np.arange(100), np.arange(100,5,-1)])
 
-visualise(data_x,data_y)
-# encodingDecodingMotion(data_x,data_y)
+# visualise(data_x,data_y)
+encodingDecodingMotion(data_x,data_y)
 
 # print(np.rad2deg(math.atan2(0,-1)))
 
