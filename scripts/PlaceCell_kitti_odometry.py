@@ -171,6 +171,7 @@ def encodingDecodingMotion(data_x,data_y):
     theta=np.zeros((len(data_x)))
     theta[0]=0
     tran,rot=np.zeros((len(data_x))), np.zeros((len(data_y)))
+    rot[0]=0
     tran_out,rot_out=np.zeros((len(data_x))), np.zeros((len(data_y)))
     for i in range(len(data_x)):
         if i>=2:
