@@ -90,12 +90,14 @@ fig = plt.figure(figsize=(15, 5))
 ax0= plt.subplot2grid(shape=(2, 3), loc=(0, 0), rowspan=1,colspan=1)
 ax1= plt.subplot2grid(shape=(2, 3), loc=(1, 0), rowspan=1,colspan=1)
 ax11= plt.subplot2grid(shape=(2, 3), loc=(0, 1), rowspan=2,colspan=1)
-ax2= plt.subplot2grid(shape=(2, 3), loc=(0, 2), rowspan=2,colspan=1)
+ax3= plt.subplot2grid(shape=(2, 3), loc=(1, 2), rowspan=1,colspan=1)
+ax2= plt.subplot2grid(shape=(2, 3), loc=(0, 2), rowspan=1,colspan=1)
 imgLib=[]
 delta=[0,0]
 imgLib.append([TwoTraversesImgs[0].flatten(),lndmrks[0][0], lndmrks[0][1]])
 imgLib.append([TwoTraversesImgs[1].flatten(),lndmrks[1][0], lndmrks[1][1]])
 def animate(i):
+    ax2.clear(), #plt.gcf().clear()
     '''encoding mangnitude and direction of movement'''
     if i>0 : 
         # x0=data_x[i-2]
@@ -106,7 +108,7 @@ def animate(i):
         y1=lndmrks[i-1][1]
         y2=lndmrks[i][1]
         
-        delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *100#translation
+        delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *100           #translation
         delta[1]=np.rad2deg(math.atan2(y2-y1,x2-x1)) % 360          #angle
         
         net1=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
@@ -116,20 +118,25 @@ def animate(i):
         
         if bool==True:
             #add landmark activity to attractor network
-            print('Image Matched')
-            prev_weights[0][:]= net1.update_weights_dynamics(prev_weights[0][:],delta[0])
+            # ax2.text(0,0,'Image Matched',c='r')
+            # ax2.axis('off')
+            ax2.imshow(np.reshape(imgLib[idx][0],(RESIZE_DIM[1],RESIZE_DIM[0])))
+
+            prev_weights[0][:]= net1.update_weights_dynamics(prev_weights[0][:],imgLib[idx][1])
             prev_weights[0][prev_weights[0][:]<0]=0
 
-            prev_weights[1][:]= net2.update_weights_dynamics(prev_weights[1][:],delta[1])
+            prev_weights[1][:]= net2.update_weights_dynamics(prev_weights[1][:],imgLib[idx][2])
             prev_weights[1][prev_weights[1][:]<0]=0
         else: 
-            imgLib.append([TwoTraversesImgs[i].flatten(),lndmrks[i][0], lndmrks[i][1]])
-            print('Image Added')
-            prev_weights[0][:]= net1.update_weights_dynamics(prev_weights[0][:],delta[0])
-            prev_weights[0][prev_weights[0][:]<0]=0
+            imgLib.append([TwoTraversesImgs[i].flatten(),curr_parameter[0], curr_parameter[1]])
+            ax2.text(0,0,'Image Added',c='r')
+            ax2.axis('off')
 
-            prev_weights[1][:]= net2.update_weights_dynamics(prev_weights[1][:],delta[1])
-            prev_weights[1][prev_weights[1][:]<0]=0
+        prev_weights[0][:]= net1.update_weights_dynamics(prev_weights[0][:],delta[0])
+        prev_weights[0][prev_weights[0][:]<0]=0
+
+        prev_weights[1][:]= net2.update_weights_dynamics(prev_weights[1][:],delta[1])
+        prev_weights[1][prev_weights[1][:]<0]=0
 
         '''decoding mangnitude and direction of movement'''
         trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/100#-prev_trans
@@ -137,7 +144,11 @@ def animate(i):
 
         curr_parameter[0]=curr_parameter[0] + (trans*np.cos(angle))
         curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(angle))
+        ax11.text(0,0,f"True:{round(delta[0]/100,2)},   {round(delta[1],2)} _____ Decoded:{round(trans,2)},   {round(np.rad2deg(angle),2)}", c='b')
 
+
+
+        
 
     ax0.clear()
     ax0.imshow(TwoTraversesImgs[i], interpolation='nearest', aspect='auto')
@@ -150,10 +161,12 @@ def animate(i):
     ax11.set_title("2D Attractor Network")
     im=np.outer(prev_weights[0][:],prev_weights[1][:])
     ax11.imshow(im,interpolation='nearest', aspect='auto')
+    
+    
 
-    ax2.set_title("Decoded Pose")
-    ax2.scatter(curr_parameter[0], curr_parameter[1],s=15)
-    ax2.axis('equal')
+    ax3.set_title("Decoded Pose")
+    ax3.scatter(curr_parameter[0], curr_parameter[1],s=15)
+    ax3.axis('equal')
     
 ani = FuncAnimation(fig, animate, interval=1, frames= len(TwoTraversesImgs),repeat=False)
 plt.show() 

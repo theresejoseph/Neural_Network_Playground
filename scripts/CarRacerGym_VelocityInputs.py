@@ -14,7 +14,7 @@ from multiprocessing.dummy import freeze_support
 import multiprocessing
 
 from carRacer import  FrictionDetector, CarRacing
-from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling
+from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork
 
 
 '''Parameters'''
@@ -26,6 +26,7 @@ excite=[20,47]
 activity_mag=[1,1]
 inhibit_scale=[0.005,0.005]
 curr_parameter=[0,0]
+SCALING_FACTOR=1
 
 
 def driving_func(queue):
@@ -102,16 +103,17 @@ def driving_func(queue):
 
 def matplotlib_func(queue):
    # matplotlib stuff
-   global curr_x, curr_y,decoded_pose, pause, prev_weights, angVel,decoded_true_pose
+   global curr_x, curr_y,decoded_pose, pause, prev_weights, angVel,decoded_true_pose, theta
    curr_x, curr_y=[],[]
+   theta=[0]
 #    decoded_x,decoded_y=[],[]
    decoded_pose=[(0,0,0)]
-   decoded_true_pose=[(0,0,0)]
+   decoded_true_pose=[[0,0,0]]
    # decoded_y=[0]
    angVel=[]
    pause=False 
 
-   figw, figh = 5, 4
+   figw, figh = 7, 6
    fig = plt.figure(figsize=(figw, figh))
    fig.patch.set_facecolor('dimgrey')
    # plt.get_current_fig_manager().window.setGeometry(500,0,800,800)
@@ -119,8 +121,9 @@ def matplotlib_func(queue):
    # axy2 =  plt.subplot2grid(shape=(9, 16), loc=(8, 0), rowspan=1,colspan=7)
    axx =  plt.subplot2grid(shape=(9, 16), loc=(0, 0), rowspan=2, colspan=7)
    axy =  plt.subplot2grid(shape=(9, 16), loc=(2, 7), rowspan=6, colspan=2)
-   ax1 = plt.subplot2grid(shape=(9, 16), loc=(0, 10), colspan=6, rowspan = 9, facecolor="#15B01A")
+   ax1 = plt.subplot2grid(shape=(9, 16), loc=(0, 10), colspan=6, rowspan = 4, facecolor="#15B01A")
    ax2 = plt.subplot2grid(shape=(9, 16), loc=(8, 0), colspan=7, rowspan = 1, facecolor="dimgrey")
+   ax3 = plt.subplot2grid(shape=(9, 16), loc=(5, 10), colspan=6, rowspan = 4, facecolor="#15B01A")
    
 
    # ax1 = plt.subplot(1,2,2, facecolor="#15B01A")
@@ -145,7 +148,7 @@ def matplotlib_func(queue):
    '''Slider for Parameters'''
    button_ax = plt.axes([.05, .03, .05, .04], facecolor='white') # x, y, width, height
    # button2_ax = plt.axes([.05, .03, .05, .04], facecolor='white')
-   Nax = plt.axes([0.25, 0.17, 0.65, 0.03], facecolor='white')
+   # Nax = plt.axes([0.25, 0.17, 0.65, 0.03], facecolor='white')
    exciteax = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor='white')
    inhax = plt.axes([0.25, 0.03, 0.65, 0.03], facecolor='white')
    
@@ -155,7 +158,7 @@ def matplotlib_func(queue):
    # Create a slider from 0.0 to 20.0 in axes axfreq with 3 as initial value
    start_stop=wig.Button(button_ax,label='$\u25B6$')
    # reset=wig.Button(button2_ax,'Total Score')
-   inhibit_scale=wig.Slider(inhax, 'Inhibition', 0, 0.05, 0.01, color='#008000', track_color='white')
+   inhibit_scale=wig.Slider(inhax, 'Inhibition', 0, 0.05, 0.005, color='#008000', track_color='white')
    inhibit_scale.valtext.set_color("white")
    inhibit_scale.label.set_color('white')
 
@@ -163,16 +166,16 @@ def matplotlib_func(queue):
    excite.valtext.set_color("white")
    excite.label.set_color('white')
 
-   N = wig.Slider(Nax, 'Neurons', 20, 400, 200, valstep=10, color='#008000',track_color='white')
-   N.valtext.set_color("white")
-   N.label.set_color('white')
+   # N = wig.Slider(Nax, 'Neurons', 20, 400, 300, valstep=10, color='#008000',track_color='white')
+   # N.valtext.set_color("white")
+   # N.label.set_color('white')
 
    
    # delta2 = wig.Slider(delta2ax, 'Delta 2', -10, 10, 0, valstep=1)
 
    '''Initalise network'''            
    delta=[0,0]
-   prev_weights=[np.zeros(int(N.val)), np.zeros(int(N.val))]
+   prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
    # for i in range(len(delta)):
    #    net=attractorNetworkSettling(int(N.val),num_links[i],int(excite.val), activity_mag[i],inhibit_scale.val)
    #    prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
@@ -211,18 +214,19 @@ def matplotlib_func(queue):
 
       x=dt*xdot + pose[0]
       y=dt*ydot + pose[1]
-      theta= dt*theta_dot + theta_old
+      theta= dt*theta_dot + pose[2]
 
       return (x,y,theta)
 
    def animate(i):
       t = time.time()
-      global curr_x, curr_y, prev_weights,decoded_pose, decoded_true_pose, pause, angVel
+      global curr_x, curr_y, prev_weights,decoded_pose, decoded_true_pose, pause, angVel,theta
       while not queue.empty() and not pause:
          posX,posY,linV,linV_x, linV_y,angV,done,restart,reward,del_t = queue.get() 
          curr_x.append(posX)
          curr_y.append(posY)
          angVel.append(angV)
+         
 
          
 
@@ -237,7 +241,9 @@ def matplotlib_func(queue):
 
          # decoded_x.append([0,0,0])
          # decoded_y.append(decoded_y[-1]+linV_y*del_t)
-
+         
+         
+         
          
  
          if i>1 and len(curr_x)>2:
@@ -251,12 +257,17 @@ def matplotlib_func(queue):
             
             # # delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))                  #translation
             # theta=np.rad2deg(math.atan2(curr_y[-1]-curr_y[-2],curr_x[-1]-curr_x[-2]) )          #angle
+            
+            # delta[0]=linV*np.cos(theta[-1])*del_t*SCALING_FACTOR
+            # delta[1]=linV*np.sin(theta[-1])*del_t*SCALING_FACTOR
+            # theta.append(theta[-1]+angVel[-1]*del_t)
+            
             delta[0]=linV
-            delta[1]=angVel[-1]*100
+            delta[1]=np.rad2deg(angVel[-1]*del_t)
 
             '''updating network'''
             for j in range(len(delta)):
-               net=attractorNetworkSettling(int(N.val),num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
+               net=attractorNetworkSettling(N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
                prev_weights[j][prev_weights[j][:]<0]=0
 
@@ -265,8 +276,16 @@ def matplotlib_func(queue):
             im=np.outer(prev_weights[1][:],prev_weights[0][:])
 
             '''decoding mangnitude and direction of movement'''
-            linV_attractor=activityDecoding(prev_weights[0][:],num_links[0],int(N.val))#-prev_trans
-            angV_attractor=activityDecoding(prev_weights[1][:],num_links[1],int(N.val))/100
+            linV_dec=activityDecoding(prev_weights[0][:],num_links[0],N[0])#-prev_trans
+            ang=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))
+
+            print(f"{delta[0]},{delta[1]} ..... decoded {linV_dec},{ang}")
+
+            # decoded_true_pose.append([delta[0]/SCALING_FACTOR+decoded_true_pose[-1][0],delta[1]/SCALING_FACTOR+decoded_true_pose[-1][1],theta[-1]+decoded_true_pose[-1][2]])
+            decoded_true_pose.append(poseUpdate(decoded_true_pose[-1], linV, angV, del_t))
+            
+            decoded_pose.append([decoded_pose[-1][0]+linV_dec*np.cos(decoded_pose[-1][2]),decoded_pose[-1][1]+linV_dec*np.sin(decoded_pose[-1][2]), decoded_pose[-1][2]+ang])
+           
 
             # decoded_x.append(#decoded_x[-1]+ (trans*np.cos(angle)))
             # decoded_y.append#(decoded_y[-1]+ (trans*np.sin(angle)))
@@ -309,20 +328,26 @@ def matplotlib_func(queue):
             # axy.axis('off')
 
 
-            decoded_pose.append(poseUpdate(decoded_pose[-1], linV_attractor, angV_attractor, del_t))
-            decoded_true_pose.append(poseUpdate(decoded_true_pose[-1], linV, angVel[-1], del_t))
+            # decoded_pose.append(poseUpdate(decoded_pose[-1], linV, angV, del_t))
+            
 
             # ax1.clear()
-            ax1.set_title('CarRacer Position', color='white')
+            ax1.set_title('True CarRacer Position', color='white')
             ax1.axis('equal')
             ax1.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
             ax1.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
             ax1.tick_params(axis='y', colors='white') 
-            
-            ax1.scatter(decoded_pose[-1][0], decoded_pose[-1][1],s=10,c='r')
+            ax1.scatter(decoded_true_pose[-1][0], decoded_true_pose[-1][1],s=10,c='r')
+
+            ax3.set_title('Decoded CarRacer Position', color='white')
+            ax3.axis('equal')
+            ax3.spines[['top', 'right', 'left', 'bottom']].set_color('white')   
+            ax3.tick_params(axis='x', colors='white')    #setting up X-axis tick color to red
+            ax3.tick_params(axis='y', colors='white') 
+            ax3.scatter(decoded_pose[-1][0], decoded_pose[-1][1],s=10,c='r')
 
             # print(str(decoded_true_pose[-1][0])+"  "+str( decoded_true_pose[-1][1])+ "_______"+str(decoded_pose[-1][0] )+"  "+str(decoded_pose[-1][1]))
-            print(str(linV)+"  "+str( angVel[-1])+ "_______"+str(linV_attractor )+"  "+str(angV_attractor))
+            # print(str(linV)+"  "+str( angVel[-1])+ "_______"+str(x )+"  "+str(y))
 
             # axy3.clear(), axy3.spines[['top', 'left', 'right']].set_visible(False), axy3.spines.bottom.set_color('white')
             # axy3.tick_params(axis='y',which='both', left=False, right=False, labelleft=False), axy3.tick_params(axis='x', colors='white')
@@ -351,9 +376,9 @@ def matplotlib_func(queue):
       global prev_weights, num_links, activity_mag
       '''distributed weights with excitations and inhibitions'''
       # delta=[int(delta1.val),int(delta2.val)]
-      prev_weights=[np.zeros(int(N.val)), np.zeros(int(N.val))]
+      prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
       for j in range(len(delta)):
-         net=attractorNetworkSettling(int(N.val),num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
+         net=attractorNetworkSettling(N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
          prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
          prev_weights[j][prev_weights[j][:]<0]=0
 
@@ -367,7 +392,7 @@ def matplotlib_func(queue):
    '''animation for Place Cells'''
    excite.on_changed(update)
    # delta1.on_changed(update)
-   N.on_changed(update)
+   # N.on_changed(update)
    inhibit_scale.on_changed(update)
    fig.canvas.mpl_connect('button_press_event', onClick)
    ani = FuncAnimation(fig, animate, interval=1)
