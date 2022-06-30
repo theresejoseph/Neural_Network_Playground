@@ -21,6 +21,7 @@ inhibit_scale=[0.005,0.005]
 curr_parameter=[0,0]
 curr_x,curr_y=0,0
 x,y=0,0
+SCALING_FACTOR=100
 
 
 def angdiff( th1, th2):
@@ -167,18 +168,22 @@ def encodingDecodingMotion(data_x,data_y):
     # prev_weights_z[net.activation(int(delta3))]=net.full_weights(num_links)
     
     curr_x,curr_y=np.zeros((len(data_x))), np.zeros((len(data_y)))
+    theta=np.zeros((len(data_x)))
+    theta[0]=0
     tran,rot=np.zeros((len(data_x))), np.zeros((len(data_y)))
     tran_out,rot_out=np.zeros((len(data_x))), np.zeros((len(data_y)))
     for i in range(len(data_x)):
-        if i>=1:
+        if i>=2:
             '''encoding mangnitude and direction of movement'''
+            x0=data_x[i-2]
             x1=data_x[i-1]
             x2=data_x[i]
+            y0=data_y[i-2]
             y1=data_y[i-1]
             y2=data_y[i]
             
-            delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *100 #translation
-            delta[1]=np.rad2deg(math.atan2(y2-y1,x2-x1)) % 360          #angle
+            delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *SCALING_FACTOR#translation
+            delta[1]=(np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0)))*SCALING_FACTOR#% 360          #angle
             
             '''updating network'''
             # prev_trans=np.argmax(prev_weights[0][:])
@@ -196,19 +201,19 @@ def encodingDecodingMotion(data_x,data_y):
             prev_weights[1][prev_weights[1][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/100#-prev_trans
-            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))#-prev_angle
-
-            curr_x[i]=curr_x[i-1]+ (trans*np.cos(angle))
-            curr_y[i]=curr_y[i-1]+ (trans*np.sin(angle))
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/SCALING_FACTOR#-prev_trans
+            del_angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))/SCALING_FACTOR#-prev_angle
+            theta[i]=(theta[i-1]+del_angle)%(2*np.pi)
+            curr_x[i]=curr_x[i-1]+ (trans*np.cos(theta[i-1]))
+            curr_y[i]=curr_y[i-1]+ (trans*np.sin(theta[i-1]))
         
 
             tran[i]=delta[0]
-            rot[i]= delta[1]
+            rot[i]=(rot[i-1]+delta[1]) % 360
 
             tran_out[i]=trans
-            rot_out[i]=np.rad2deg(angle)
-            print(str(delta[0])+"  "+str( delta[1])+ "_______"+str(trans )+"  "+str(np.rad2deg(angle)))
+            rot_out[i]=np.rad2deg(theta[i])
+            print(str(delta[0]/SCALING_FACTOR)+"  "+str( delta[1]/SCALING_FACTOR)+ "_______"+str(trans )+"  "+str(np.rad2deg(theta[i])))
 
     fig = plt.figure(figsize=(13, 10))
     plt.gcf().text(0.02,0.02,"N= " + str(N[0]) +",  num links= " + str(num_links[0]) + ",  excite links= " + str(excite[0]),  fontsize=14)
@@ -257,8 +262,8 @@ def encodingDecodingMotion(data_x,data_y):
 
 '''Test Area'''
 sparse_gt=data_processing()#[0::4]
-data_x=sparse_gt[:, :, 3][:,0]#[:1000]
-data_y=sparse_gt[:, :, 3][:,2]#[:1000]
+data_x=sparse_gt[:, :, 3][:,0][:500]
+data_y=sparse_gt[:, :, 3][:,2][:500]
 
 # data_y=np.concatenate([np.zeros(100), np.arange(100), np.ones(100)*100, np.arange(100,5,-1)])
 # data_x=np.concatenate([np.arange(100), np.ones(100)*100, np.arange(100,0,-1), np.zeros(95)])
