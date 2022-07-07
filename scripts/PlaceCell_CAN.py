@@ -117,13 +117,13 @@ def plotting_CAN_dynamics(delta1,delta2):
     reset=wig.Button(button2_ax,'Reset')
     inhibit_scale=wig.Slider(inhax, 'Scale of Inhibition', 0, 0.05, 0.01)
     excite = wig.Slider(exciteax, 'Excitation Radius', 1, 40, 5, valstep=1)
-    delta1 = wig.Slider(delta1ax, 'Delta 1', -10, 10, 0, valstep=1)
-    delta2 = wig.Slider(delta2ax, 'Delta 2', -10, 10, 0, valstep=1)
+    delta1 = wig.Slider(delta1ax, 'Delta 1', 0, 180, 0, valstep=1)
+    delta2 = wig.Slider(delta2ax, 'Delta 2', 0, 180, 0, valstep=1)
 
     '''Initalise network'''            
     delta=[int(delta1.val),int(delta2.val)]
     for i in range(len(delta)):
-        net=attractorNetwork(delta[i],N[i],num_links[i],int(excite.val), activity_mag[i],inhibit_scale.val)
+        net=attractorNetwork(N[i],num_links[i],int(excite.val), activity_mag[i],inhibit_scale.val)
         prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
         prev_weights[i][prev_weights[i][:]<0]=0
 
@@ -142,8 +142,8 @@ def plotting_CAN_dynamics(delta1,delta2):
             '''distributed weights with excitations and inhibitions'''
             delta=[int(delta1.val),int(delta2.val)]
             for j in range(len(delta)):
-                net=attractorNetwork(delta[j],N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
-                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:])
+                net=attractorNetwork(N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
+                prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
                 prev_weights[j][prev_weights[j][:]<0]=0
             
             # ax0.set_title("2D Attractor Network")
