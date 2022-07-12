@@ -278,7 +278,7 @@ def encodingDecodingMotion(data_x,data_y):
 
     plt.show()
 
-def multiResolutionUpdate(input ): 
+def multiResolutionUpdate(input): 
     delta, scale = multiResolution(abs(input))
     split_output=np.zeros((len(delta)))
     
@@ -310,7 +310,7 @@ def multiResolutionTranslation(data_x,data_y):
             
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
             input[i]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
-            decoded_output[i]=multiResolutionUpdate(i, input[i])
+            decoded_output[i]=multiResolutionUpdate(input[i])
             
             print(f"{str(i)}   {str(input[i] )}   {str(decoded_output[i] )}")
 
@@ -360,7 +360,7 @@ def visualiseMultiResolution(data_x,data_y):
             
             input=np.sqrt(((data_x[i]-data_x[i-1])**2)+((data_y[i]-data_y[i-1])**2))
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360 
-            decoded_output=multiResolutionUpdate(i, input)
+            decoded_output=multiResolutionUpdate(input)
             
             print(f"{str(i)}   {str(input)}   {str(decoded_output )}")
             '''decoding mangnitude and direction of movement'''
