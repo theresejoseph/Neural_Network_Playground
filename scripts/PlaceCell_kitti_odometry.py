@@ -8,7 +8,7 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
 
-from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution
+from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling
 
 
 '''Parameters'''
@@ -395,8 +395,9 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
     
     # net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
     # prev_weights[1][net.activation(0)]=net.full_weights(num_links[1])
-    # for n in range(len(prev_weights_rot)):
-    #     prev_weights_rot[n][net.activation(90)]=net.full_weights(num_links[1])
+    net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+    for n in range(len(prev_weights_trans)):
+        prev_weights_trans[n][net.activation(1)]=net.full_weights(num_links[0])
 
 
     def animate(i):
@@ -415,7 +416,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
 
-            net0=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             decoded_translation=multiResolutionUpdate(translation,prev_weights_trans,net0)
     
             curr_parameter[0]=curr_parameter[0]+decoded_translation
@@ -659,9 +660,9 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 # data_x=np.arange(100)
 
 '''Translation Only'''
-data_y=np.zeros(20)
+data_y=np.zeros(200)
 # data_x=np.concatenate([np.linspace(0,0.1,10), np.linspace(0.2,1,10), np.linspace(2,10,10), np.linspace(20,100,10),np.linspace(110,1000,10)])
-data_x=np.linspace(0,76,20)
+data_x=np.linspace(0,760,200)
 
 visualiseMultiResolutionTranslation(data_x,data_y)
 

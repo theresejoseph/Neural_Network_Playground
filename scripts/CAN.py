@@ -169,6 +169,102 @@ class attractorNetworkSettling:
         else:  
            return prev_weights/np.linalg.norm(prev_weights)
 
+class attractorNetworkScaling:
+    '''defines 1D attractor network with N neurons, angles associated with each neurons 
+    along with inhitory and excitatory connections to update the weights'''
+    def __init__(self, N, num_links, excite_radius, activity_mag,inhibit_scale):
+        self.excite_radius=excite_radius
+        self.N=N  
+        self.num_links=num_links
+        self.activity_mag=activity_mag
+        self.inhibit_scale=inhibit_scale
+        
+    def inhibitions(self,id):
+        ''' each nueuron inhibits all other nueurons but itself'''
+        return np.delete(np.arange(self.N),self.excitations(id))
+
+    def excitations(self,id):
+        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
+        excite=[]
+        for i in range(-self.excite_radius,self.excite_radius+1):
+            excite.append((id + i) % self.N)
+        return np.array(excite)
+
+    def activation(self,id):
+        '''each neuron excites itself and num_links neurons left and right with wraparound connections'''
+        excite=[]
+        for i in range(-self.num_links,self.num_links+1):
+            excite.append((int(id) + i) % self.N)
+        return np.array(excite)
+
+    def full_weights(self,radius):
+        x=np.arange(-radius,radius+1)
+        return 1/(np.std(x) * np.sqrt(2 * np.pi)) * np.exp( - (x - np.mean(x))**2 / (2 * np.std(x)**2))  
+
+    def fractional_weights(self,non_zero_prev_weights,activeNeuron):
+        frac=activeNeuron%1
+        if frac == 0:
+            return non_zero_prev_weights
+        else: 
+            inv_frac=1-frac
+            frac_weights=np.zeros((len(non_zero_prev_weights)))
+            frac_weights[0]=non_zero_prev_weights[0]*inv_frac
+            for i in range(1,len(non_zero_prev_weights)):
+                frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
+            return frac_weights
+
+    def update_weights_dynamics(self,prev_weights,activeNeuron,moreResults=None):
+        # '''initialise'''
+        # if len(prev_weights>0)==0:
+        #     prev_weights[self.activation(activeNeuron)]=self.full_weights(self.num_links)
+        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+    
+        # '''shift one active neuron'''
+        # delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
+        # prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]
+
+        # indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+        # # shifted_indexes=self.neuron_update(prev_weights)
+
+        # '''copied and shifted activity'''
+        # non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        # non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
+        delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
+
+        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+        # shifted_indexes=self.neuron_update(prev_weights)
+
+        '''copied and shifted activity'''
+        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+
+        if len(prev_weights[non_zero_idxs])==0:
+            prev_weights[self.activation(activeNeuron)]=self.full_weights(self.num_links)
+            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        
+        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
+        
+        
+        
+        '''inhibition'''
+        for i in range(len(non_zero_weights)):
+            inhbit_val+=non_zero_weights[i]*self.inhibit_scale
+        
+        '''excitation'''
+        excitations_store=np.zeros((len(non_zero_idxs),self.N))
+        excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
+        for i in range(len(non_zero_idxs)):
+            excitation_array[self.excitations(non_zero_idxs[i])]=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
+            excitations_store[i,:]=excitation_array
+            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
+
+        prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]*0.5
+        # non_zero_weights_shifted[(non_zero_idxs+delta)%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
+        prev_weights+=(excitation_array-inhbit_val)
+        if moreResults==True:
+           return prev_weights/np.linalg.norm(prev_weights), non_zero_weights_shifted, inhbit_val
+        else:  
+           return prev_weights/np.linalg.norm(prev_weights)
+
 
 # class attractorNetworkSettlingLandmark:
 #     '''defines 1D attractor network with N neurons, angles associated with each neurons 
