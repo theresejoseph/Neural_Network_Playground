@@ -17,7 +17,7 @@ def col_round(x):
   return math.ceil(x)
 
 ######################--VARABLES--############################
-N=[50,50] #number of neurons
+N=[360,360] #number of neurons
 # neurons=[np.arange(0,N[0]), np.arange(0,N[1])]
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
@@ -142,7 +142,7 @@ def plotting_CAN_dynamics(delta1,delta2):
             '''distributed weights with excitations and inhibitions'''
             delta=[int(delta1.val),int(delta2.val)]
             for j in range(len(delta)):
-                net=attractorNetworkSettling(N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
+                net=attractorNetwork(N[j],num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
                 prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
                 prev_weights[j][prev_weights[j][:]<0]=0
             
@@ -150,11 +150,11 @@ def plotting_CAN_dynamics(delta1,delta2):
             # ax0.imshow(np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1)))
             im=np.outer(prev_weights[0][:],prev_weights[1][:])
             ax0.imshow(im, interpolation='nearest', aspect='auto')
-            axy.invert_yaxis()
-            axx.bar(neurons,prev_weights[1][:],width=1)
-            axx.axis('off')
-            axy.barh(neurons,prev_weights[0][:],height=1)
-            axy.axis('off')
+            # axy.invert_yaxis()
+            # axx.bar(neurons,prev_weights[1][:],width=1)
+            # axx.axis('off')
+            # axy.barh(neurons,prev_weights[0][:],height=1)
+            # axy.axis('off')
 
             del_y=np.argmax(prev_weights[0][:])-prev_x
             del_x=np.argmax(prev_weights[1][:])-prev_y
