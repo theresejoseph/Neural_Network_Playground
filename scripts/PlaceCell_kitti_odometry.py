@@ -1,4 +1,3 @@
-from xml.sax.xmlreader import InputSource
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -19,7 +18,7 @@ prev_weights_trans=[np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0
 prev_weights_rot=[np.zeros(N[1]), np.zeros(N[1]), np.zeros(N[1]),np.zeros(N[1]), np.zeros(N[1])]
 split_output=[0,0,0]
 num_links=[4,17]
-excite=[4,7]
+excite=[2,7]
 activity_mag=[1,1]
 inhibit_scale=[0.05,0.005]
 curr_parameter=[0,0]
@@ -285,7 +284,6 @@ def encodingDecodingMotion(data_x,data_y):
 
 
 
-
 def multiResolutionModulus(input,split_output):
     rounded=np.round(input,2)*100
 
@@ -397,7 +395,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
     # prev_weights[1][net.activation(0)]=net.full_weights(num_links[1])
     net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     for n in range(len(prev_weights_trans)):
-        prev_weights_trans[n][net.activation(1)]=net.full_weights(num_links[0])
+        prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
 
     def animate(i):
@@ -662,7 +660,7 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 '''Translation Only'''
 data_y=np.zeros(200)
 # data_x=np.concatenate([np.linspace(0,0.1,10), np.linspace(0.2,1,10), np.linspace(2,10,10), np.linspace(20,100,10),np.linspace(110,1000,10)])
-data_x=np.linspace(0,760,200)
+data_x=np.linspace(0,796,200)
 
 visualiseMultiResolutionTranslation(data_x,data_y)
 
