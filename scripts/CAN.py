@@ -1,3 +1,4 @@
+from cgi import print_arguments
 import math
 import numpy as np 
 
@@ -11,11 +12,6 @@ class attractorNetwork:
         self.activity_mag=activity_mag
         self.inhibit_scale=inhibit_scale
 
-    # def neuron_update(self,prev_weights):
-    #     indexes=np.arange(self.N)
-    #     non_zero_idxs=indexes[prev_weights>0]
-    #     return (non_zero_idxs+ int(self.delta)) % self.N
-        
     def inhibitions(self,id):
         ''' each nueuron inhibits all other nueurons but itself'''
         return np.delete(np.arange(self.N),self.excitations(id))
@@ -53,6 +49,11 @@ class attractorNetwork:
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None):
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
         
+        crossover=0
+        if np.argmax(prev_weights)+delta > self.N:
+            crossover=(np.argmax(prev_weights)+delta)//self.N
+        elif np.argmax(prev_weights)+delta < 0:
+            crossover=(np.argmax(prev_weights)+delta)//self.N
         
 
         '''copied and shifted activity'''
@@ -82,11 +83,14 @@ class attractorNetwork:
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
         '''update activity'''
-        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
+        for k in range(1):
+            prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
+            prev_weights/np.linalg.norm(prev_weights)
+
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
         else:  
-           return prev_weights/np.linalg.norm(prev_weights)
+           return prev_weights ,crossover
         
 
 class attractorNetworkSettling:
@@ -213,11 +217,11 @@ class attractorNetworkScaling:
                 frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
             return frac_weights
 
-    def update_weights_dynamics(self,prev_weights,activeNeuron,moreResults=None):
-        # '''initialise'''
-        # if len(prev_weights>0)==0:
-        #     prev_weights[self.activation(activeNeuron)]=self.full_weights(self.num_links)
-        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+    def update_weights_dynamics(self,prev_weights,delta,moreResults=None):
+        '''initialise'''
+        if len(prev_weights>0)==0:
+            prev_weights[self.activation(0)]=self.full_weights(self.num_links)
+            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
     
         # '''shift one active neuron'''
         # delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
@@ -229,18 +233,19 @@ class attractorNetworkScaling:
         # '''copied and shifted activity'''
         # non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         # non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
-
+        # delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
+        crossover=0
+        if np.argmax(prev_weights)+delta > self.N:
+            crossover=1
+        elif np.argmax(prev_weights)+delta < 0:
+            crossover=-1
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+        activeNeuron=int((delta+np.argmax(prev_weights))%self.N)
+
         # shifted_indexes=self.neuron_update(prev_weights)
 
         '''copied and shifted activity'''
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-
-        if len(prev_weights[non_zero_idxs])==0:
-            prev_weights[self.activation(activeNeuron)]=self.full_weights(self.num_links)
-            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         
         
@@ -257,13 +262,13 @@ class attractorNetworkScaling:
             excitations_store[i,:]=excitation_array
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
-        prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]*0.5
-        # non_zero_weights_shifted[(non_zero_idxs+delta)%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
-        prev_weights+=(excitation_array-inhbit_val)
+        # prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]*0.5
+        non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
+        prev_weights+=(non_zero_weights_shifted+excitation_array-inhbit_val)
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights_shifted, inhbit_val
         else:  
-           return prev_weights/np.linalg.norm(prev_weights)
+           return prev_weights,crossover#/np.linalg.norm(prev_weights)
 
 
 # class attractorNetworkSettlingLandmark:
