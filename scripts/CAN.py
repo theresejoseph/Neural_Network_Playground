@@ -48,12 +48,13 @@ class attractorNetwork:
 
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None):
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-        
+        '''crossover'''
         crossover=0
-        if np.argmax(prev_weights)+delta > self.N:
-            crossover=(np.argmax(prev_weights)+delta)//self.N
+        if np.argmax(prev_weights)+delta >= self.N:
+            crossover=(np.argmax(prev_weights)+int(delta))//self.N
         elif np.argmax(prev_weights)+delta < 0:
-            crossover=(np.argmax(prev_weights)+delta)//self.N
+            crossover=(np.argmax(prev_weights)+int(delta))//self.N
+        
         
 
         '''copied and shifted activity'''
@@ -61,13 +62,13 @@ class attractorNetwork:
 
         shifted_indexes=(non_zero_idxs+ int(delta)) % self.N
 
-        if len(prev_weights[non_zero_idxs])==0:
-            prev_weights[self.activation(0)]=self.full_weights(self.num_links)
-            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        # if len(prev_weights[non_zero_idxs])==0:
+        #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
+        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         
-        non_zero_weights_shifted[shifted_indexes]=self.fractional_weights(prev_weights[non_zero_idxs],int(delta)) #non zero weights shifted by delta
+        non_zero_weights_shifted[shifted_indexes]=prev_weights[non_zero_idxs]  #non zero weights shifted by delta
         
         intermediate_activity=non_zero_weights_shifted+non_zero_weights
         '''inhibition'''
@@ -75,22 +76,24 @@ class attractorNetwork:
             inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
         
         '''excitation'''
-        excitations_store=np.zeros((len(non_zero_idxs),self.N))
+        excitations_store=np.zeros((len(shifted_indexes),self.N))
         excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
-        for i in range(len(non_zero_idxs)):
-            excitation_array[self.excitations(non_zero_idxs[i])]=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
+        for i in range(len(shifted_indexes)):
+            excitation_array[self.excitations(shifted_indexes[i])]=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
             excitations_store[i,:]=excitation_array
-            excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
+            excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
 
         '''update activity'''
-        for k in range(1):
+        for k in range(10):
             prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-            prev_weights/np.linalg.norm(prev_weights)
+            # prev_weights/np.linalg.norm(prev_weights)
+
+        
 
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
         else:  
-           return prev_weights ,crossover
+           return prev_weights/np.linalg.norm(prev_weights) ,crossover
         
 
 class attractorNetworkSettling:

@@ -10,17 +10,18 @@ from scipy import signal
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling
 
 '''Parameters'''
-N=[60,360] #number of neurons
+N=[10, 100, 50, 10, 10] #number of neurons
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
-prev_weights_trans=[np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]),np.zeros(N[0]), np.zeros(N[0])]
-prev_weights_rot=[np.zeros(N[1]), np.zeros(N[1]), np.zeros(N[1]),np.zeros(N[1]), np.zeros(N[1])]
+prev_weights_trans=[np.zeros(N[0]), np.zeros(N[1]), np.zeros(N[2]),np.zeros(N[3]), np.zeros(N[4])]
+# prev_weights_rot=[np.zeros(N[1]), np.zeros(N[1]), np.zeros(N[1]),np.zeros(N[1]), np.zeros(N[1])]
 split_output=[0,0,0]
-num_links=[5,17]
-excite=[5,7]
+num_links=[1,17]
+excite=[1,7]
 activity_mag=[1,1]
-inhibit_scale=[0.05,0.005]
+inhibit_scale=[0.1,0.005]
 curr_parameter=[0,0]
+crossovers=np.zeros(5)
 
 def multiResolutionModulus(input,split_output):
     rounded=np.round(input,2)*100
@@ -32,27 +33,31 @@ def multiResolutionModulus(input,split_output):
     scale=[1,0.1,0.01]
     return [ones,tens,hundreds], scale 
 
+
 def multiResolutionUpdate(input,prev_weights): 
+    global crossovers
     # delta, scale = multiResolution(abs(input))
     
-    scale = [(1/3600), (1/60), 1, 60, 3600]
-    # scale = [0.0001, 0.01, 1, 100, 10000]
+    # scale = [(1/(N[0]**2)), (1/N[0]), 1, N[0], N[0]**2]
+    scale = [0.001, 0.01, 1, 50, 500]
     delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]),(input/scale[3]), (input/scale[4])]
     split_output=np.zeros((len(delta)))
-    crossovers=np.zeros((len(delta)))
     
+   
     net=attractorNetwork(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     '''updating network'''
     prev_weights[0][:],crossovers[0]= net.update_weights_dynamics(prev_weights[0][:],delta[0])    
+    prev_weights[0][prev_weights[0][:]<0]=0
+    split_output[0]=np.argmax(prev_weights[0][:])
     # prev_weights[1][:],crossovers[1]= net.update_weights_dynamics(prev_weights[1][:],crossovers[0])
     # prev_weights[2][:],crossovers[2]= net.update_weights_dynamics(prev_weights[2][:],crossovers[1])
     for n in range(1,len(delta)):
+        net=attractorNetwork(N[n],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
         prev_weights[n][:],crossovers[n]= net.update_weights_dynamics(prev_weights[n][:],crossovers[n-1])
         prev_weights[n][prev_weights[n][:]<0]=0
         split_output[n]=np.argmax(prev_weights[n][:])
 
     '''decoding mangnitude and direction of movement'''
-    print(crossovers)
 
     # print((np.argmax(prev_weights[1][:])+crossovers[0])//60)
     # print((np.argmax(prev_weights[2][:])+crossovers[1])//60)
@@ -76,8 +81,8 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
     
     # net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
     # prev_weights[1][net.activation(0)]=net.full_weights(num_links[1])
-    net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     for n in range(len(prev_weights_trans)):
+        net=attractorNetworkScaling(N[n],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
 
@@ -97,12 +102,14 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
 
-            net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            # net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             decoded_translation=multiResolutionUpdate(translation,prev_weights_trans)
     
             curr_parameter[0]=curr_parameter[0]+decoded_translation
               
             # print(f"{str(i)}  velocity {str(x2)}  {str(decoded_translation )}  ")
+            print(f"{str(i)}  position {str(round(x2))}  decoded {str(round(decoded_translation ))}  ")
+           
             '''decoding mangnitude and direction of movement'''
             
             ax0.set_title("Ground Truth Vel")
@@ -117,24 +124,24 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             # ax2.axis('equal')
 
 
-            ax10.set_title("0.25 Scale",fontsize=6)
+            ax10.set_title(str(1/(N[0]**2))+" Scale",fontsize=6)
             ax10.bar(np.arange(N[0]),prev_weights_trans[0][:],color='aqua')
             ax10.axis('off')
 
-            ax11.set_title("0.5 Scale",fontsize=6)
-            ax11.bar(np.arange(N[0]),prev_weights_trans[1][:],color='green')
+            ax11.set_title(str(1/N[0])+" Scale",fontsize=6)
+            ax11.bar(np.arange(N[1]),prev_weights_trans[1][:],color='green')
             ax11.axis('off')
 
-            ax12.set_title("1 Scale",fontsize=6)
-            ax12.bar(np.arange(N[0]),prev_weights_trans[2][:],color='blue')
+            ax12.set_title(str(1) + " Scale",fontsize=6)
+            ax12.bar(np.arange(N[2]),prev_weights_trans[2][:],color='blue')
             ax12.axis('off')
 
-            ax13.set_title("2 Scale",fontsize=6)
-            ax13.bar(np.arange(N[0]),prev_weights_trans[3][:],color='purple')
+            ax13.set_title(str(N[0]) + " Scale",fontsize=6)
+            ax13.bar(np.arange(N[3]),prev_weights_trans[3][:],color='purple')
             ax13.axis('off')
 
-            ax14.set_title("4 Scale",fontsize=6)
-            ax14.bar(np.arange(N[0]),prev_weights_trans[4][:],color='pink')
+            ax14.set_title(str(N[0]**2)+" Scale",fontsize=6)
+            ax14.bar(np.arange(N[4]),prev_weights_trans[4][:],color='pink')
             ax14.axis('off')
 
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
@@ -323,8 +330,8 @@ def visualiseMultiResolutionModulus(data_x,data_y):
     plt.show()
 
 '''Translation Only'''
-data_y=np.zeros(1000)
-# data_x=np.concatenate([np.linspace(0,0.1,10), np.linspace(0.2,1,10), np.linspace(2,10,10), np.linspace(20,100,10),np.linspace(110,1000,10)])
-data_x=np.linspace(0,9990,1000)
+data_y=np.zeros(500)
+data_x=np.concatenate([np.linspace(0,0.1,100), np.linspace(0.2,1,100), np.linspace(2,10,100), np.linspace(20,100,100),np.linspace(110,1000,100)])
+# data_x=np.linspace(0,9990,1000)
 
 visualiseMultiResolutionTranslation(data_x,data_y)
