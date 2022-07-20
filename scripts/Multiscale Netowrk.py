@@ -10,7 +10,7 @@ from scipy import signal
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling
 
 '''Parameters'''
-N=[10, 100, 50, 10, 10] #number of neurons
+N=[20, 20, 20, 20, 20] #number of neurons
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
 prev_weights_trans=[np.zeros(N[0]), np.zeros(N[1]), np.zeros(N[2]),np.zeros(N[3]), np.zeros(N[4])]
@@ -38,8 +38,8 @@ def multiResolutionUpdate(input,prev_weights):
     global crossovers
     # delta, scale = multiResolution(abs(input))
     
-    # scale = [(1/(N[0]**2)), (1/N[0]), 1, N[0], N[0]**2]
-    scale = [0.001, 0.01, 1, 50, 500]
+    scale = [(1/(N[0]**2)), (1/N[0]), 1, N[0], N[0]**2]
+    # scale = [0.001, 0.01, 1, 50, 500]
     delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]),(input/scale[3]), (input/scale[4])]
     split_output=np.zeros((len(delta)))
     

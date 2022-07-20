@@ -237,11 +237,7 @@ class attractorNetworkScaling:
         # non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         # non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         # delta=(int(activeNeuron)-np.argmax(prev_weights))%self.N
-        crossover=0
-        if np.argmax(prev_weights)+delta > self.N:
-            crossover=1
-        elif np.argmax(prev_weights)+delta < 0:
-            crossover=-1
+     
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
         activeNeuron=int((delta+np.argmax(prev_weights))%self.N)
 
@@ -271,7 +267,7 @@ class attractorNetworkScaling:
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights_shifted, inhbit_val
         else:  
-           return prev_weights,crossover#/np.linalg.norm(prev_weights)
+           return prev_weights#,crossover#/np.linalg.norm(prev_weights)
 
 
 # class attractorNetworkSettlingLandmark:

@@ -13,7 +13,7 @@ from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettlin
 '''Parameters'''
 N=[60,360] #number of neurons
 curr_Neuron=[0,0]
-prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
+# prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
 prev_weights_trans=[np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]),np.zeros(N[0])]
 prev_weights_rot=[np.zeros(N[1]), np.zeros(N[1]), np.zeros(N[1]),np.zeros(N[1]), np.zeros(N[1])]
 split_output=[0,0,0]
