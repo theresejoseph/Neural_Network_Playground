@@ -46,7 +46,7 @@ class attractorNetwork:
                 frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
             return frac_weights
 
-    def update_weights_dynamics(self,prev_weights, delta, moreResults=None):
+    def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
         '''crossover'''
         crossover=0
@@ -54,7 +54,7 @@ class attractorNetwork:
             crossover=(np.argmax(prev_weights)+int(delta))//self.N
         elif np.argmax(prev_weights)+delta < 0:
             crossover=(np.argmax(prev_weights)+int(delta))//self.N
-        
+       
         
 
         '''copied and shifted activity'''
@@ -86,14 +86,15 @@ class attractorNetwork:
         '''update activity'''
         for k in range(10):
             prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-            # prev_weights/np.linalg.norm(prev_weights)
 
         
 
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
-        else:  
+        elif cross==True:  
            return prev_weights/np.linalg.norm(prev_weights) ,crossover
+        else: 
+            return prev_weights/np.linalg.norm(prev_weights)
         
 
 class attractorNetworkSettling:
