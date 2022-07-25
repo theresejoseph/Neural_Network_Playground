@@ -133,4 +133,4 @@ data_y=np.zeros(1000)
 # data_x=np.concatenate([ np.linspace(0,10,100), np.linspace(10,110,100),np.linspace(110,1100,100), np.linspace(1000,10000,100)])
 data_x=np.linspace(0,9990,1000)
 
-# visualiseMultiResolutionTranslation(data_x,data_y)
+visualiseMultiResolutionTranslation(data_x,data_y)

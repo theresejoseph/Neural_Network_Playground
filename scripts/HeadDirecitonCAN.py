@@ -374,7 +374,7 @@ def landmark_learning(radius,inc,iters):
         
 
     '''animation for driving in a circle'''
-    ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
+    ani = FuncAnimation(fig, animate, frames=iters, interval= 1, repeat=False, blit=True)
     plt.show()
 
 ##### TEST AREA #####  

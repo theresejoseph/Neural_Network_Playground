@@ -21,7 +21,7 @@ num_links=[4,17]
 excite=[2,7]
 activity_mag=[1,1]
 inhibit_scale=[0.05,0.005]
-curr_parameter=[0,0]
+curr_parameter=[0,0,0]
 # curr_x,curr_y=0,0
 x,y=0,0
 SCALING_FACTOR=50
@@ -40,48 +40,56 @@ def data_processing():
         gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
     return gt
 
+#this function works
 def testing_Conversion(sparse_gt):
+    length=len(sparse_gt[:,:,3][:,0])
+    curr_x, curr_y, x, y=np.zeros(length),np.zeros(length),np.zeros(length),np.zeros(length)
+    curr_x[0], curr_y[0], x[0], y[0]= 0,0,0,0
+    for i in range(1,length):
+        x1=sparse_gt[:,:,3][i-1,0]
+        y1=sparse_gt[:,:,3][i-1,2]
+
+        x2=sparse_gt[:,:,3][i,0]
+        y2=sparse_gt[:,:,3][i,2]
+
+        delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+        if (x2-x1)==0:
+            assert False 
+            # delta2=np.pi/2
+        else:
+            delta2=(math.atan2(y2-y1,x2-x1)) #angle
+
+        curr_x[i]=curr_x[i-1] + (delta1*np.cos(delta2))
+        curr_y[i]=curr_y[i-1] + (delta1*np.sin(delta2))
+
+        x[i]=x[i-1]+(x2-x1)
+        y[i]=y[i-1]+(y2-y1)
+
+        print(delta1, delta2)
+
     fig = plt.figure(figsize=(13, 4))
     ax0 = fig.add_subplot(1, 2, 1)
     ax1 = fig.add_subplot(1, 2, 2)
-    def animate(i):
-        global curr_x, curr_y, x, y
-        if i>0:
-            x1=sparse_gt[:,:,3][i-1,0]
-            y1=sparse_gt[:,:,3][i-1,2]
 
-            x2=sparse_gt[:,:,3][i,0]
-            y2=sparse_gt[:,:,3][i,2]
+    ax1.set_title('Converted')
+    ax1.scatter(curr_x, curr_y,c='b',s=15)
+    ax1.set_xlim([-300,300])
+    ax1.set_ylim([-100,500])
 
-            delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-            if (x2-x1)==0:
-                assert False 
-                # delta2=np.pi/2
-            else:
-                delta2=(math.atan2(y2-y1,x2-x1)) #angle
+    ax0.set_title('Original')
+    ax0.scatter(x, y,c='b',s=15)
+    ax0.set_xlim([-300,300])
+    ax0.set_ylim([-100,500])
 
-            curr_x=curr_x + (delta1*np.cos(delta2))
-            curr_y=curr_y + (delta1*np.sin(delta2))
-
-            x=x+(x2-x1)
-            y=y+(y2-y1)
-
-            print(delta1, delta2)
-
-            ax1.set_title('Converted')
-            ax1.scatter(curr_x, curr_y,c='b',s=15)
-            ax1.set_xlim([-300,300])
-            ax1.set_ylim([-100,500])
-
-            ax0.set_title('Original')
-            ax0.scatter(x, y,c='b',s=15)
-            ax0.set_xlim([-300,300])
-            ax0.set_ylim([-100,500])
-
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(sparse_gt),repeat=False)
+    
     plt.show()
 
+# this fucntion runs but decoding is inaccurate due to wrong angular velocity decoding (angle curr_parameter [2] initliasied at 90)
 def visualise(data_x,data_y):
+    ''' 2 x 1D attractor networks representing change in translation and roation while seting on the 
+    delta value which is decoded and used to update the exstimated x y position. The animation displays
+    one iteration at a time'''
+
     fig = plt.figure(figsize=(13, 4))
     ax0 = fig.add_subplot(1, 3, 1)
     ax1 = fig.add_subplot(1, 3, 2)
@@ -89,8 +97,9 @@ def visualise(data_x,data_y):
 
     '''Initalise network'''            
     delta=[0,0]
+    curr_parameter[2]=90
     for i in range(len(delta)):
-        net=attractorNetwork(delta[i],N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
+        net=attractorNetwork(N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
         prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
         prev_weights[i][prev_weights[i][:]<0]=0
 
@@ -117,27 +126,28 @@ def visualise(data_x,data_y):
             y2=data_y[i]
             
             delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *SCALING_FACTOR#translation
-            delta[1]=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0)))%360)*SCALING_FACTOR         #angle
+            delta[1]=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))         #angle
        
             '''updating network'''
-             
-            net=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
-            prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:],delta[0])
-            prev_weights[0][prev_weights[0][:]<0]=0
+            for k in range(10): 
+                net=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+                prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:],delta[0])
+                prev_weights[0][prev_weights[0][:]<0]=0
 
-            net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-            prev_weights[1][:]= net.update_weights_dynamics(prev_weights[1][:],delta[1])
-            prev_weights[1][prev_weights[1][:]<0]=0
+                net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
+                prev_weights[1][:]= net.update_weights_dynamics(prev_weights[1][:],delta[1])
+                prev_weights[1][prev_weights[1][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/100#-prev_trans
-            angle=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))#-prev_angle
+            trans=activityDecoding(prev_weights[0][:],num_links[0],N[0])/SCALING_FACTOR#-prev_trans
+            angVel=np.deg2rad(activityDecodingAngle(prev_weights[1][:],num_links[1],N[1]))#-prev_angle
 
-            curr_parameter[0]=curr_parameter[0] + (trans*np.cos(angle))
-            curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(angle))
+            curr_parameter[2]=(curr_parameter[2]+angVel)%(2*np.pi)
+            curr_parameter[0]=curr_parameter[0] + (trans*np.cos(curr_parameter[2]))
+            curr_parameter[1]=curr_parameter[1]+ (trans*np.sin(curr_parameter[2]))
             # curr_z=curr_z+del_z
             
-            ax1.set_title("2D Attractor Network")
+            ax1.set_title("Velocity Attractor Network")
             im=np.outer(prev_weights[0][:],prev_weights[1][:])
             ax1.imshow(im,interpolation='nearest', aspect='auto')
 
@@ -150,7 +160,7 @@ def visualise(data_x,data_y):
             # ax2.set_zlim([0,N])
 
 
-            print(str(delta[0])+"__"+str( delta[1])+ "------"+str(trans )+"__"+str(np.rad2deg(angle)))
+            print(str(delta[0])+"__"+str( delta[1])+ "------"+str(trans )+"__"+str(np.rad2deg(curr_parameter[2])))
             # print(x2-x1, y2-y1)
             # print(len(signal.find_peaks(prev_weights_trans)[0]),len(signal.find_peaks(prev_weights_angle)[0]) )
             
@@ -158,19 +168,24 @@ def visualise(data_x,data_y):
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
+# this function runs but tuing necessary for accurate results (angle initiliased at 90)
 def encodingDecodingMotion(data_x,data_y):
+    '''Encoding change in translation and rotation (using scale factor to avoid wraparound and very small changes)
+       Decoding Attractor Network activity and integrating change in x and y positions 
+       Comapring expected and decoded translation, angular velocity and angle'''
     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
-    
-
+    N[1]=720
+    prev_weights[1]=np.zeros(N[1])
+    # num_links[1]=120
+    excite[1]=67
+    inhibit_scale[1]=0.005
     '''Initalise network'''            
-    delta=[0,360]
+    delta=[0,0]
     for i in range(len(delta)):
         net=attractorNetwork(N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
         prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
-   
-    # [1,:]ev_weights_angle[net.activation(delta2)]=net.full_weights(num_links)
-    # prev_weights_z[net.activation(int(delta3))]=net.full_weights(num_links)
     
+    '''Data Storage Parameters'''
     curr_x,curr_y=np.zeros((len(data_x))), np.zeros((len(data_y)))
     theta=np.zeros((len(data_x)))
     delta_ang_out,delta_ang=np.zeros((len(data_x))), np.zeros((len(data_x)))
@@ -180,6 +195,7 @@ def encodingDecodingMotion(data_x,data_y):
     rot[0]=0
     rot[1]=90#np.rad2deg(math.atan2(data_y[1]-data_y[0],data_x[1]- data_y[0]))
     tran_out,rot_out=np.zeros((len(data_x))), np.zeros((len(data_y)))
+
     for i in range(len(data_x)):
         if i>=2:
             '''encoding mangnitude and direction of movement'''
@@ -192,13 +208,13 @@ def encodingDecodingMotion(data_x,data_y):
             
             delta[0]=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) *SCALING_FACTOR#translation
             
-            delta[1]=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0)))+SCALING_FACTOR2)#%360     #angle
+            delta[1]=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))+SCALING_FACTOR2#%360     #angle
            
             '''updating network'''
             net0=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             net1=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
 
-            for n in range(2):
+            for n in range(3):
                 prev_weights[0][:]= net0.update_weights_dynamics(prev_weights[0][:],delta[0])
                 prev_weights[0][prev_weights[0][:]<0]=0
                 
@@ -255,25 +271,27 @@ def encodingDecodingMotion(data_x,data_y):
     # ax2.axis('equal')
     ax3.set_title('Traslation Output')
     ax3.plot(tran_out,'-o',markersize=0.5,linewidth=0.05)
-    # ax4.axis('equal')
+    # ax3.axis('equal')
 
     ax4.set_title('Delta Rotation Input')
     ax4.plot(delta_ang,'g.',markersize=2)
     ax4.set_ylim([-360,360])
-    # ax3.axis('equal')
+    # ax4.axis('equal')
+
     ax5.set_title('Delta Rotation Output')
     ax5.plot(delta_ang_out,'g.',markersize=2)
     ax5.set_ylim([-360,360])
+    # ax5.axis('equal')
 
     ax6.set_title('Rotation Input')
     ax6.plot(rot,'-k.',markersize=1,linewidth=0.05)
     ax6.set_ylim([0,360])
-    # ax3.axis('equal')
+    # ax6.axis('equal')
+
     ax7.set_title('Rotation Output')
     ax7.plot(rot_out,'-k.',markersize=1,linewidth=0.05)
     ax7.set_ylim([0,360])
 
-    # ax5.axis('equal')
     
     fig.tight_layout()
     plt.subplots_adjust(bottom=0.1)
@@ -360,11 +378,6 @@ def CompareState_Velocity_Networks(data_x,data_y):
             
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
-
-
-
-
-
 
 def multiResolutionUpdate(input,prev_weights,net): 
     # delta, scale = multiResolution(abs(input))
@@ -554,15 +567,12 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 # multiResolutionTranslation(data_x,data_y)
 
 '''Kitti Data'''
+# testing_Conversion(sparse_gt)
 # visualise(data_x,data_y)
 # encodingDecodingMotion(data_x,data_y)
-CompareState_Velocity_Networks(data_x,data_y)
-# visualiseMultiResolutionModulus(data_x,data_y)
+# CompareState_Velocity_Networks(data_x,data_y)
 
-# testing_Conversion(sparse_gt)
-
-# testing_Conversion(sparse_gt)# 
-
+multiResolutionUpdateRot(input,prev_weights,split_output)
 
 
 
