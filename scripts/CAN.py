@@ -54,8 +54,6 @@ class attractorNetwork:
             crossover=(np.argmax(prev_weights)+int(delta))//self.N
         elif np.argmax(prev_weights)+delta < 0:
             crossover=(np.argmax(prev_weights)+int(delta))//self.N
-       
-        
 
         '''copied and shifted activity'''
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
@@ -247,14 +245,14 @@ class attractorNetworkScaling:
         '''copied and shifted activity'''
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
+        # non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
+        non_zero_weights_shifted[activeNeuron]=np.max(prev_weights) #activate one neuron 
+
+        '''inhibition''' #inhibit shifted neuron 
+        for i in range(len(non_zero_weights_shifted)):
+            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
         
-        
-        
-        '''inhibition'''
-        for i in range(len(non_zero_weights)):
-            inhbit_val+=non_zero_weights[i]*self.inhibit_scale
-        
-        '''excitation'''
+        '''excitation''' # excite all active neurons 
         excitations_store=np.zeros((len(non_zero_idxs),self.N))
         excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
         for i in range(len(non_zero_idxs)):
@@ -263,8 +261,10 @@ class attractorNetworkScaling:
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
         # prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]*0.5
-        non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
+        # non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
         prev_weights+=(non_zero_weights_shifted+excitation_array-inhbit_val)
+
+
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights_shifted, inhbit_val
         else:  

@@ -379,52 +379,36 @@ def CompareState_Velocity_Networks(data_x,data_y):
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
-def multiResolutionUpdate(input,prev_weights,net): 
-    # delta, scale = multiResolution(abs(input))
-    
-    scale = [0.01, 0.1, 1, 10, 100]
-    delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
-    split_output=np.zeros((len(delta)))
-    
-    '''updating network'''    
-    for k in range(5):
-        for n in range(len(delta)):
-            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
-            prev_weights[n][prev_weights[n][:]<0]=0
-            split_output[n]=np.argmax(prev_weights[n][:])
-
-    '''decoding mangnitude and direction of movement'''
-    print(split_output)
-    decoded=np.sum(split_output*scale)*np.sign(input)
-    
-    return decoded    
-
-def multiResolutionUpdateRot(input,prev_weights,split_output): 
-    delta, scale = multiResolution(abs(input),split_output)
-    split_output=np.zeros((len(delta)))
-    
-    '''updating network'''    
-    net=attractorNetwork(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-    
-    for n in range(len(delta)):
-        prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
-        prev_weights[n][prev_weights[n][:]<0]=0
-        split_output[n]=np.argmax(prev_weights[n][:])#-prev_trans
-    '''decoding mangnitude and direction of movement'''
-    decoded=np.sum(split_output*scale)*np.sign(input)
-    
-    return decoded,split_output       
-
+# currently working on modifying network dynamics so new activity further from 
 def multiResolutionTranslation(data_x,data_y):
     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     
-    net=attractorNetwork(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+    # Initlise netowrk and paramter storage 
+    net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     prev_weights[0][net.activation(0)]=net.full_weights(num_links[0])
     for n in range(len(prev_weights_trans)):
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
     input,decoded_output=np.zeros((len(data_x))), np.zeros((len(data_x)))
     
+    def multiResolutionUpdate(input,prev_weights,net): 
+        scale = [0.01, 0.1, 1, 10, 100]
+        delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
+        split_output=np.zeros((len(delta)))
+        
+        '''updating network'''    
+        for k in range(5):
+            for n in range(len(delta)):
+                prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
+                prev_weights[n][prev_weights[n][:]<0]=0
+                split_output[n]=np.argmax(prev_weights[n][:])
+
+        '''decoding mangnitude and direction of movement'''
+        print(split_output)
+        decoded=np.sum(split_output*scale)*np.sign(input)        
+        return decoded  
+
+    #Update Network and Store parameters
     for i in range(len(data_x)):
         if i>1:
             '''encoding mangnitude and direction of movement'''
@@ -437,7 +421,7 @@ def multiResolutionTranslation(data_x,data_y):
             
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
             input[i]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
-            net0=attractorNetworkSettling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             decoded_output[i]=multiResolutionUpdate(input[i],prev_weights_trans,net0)
             
             print(f"{str(i)}   {str(input[i] )}   {str(decoded_output[i] )}")
@@ -456,15 +440,15 @@ def multiResolutionTranslation(data_x,data_y):
     # ax3.set_ylim([-10,10])
     # ax4.axis('equal')
     
-    # fig.tight_layout()
-    # plt.subplots_adjust(bottom=0.1)
-    # plt.gcf().text(0.02,0.02,"N= " + str(N[1]) +",  num links= " + str(num_links[1]) + ",  excite links= " + str(excite[1]) + ", inhibition=" + str(inhibit_scale[1]),  fontsize=8)
+    fig.tight_layout()
+    plt.subplots_adjust(bottom=0.1)
+    plt.gcf().text(0.02,0.02,"N= " + str(N[1]) +",  num links= " + str(num_links[1]) + ",  excite links= " + str(excite[1]) + ", inhibition=" + str(inhibit_scale[1]),  fontsize=8)
 
     plt.show()
 
 def visualiseMultiResolutionTranslation(data_x,data_y):
     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
-    # global curr_x,curr_y
+    '''initlising network and animate figures'''
     fig = plt.figure(figsize=(13, 4))
     ax0 =  plt.subplot2grid(shape=(5, 3), loc=(0, 0), rowspan=5,colspan=1)
     ax10 = plt.subplot2grid(shape=(5, 3), loc=(0, 1), rowspan=1,colspan=1)
@@ -475,13 +459,30 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
     ax2 = plt.subplot2grid(shape=(5, 3), loc=(0, 2), rowspan=5,colspan=1)
     fig.tight_layout()
 
-    
-    # net=attractorNetworkSettling(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-    # prev_weights[1][net.activation(0)]=net.full_weights(num_links[1])
     net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     for n in range(len(prev_weights_trans)):
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
+    def multiResolutionUpdate(input,prev_weights,net): 
+        scale = [0.01, 0.1, 1, 10, 100]
+        delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
+        split_output=np.zeros((len(delta)))
+        '''updating network'''    
+        for k in range(5):
+            for n in range(len(delta)):
+                prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
+                prev_weights[n][prev_weights[n][:]<0]=0
+                split_output[n]=np.argmax(prev_weights[n][:])
+        print(split_output)
+        decoded=np.sum(split_output*scale)*np.sign(input) 
+
+        ax10.set_title(str(scale[0])+" Scale",fontsize=9)
+        ax11.set_title(str(scale[1])+" Scale",fontsize=9)
+        ax12.set_title(str(scale[2])+" Scale",fontsize=9)
+        ax13.set_title(str(scale[3])+" Scale",fontsize=9)
+        ax14.set_title(str(scale[4])+" Scale",fontsize=9)
+
+        return decoded  
 
     def animate(i):
         global prev_weights_trans,prev_weights_rot, num_links, excite, activity_mag,inhibit_scale
@@ -502,40 +503,31 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             decoded_translation=multiResolutionUpdate(translation,prev_weights_trans,net0)
     
-            curr_parameter[0]=curr_parameter[0]+decoded_translation
-              
+            # curr_parameter[0]=curr_parameter[0]+decoded_translation    
             print(f"{str(i)}  velocity {str(translation)}  {str(decoded_translation )}  ")
-            '''decoding mangnitude and direction of movement'''
             
             ax0.set_title("Ground Truth Vel")
             ax0.plot(i,translation,"k.")
             ax0.set_xlim([0,len(data_x)])
             # ax0.axis('equal')
 
-
             ax2.set_title("Decoded Translation Vel")
             ax2.plot(i,decoded_translation,'g.')
             ax0.set_xlim([0,len(data_x)])
             # ax2.axis('equal')
 
-
-            ax10.set_title("0.25 Scale",fontsize=6)
             ax10.bar(np.arange(N[0]),prev_weights_trans[0][:],color='aqua')
             ax10.axis('off')
 
-            ax11.set_title("0.5 Scale",fontsize=6)
             ax11.bar(np.arange(N[0]),prev_weights_trans[1][:],color='green')
             ax11.axis('off')
 
-            ax12.set_title("1 Scale",fontsize=6)
             ax12.bar(np.arange(N[0]),prev_weights_trans[2][:],color='blue')
             ax12.axis('off')
-
-            ax13.set_title("2 Scale",fontsize=6)
+        
             ax13.bar(np.arange(N[0]),prev_weights_trans[3][:],color='purple')
             ax13.axis('off')
-
-            ax14.set_title("4 Scale",fontsize=6)
+            
             ax14.bar(np.arange(N[0]),prev_weights_trans[4][:],color='pink')
             ax14.axis('off')
 
@@ -557,22 +549,18 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 data_y=np.zeros(100)
 data_x=np.arange(100)
 
-'''Translation Only'''
+
 # data_y=np.zeros(200)
 # data_x=np.concatenate([np.linspace(0,0.1,10), np.linspace(0.2,1,10), np.linspace(2,10,10), np.linspace(20,100,10),np.linspace(110,1000,10)])
 # data_x=np.linspace(0,796,200)
 
 
-
-
-
-'''Kitti Data'''
+'''Functions'''
 # testing_Conversion(sparse_gt)
 # visualise(data_x,data_y)
 # encodingDecodingMotion(data_x,data_y)
 # CompareState_Velocity_Networks(data_x,data_y)
 
-# multiResolutionUpdateRot(input,prev_weights,split_output)
 # multiResolutionTranslation(data_x,data_y)
 visualiseMultiResolutionTranslation(data_x,data_y)
 
