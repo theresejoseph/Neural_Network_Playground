@@ -168,7 +168,7 @@ def visualise(data_x,data_y):
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
-# this function runs but tuing necessary for accurate results (angle initiliased at 90)
+# this function runs but tuning necessary for accurate results (angle initiliased at 90)
 def encodingDecodingMotion(data_x,data_y):
     '''Encoding change in translation and rotation (using scale factor to avoid wraparound and very small changes)
        Decoding Attractor Network activity and integrating change in x and y positions 
@@ -382,7 +382,7 @@ def CompareState_Velocity_Networks(data_x,data_y):
 def multiResolutionUpdate(input,prev_weights,net): 
     # delta, scale = multiResolution(abs(input))
     
-    scale = [0.25, 0.5, 1, 2, 4]
+    scale = [0.01, 0.1, 1, 10, 100]
     delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
     split_output=np.zeros((len(delta)))
     
@@ -554,17 +554,17 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 # data_x=np.arange(200)
 # data_y=np.zeros(200)
 
-# data_y=np.zeros(100)
-# data_x=np.arange(100)
+data_y=np.zeros(100)
+data_x=np.arange(100)
 
 '''Translation Only'''
 # data_y=np.zeros(200)
 # data_x=np.concatenate([np.linspace(0,0.1,10), np.linspace(0.2,1,10), np.linspace(2,10,10), np.linspace(20,100,10),np.linspace(110,1000,10)])
 # data_x=np.linspace(0,796,200)
 
-# visualiseMultiResolutionTranslation(data_x,data_y)
 
-# multiResolutionTranslation(data_x,data_y)
+
+
 
 '''Kitti Data'''
 # testing_Conversion(sparse_gt)
@@ -572,8 +572,9 @@ data_y=sparse_gt[:, :, 3][:,2][:400]
 # encodingDecodingMotion(data_x,data_y)
 # CompareState_Velocity_Networks(data_x,data_y)
 
-multiResolutionUpdateRot(input,prev_weights,split_output)
-
+# multiResolutionUpdateRot(input,prev_weights,split_output)
+# multiResolutionTranslation(data_x,data_y)
+visualiseMultiResolutionTranslation(data_x,data_y)
 
 
 # def multiResolutionModulus(input,split_output):
