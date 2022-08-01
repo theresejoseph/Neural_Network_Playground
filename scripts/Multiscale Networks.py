@@ -11,12 +11,12 @@ from scipy import signal
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling
 
 '''Parameters'''
-N=[60, 60] #number of neurons
+N=[300, 60] #number of neurons
 curr_Neuron=[0,0]
 prev_weights=[np.zeros(N[0]), np.zeros(N[1])]
 split_output=[0,0,0]
 num_links=[3,17]
-excite=[3,7]
+excite=[1,7]
 activity_mag=[1,1]
 inhibit_scale=[0.05,0.005]
 curr_parameter=[0,0]
@@ -218,6 +218,8 @@ def multiResolutionTranslation(data_x,data_y):
     plt.gcf().text(0.02,0.02,"N= " + str(N[1]) +",  num links= " + str(num_links[1]) + ",  excite links= " + str(excite[1]) + ", inhibition=" + str(inhibit_scale[1]),  fontsize=8)
 
     plt.show()
+
+# modify network so zero doesnt get decoded as 59
 def visualiseMultiResolutionTranslation(data_x,data_y):
     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     '''initlising network and animate figures'''
@@ -236,7 +238,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
     def multiResolutionUpdate(input,prev_weights,net): 
-        scale = [0.01, 0.1, 1, 10, 100]
+        scale = [0.01, 0.1, 0.5, 1, 10]
         delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
         split_output=np.zeros((len(delta)))
         '''updating network'''    
@@ -275,17 +277,17 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
             decoded_translation=multiResolutionUpdate(translation,prev_weights_trans,net0)
     
-            # curr_parameter[0]=curr_parameter[0]+decoded_translation    
-            print(f"{str(i)}  velocity {str(translation)}  {str(decoded_translation )}  ")
+            curr_parameter[0]=curr_parameter[0]+translation    
+            print(f"{str(i)}  translation {translation} input output {round(curr_parameter[0],3)}  {str(decoded_translation )}  ")
             
-            ax0.set_title("Ground Truth Vel")
-            ax0.plot(i,translation,"k.")
-            ax0.set_xlim([0,len(data_x)])
+            ax0.set_title("Ground Truth")
+            ax0.plot(curr_parameter[0],0,"k.")
+            # ax0.set_xlim([0,len(data_x)])
             # ax0.axis('equal')
 
-            ax2.set_title("Decoded Translation Vel")
-            ax2.plot(i,decoded_translation,'g.')
-            ax0.set_xlim([0,len(data_x)])
+            ax2.set_title("Decoded Translation")
+            ax2.plot(decoded_translation,0,'g.')
+            # ax2.set_xlim([0,len(data_x)])
             # ax2.axis('equal')
 
             ax10.bar(np.arange(N[0]),prev_weights_trans[0][:],color='aqua')
@@ -310,17 +312,16 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
 
 '''Translation Only'''
 data_y=np.zeros(1000)
-data_x=np.concatenate([ np.linspace(0,10,100), np.linspace(10,110,100),np.linspace(110,1100,100), np.linspace(1000,10000,100)])
+data_x=np.concatenate([ np.linspace(0,10,100), np.linspace(10,110,100),np.linspace(110,1100,100)])
 # data_x=np.linspace(0,9990,1000)
 
-# sparse_gt=data_processing()#[0::4]
-# data_x=sparse_gt[:, :, 3][:,0][:400]
-# data_y=sparse_gt[:, :, 3][:,2][:400]
+sparse_gt=data_processing()#[0::4]
+data_x=sparse_gt[:, :, 3][:,0][:200]
+data_y=sparse_gt[:, :, 3][:,2][:200]
 
 # visualiseMultiResolutionFeedthroughTranslation(data_x,data_y)
 # multiResolutionTranslation(data_x,data_y)
 visualiseMultiResolutionTranslation(data_x,data_y)
-
 
 
 # def multiResolutionModulus(input,split_output):
