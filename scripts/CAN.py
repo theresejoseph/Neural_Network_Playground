@@ -246,11 +246,11 @@ class attractorNetworkScaling:
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         # non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
-        non_zero_weights_shifted[activeNeuron]=np.max(prev_weights) #activate one neuron 
+        # non_zero_weights_shifted[activeNeuron]=prev_weights[np.argmin(prev_weights>0)]#activate one neuron 
 
         '''inhibition''' #inhibit shifted neuron 
-        for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
+        for i in range(len(non_zero_weights)):
+            inhbit_val+=non_zero_weights[i]*self.inhibit_scale
         
         '''excitation''' # excite all active neurons 
         excitations_store=np.zeros((len(non_zero_idxs),self.N))
@@ -261,7 +261,7 @@ class attractorNetworkScaling:
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
         # prev_weights[int(activeNeuron)%self.N]+=prev_weights[np.argmin(prev_weights[prev_weights>0])]*0.5
-        # non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
+        non_zero_weights_shifted[(non_zero_idxs+int(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],activeNeuron) #non zero weights shifted by delta
         prev_weights+=(non_zero_weights_shifted+excitation_array-inhbit_val)
 
 

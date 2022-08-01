@@ -150,11 +150,12 @@ def plotting_CAN_dynamics(delta1,delta2):
             # ax0.imshow(np.tile(prev_weights[0][:],(N[0],1)).T*np.tile(prev_weights[1][:],(N[1],1)))
             im=np.outer(prev_weights[0][:],prev_weights[1][:])
             ax0.imshow(im, interpolation='nearest', aspect='auto')
+            ax0.axis('equal')
             # axy.invert_yaxis()
             # axx.bar(neurons,prev_weights[1][:],width=1)
-            # axx.axis('off')
+            axx.axis('off')
             # axy.barh(neurons,prev_weights[0][:],height=1)
-            # axy.axis('off')
+            axy.axis('off')
 
             del_y=np.argmax(prev_weights[0][:])-prev_x
             del_x=np.argmax(prev_weights[1][:])-prev_y
