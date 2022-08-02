@@ -60,7 +60,7 @@ def visualiseMultiple1DNetworks():
     '''2D'''
     im2D=np.outer(prev_weights[0][:],prev_weights[1][:])
     ax1.imshow(im2D, interpolation='nearest', aspect='auto',cmap='rainbow_alpha')
-    ax1.axis('off')
+    # ax1.axis('off')
     # ax1.set_title('2D')
     ax1.tick_params(left=False,bottom = False, labelleft = False,labelbottom = False)
 
@@ -71,7 +71,7 @@ def visualiseMultiple1DNetworks():
     xx, yy,zz = np.meshgrid(np.linspace(0,1,N[0]), np.linspace(0,1,N[1]), np.linspace(0,1,N[2]))
     ax2.scatter3D(xx, yy, zz, c=im3D, cmap='rainbow_alpha', marker='.')
     ax2.grid(False)
-    ax2.axis('off')
+    # ax2.axis('off')
     # ax2.set_title('3D')
     ax2.tick_params(left=False,bottom = False, labelleft = False,labelbottom = False)
     '''removing plot ticks'''
