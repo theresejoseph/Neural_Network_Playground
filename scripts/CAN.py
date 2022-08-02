@@ -175,6 +175,7 @@ class attractorNetworkSettling:
         else:  
            return prev_weights/np.linalg.norm(prev_weights)
 
+
 class attractorNetworkScaling:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
     along with inhitory and excitatory connections to update the weights'''
@@ -397,3 +398,15 @@ def multiResolution(val):
     scale = [10,1,0.1,0.01,0.001]
     return placeValue, scale
 
+def imageHistogram(prev_weights,N,val):
+      prev_weights[prev_weights<0]=0
+      prev_weights/np.linalg.norm(prev_weights)
+      height=50
+     
+      hist1=np.zeros((height,N*2))
+      for n in range(N*2):
+         if n%2==0:
+            coloured=int(np.round(prev_weights[n//2],2)*100)
+            if coloured != 0:
+               hist1[:coloured, n]=[val]*coloured
+      return hist1

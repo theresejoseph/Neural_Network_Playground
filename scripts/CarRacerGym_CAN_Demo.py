@@ -228,7 +228,7 @@ def matplotlib_func(queue):
             '''updating network'''
             for j in range(len(delta)):
                net=attractorNetworkSettling(int(N.val),num_links[j],int(excite.val), activity_mag[j],inhibit_scale.val)
-               prev_weights[j][:],excite_store,exciteInhi= net.update_weights_dynamics(prev_weights[j][:],delta[j],moreResults=True)
+               prev_weights[j][:]= net.update_weights_dynamics(prev_weights[j][:],delta[j])
                prev_weights[j][prev_weights[j][:]<0]=0
 
                # if len(prev_weights[j][:]>0) == 0:
