@@ -55,18 +55,17 @@ class attractorNetwork:
         elif np.argmax(prev_weights)+delta < 0:
             crossover=(np.argmax(prev_weights)+int(delta))//self.N
 
-        '''copied and shifted activity'''
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        if len(prev_weights[non_zero_idxs])==0:
+            prev_weights[self.activation(0)]=self.full_weights(self.num_links)
+            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
 
+        '''copied and shifted activity'''
         shifted_indexes=(non_zero_idxs+ int(delta)) % self.N
-
-        # if len(prev_weights[non_zero_idxs])==0:
-        #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
-        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         
-        non_zero_weights_shifted[shifted_indexes]=prev_weights[non_zero_idxs]  #non zero weights shifted by delta
+        non_zero_weights_shifted[shifted_indexes]=self.fractional_weights(prev_weights[non_zero_idxs],delta)  #non zero weights shifted by delta
         
         intermediate_activity=non_zero_weights_shifted+non_zero_weights
         '''inhibition'''
@@ -82,7 +81,7 @@ class attractorNetwork:
             excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
 
         '''update activity'''
-        for k in range(10):
+        for k in range(30):
             prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
 
         

@@ -382,8 +382,8 @@ def CompareState_Velocity_Networks(data_x,data_y):
 
 '''Test Area'''
 sparse_gt=data_processing()#[0::4]
-data_x=sparse_gt[:, :, 3][:,0][:400]
-data_y=sparse_gt[:, :, 3][:,2][:400]
+data_x=sparse_gt[:, :, 3][:,0][:200]
+data_y=sparse_gt[:, :, 3][:,2][:200]
 
 # data_y=np.concatenate([np.zeros(100), np.arange(100), np.ones(100)*100, np.arange(100,5,-1)])
 # data_x=np.concatenate([np.arange(100), np.ones(100)*100, np.arange(100,0,-1), np.zeros(95)])
@@ -403,7 +403,7 @@ data_x=np.arange(100)
 '''Functions'''
 # testing_Conversion(sparse_gt)
 # visualise(data_x,data_y)
-# encodingDecodingMotion(data_x,data_y)
+encodingDecodingMotion(data_x,data_y)
 # CompareState_Velocity_Networks(data_x,data_y)
 
 
