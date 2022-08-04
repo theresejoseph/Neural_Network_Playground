@@ -4,7 +4,7 @@ import numpy as np
 import math
 import os
 import pandas as pd 
-
+from matplotlib.animation import FuncAnimation
 
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling, imageHistogram
 from matplotlib.colors import LinearSegmentedColormap
@@ -14,14 +14,11 @@ import multiprocessing
 
 
 '''Parameters'''
-N=[200,200,360] #number of neurons
-num_links=[4,4,17]
-excite=[12,12,7]
-activity_mag=[1,1,1]
-inhibit_scale=[0.05,0.05,0.005]
-
-# prev_weights_trans=[np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]),np.zeros(N[0])]
-# prev_weights_rot=[np.zeros(N[1]), np.zeros(N[1]), np.zeros(N[1]),np.zeros(N[1]), np.zeros(N[1])]
+N=[100,100,360] #number of neurons
+# num_links=[4,4,17]
+# excite=[12,12,7]
+# activity_mag=[1,1,1]
+# inhibit_scale=[0.05,0.05,0.005]
 
 def data_processing():
     poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
@@ -30,8 +27,13 @@ def data_processing():
         gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
     return gt
 
+
 def visualiseMultiple_1D_Networks():
-    N=[30,30,30] #number of neurons
+    N=[20,20,20] #number of neurons
+    num_links=[4,4,17]
+    excite=[12,12,7]
+    activity_mag=[1,1,1]
+    inhibit_scale=[0.05,0.05,0.005]
     prev_weights=[np.zeros(N[0]), np.zeros(N[1]), np.zeros(N[2])]
     '''Initlise Network Activation'''
     for n in range(len(prev_weights)):
@@ -68,7 +70,7 @@ def visualiseMultiple_1D_Networks():
     '''2D'''
     im2D=np.outer(prev_weights[0][:],prev_weights[1][:])
     ax1.imshow(im2D, interpolation='nearest', aspect='auto',cmap='rainbow_alpha')
-    # ax1.axis('off')
+    ax1.axis('off')
     # ax1.set_title('2D')
     ax1.tick_params(left=False,bottom = False, labelleft = False,labelbottom = False)
 
@@ -145,8 +147,8 @@ def encodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
             prev_weights[2][prev_weights[2][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            x[i]=np.argmax(prev_weights[0][:])#-prev_trans
-            y[i]=np.argmax(prev_weights[1][:])
+            x[i]=activityDecoding(prev_weights[0][:])#-prev_trans
+            y[i]=activityDecoding(prev_weights[1][:])
             theta[i]=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
             
             x_gt[i]=data_x[i]
@@ -158,6 +160,7 @@ def encodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
     theta_error=np.sum(abs(rot_gt-theta))
 
     return x_error, y_error, theta_error
+
 
 def encodingDecodingMotionSearch(excite_trans,excite_rot,inhibit_trans,inhibit_rot):
     '''Encoding change in translation and rotation (using scale factor to avoid wraparound and very small changes)
@@ -207,20 +210,19 @@ def encodingDecodingMotionSearch(excite_trans,excite_rot,inhibit_trans,inhibit_r
             prev_weights[2][prev_weights[2][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            x[i]=np.argmax(prev_weights[0][:])#-prev_trans
-            y[i]=np.argmax(prev_weights[1][:])
-            theta[i]=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
+            x=activityDecoding(prev_weights[0][:],num_links[0],N[0])#-prev_trans
+            y=activityDecoding(prev_weights[1][:],num_links[1],N[1])
+            theta=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
             
             x_gt[i]=data_x[i]
             y_gt[i]=data_y[i]
             rot_gt[i]=np.rad2deg(math.atan2(y1-y0,x1-x0))
 
-    x_error=np.sum(abs(x_gt-x))
-    y_error=np.sum(abs(y_gt-y))
-    theta_error=np.sum(abs(rot_gt-theta))
+    x_error=np.sum(np.abs(x_gt-x))
+    y_error=np.sum(np.abs(y_gt-y))
+    theta_error=np.sum(np.abs(rot_gt-theta))
 
-    return inhibit_rot,x_error, y_error, theta_error
-
+    return x_error, y_error, theta_error
 
 
 def visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
@@ -268,9 +270,9 @@ def visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
             prev_weights[2][prev_weights[2][:]<0]=0
 
             '''decoding mangnitude and direction of movement'''
-            x[i]=np.argmax(prev_weights[0][:])#-prev_trans
-            y[i]=np.argmax(prev_weights[1][:])
-            theta[i]=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
+            x=activityDecoding(prev_weights[0][:],num_links[0],N[0])#-prev_trans
+            y=activityDecoding(prev_weights[1][:],num_links[1],N[1])
+            theta=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
             
             x_gt[i]=data_x[i]
             y_gt[i]=data_y[i]
@@ -330,6 +332,79 @@ def visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
     plt.show()
 
 
+def animateEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale):
+    ''' 2 x 1D attractor networks representing change in translation and roation while seting on the 
+    delta value which is decoded and used to update the exstimated x y position. The animation displays
+    one iteration at a time'''
+
+    fig = plt.figure(figsize=(13, 4))
+    ax0 = fig.add_subplot(1, 3, 1)
+    ax1 = fig.add_subplot(1, 3, 2)
+    ax2 = fig.add_subplot(1, 3, 3)
+
+    '''Initalise network'''            
+    delta=[0,0,90]
+    prev_weights=[np.zeros(N[0]), np.zeros(N[1]), np.zeros(N[2])]
+    num_links=[4,4,17]
+    activity_mag=[1,1,1]
+    
+    for i in range(len(delta)):
+        net=attractorNetwork(N[i],num_links[i],excite[i], activity_mag[i],inhibit_scale[i])
+        prev_weights[i][net.activation(delta[i])]=net.full_weights(num_links[i])
+        prev_weights[i][prev_weights[i][:]<0]=0
+
+    
+    def animate(i):
+        ax0.set_title("Ground Truth Pose")
+        ax0.scatter(data_x[i],data_y[i],s=15)
+        ax0.axis('equal')
+        # ax0.set_xlim([-300,300])
+        # ax0.set_ylim([-100,500])
+        # ax0.set_zlim([-50,50])
+        # ax0.invert_yaxis()
+        # ax0.view_init(elev=39, azim=140)
+        ax1.clear()
+        if i>=2:
+            '''encoding mangnitude and direction of movement'''
+            x0, x1, x2=data_x[i-2],data_x[i-1], data_x[i]
+            y0, y1, y2=data_y[i-2], data_y[i-1], data_y[i]
+            
+            delta[0]=x2-x1
+            delta[1]=y2-y1
+            delta[2]=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     
+           
+            '''updating network'''
+            net0=attractorNetwork(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            net1=attractorNetwork(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
+            net2=attractorNetwork(N[2],num_links[2],excite[2], activity_mag[2],inhibit_scale[2])
+
+            prev_weights[0][:]= net0.update_weights_dynamics(prev_weights[0][:],delta[0])
+            prev_weights[0][prev_weights[0][:]<0]=0
+            
+            prev_weights[1][:]= net1.update_weights_dynamics(prev_weights[1][:],delta[1])
+            prev_weights[1][prev_weights[1][:]<0]=0
+
+            prev_weights[2][:]= net2.update_weights_dynamics(prev_weights[2][:],delta[2])
+            prev_weights[2][prev_weights[2][:]<0]=0
+
+            '''decoding mangnitude and direction of movement'''
+            x=activityDecoding(prev_weights[0][:],num_links[0],N[0])#-prev_trans
+            y=activityDecoding(prev_weights[1][:],num_links[1],N[1])
+            theta=activityDecoding(prev_weights[2][:],num_links[2],N[2])#-prev_angle
+
+            ax1.set_title("Velocity Attractor Network")
+            im=np.outer(prev_weights[0][:],prev_weights[1][:])
+            ax1.imshow(im,interpolation='nearest', aspect='auto')
+
+            ax2.scatter(x,y)
+            # print(x2-x1, y2-y1)
+            # print(len(signal.find_peaks(prev_weights_trans)[0]),len(signal.find_peaks(prev_weights_angle)[0]) )
+            
+
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
+    plt.show()
+
+
 def unitTest(data_x, data_y):
     excite=[6,6,12],[3,3,6], [2,2,3]
     inhibit_scale=[0.01,0.01,0.05], [0.001,0.001,0.001], [0.005,0.005,0.005]
@@ -360,7 +435,85 @@ def unitTest(data_x, data_y):
     
     visualiseEncodingDecodingMotion(data_x,data_y,[min_x_param[0][0],min_y_param[0][1],min_theta_param[0][2]],[min_x_param[1][0],min_y_param[1][1],min_theta_param[1][2]])
 
-def gridSearch(data_x,data_y):
+
+def gridSearch(data_x,data_y,size):
+    x_error=np.zeros((size,size))
+    y_error=np.zeros((size,size))
+    theta_error=np.zeros((size,size))
+    for i,excite_trans in enumerate(list(np.linspace(1,N[0]/2, size))):
+        for j,inhibit_trans in enumerate(list(np.linspace(0.005,0.1, size))):
+            x_error[i,j],y_error[i,j],theta_err=encodingDecodingMotionSearch(round(excite_trans),1,inhibit_trans,0.1)
+            print(i,j)
+    
+    for i,excite_rot in enumerate(list(np.linspace(1,N[2]/2, size))):
+        for j,inhibit_rot in enumerate(list(np.linspace(0.005,0.1, size))):
+            x_err,y_err,theta_error[i,j]=encodingDecodingMotionSearch(1,round(excite_rot),0.1,inhibit_rot)
+            print(i,j)
+
+    with open(f'./results/x_error_{size}.npy', 'wb') as f:
+        np.save(f, np.array(x_error))
+    with open(f'./results/y_error_{size}.npy', 'wb') as f:
+        np.save(f, np.array(y_error))
+    with open(f'./results/theta_error_{size}.npy', 'wb') as f:
+        np.save(f, np.array(theta_error))
+
+
+def plottingGridSearch(size):
+    with open(f'./results/x_error_{size}.npy', 'rb') as f:
+        theta_error = np.load(f)
+    with open(f'./results/y_error_{size}.npy', 'rb') as f:
+        y_error = np.load(f)
+    with open(f'./results/theta_error_{size}.npy') as f:
+        x_error = np.load(f)
+        
+    plt.figure(figsize=(10, 7))
+    plt.subplots_adjust(wspace=0.5)
+    ax0=plt.subplot(1,3,1)
+    ax1=plt.subplot(1,3,2)
+    ax2=plt.subplot(1,3,3)
+
+    ax0.set_title('X Error')
+    ax0.imshow(x_error)
+    ax0.set_xlabel('Excitation')
+    ax0.set_ylabel('Inhibition')
+    ax0.set_xticklabels([round(a) for a in list(np.linspace(1,N[0]/2, size))])
+    ax0.set_yticklabels([round(a,4) for a in list(np.linspace(0.005,0.1, size))])
+
+    ax1.set_title('Y Error')
+    ax1.imshow(y_error)
+    ax1.set_xlabel('Excitation')
+    ax1.set_ylabel('Inhibition')
+    ax1.set_xticklabels([round(a) for a in list(np.linspace(1,N[0]/2, size))])
+    ax1.set_yticklabels([round(a,4) for a in list(np.linspace(0.005,0.1, size))])
+
+    ax2.set_title('Theta Error')
+    ax2.imshow(theta_error)
+    ax2.set_xlabel('Excitation')
+    ax2.set_ylabel('Inhibition')
+    ax2.set_xticklabels([round(a) for a in list(np.linspace(1,N[2]/2, size))])
+    ax2.set_yticklabels([round(a,4) for a in list(np.linspace(0.005,0.1, size))])
+    plt.show()
+                
+    
+
+                
+'''Testing'''
+sparse_gt=data_processing()#[0::4]
+data_x=sparse_gt[:, :, 3][:,0][:200]
+data_y=sparse_gt[:, :, 3][:,2][:200]
+
+visualiseMultiple_1D_Networks()
+# visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale)
+# unitTest(data_x, data_y)
+
+
+# gridSearch(data_x,data_y,10)
+# plottingGridSearch(10)
+
+
+
+'''Old Functions'''
+def gridSearchProcess(data_x,data_y):
     x_error=np.zeros((5,5,5,5))
     y_error=np.zeros((5,5,5,5))
     theta_error=np.zeros((5,5,5,5))
@@ -369,9 +522,9 @@ def gridSearch(data_x,data_y):
             for inhibit_trans in list(np.linspace(0.005,0.1, 5)):
                 #start 5 processes for values of inhibit rot 
                 arg_values = [(round(excite_trans),round(excite_rot),inhibit_trans,inhibit_rot) for inhibit_rot in np.linspace(0.005,0.1, 5)]
+                print(arg_values)
                 with Pool(processes=5) as pool:
                     res = pool.starmap(encodingDecodingMotionSearch, arg_values)
-
 
                 inhibit_trans_index=list(np.linspace(0.005,0.1, 5)).index(inhibit_trans)
                 excite_rot_index=list(np.linspace(1,N[2]/2, 5)).index(excite_rot)
@@ -391,22 +544,38 @@ def gridSearch(data_x,data_y):
     with open('./results/theta_error.npy', 'wb') as f:
         np.save(f, np.array(theta_error))
 
-                
-'''Testing'''
-sparse_gt=data_processing()#[0::4]
-data_x=sparse_gt[:, :, 3][:,0][:200]
-data_y=sparse_gt[:, :, 3][:,2][:200]
+def testingSample():
+    vals=[(1, 1, 0.0525, 0.005), (1, 1, 0.0525, 0.02875), (1, 1, 0.0525, 0.0525), (1, 1, 0.0525, 0.07625000000000001), (1, 1, 0.0525, 0.1)]
+    for i in range(len(vals)):
+        excite=[vals[i][0], vals[i][0],vals[i][1]]
+        inhibit_scale=[vals[i][2], vals[i][2], vals[i][3]]
+        print(encodingDecodingMotionSearch(vals[i][0], vals[i][1], vals[i][2], vals[i][3]))
+        # visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale)
+        animateEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale)
+        
+def plottingSearchResults():
+    with open('./results/theta_error_0.npy', 'rb') as f:
+        a = np.load(f)
+        norm_a=a/np.linalg.norm(a)
+    plt.figure(figsize=(10, 7))
+    plt.suptitle("Theta Error Gridsearch", fontsize=18, y=0.95)
 
-# data_y=np.zeros(100)
-# data_x=np.arange(100)
+    x=0
+    for n in range(5):
+        for m in range(5):
+            x=x+1
+            print(x,m,n)
+            ax = plt.subplot(5, 5, x)
+            ax.imshow(norm_a[:,:,n,m])
+            ax.set_xticklabels([round(a) for a in list(np.linspace(1,N[0]/2, 5))])
+            ax.set_xlabel('Translate Excite',fontsize=9)
+            ax.set_yticklabels([round(a) for a in list(np.linspace(1,N[2]/2, 5))])
+            ax.set_ylabel('Rotate Excitate',fontsize=9)
+    plt.show()
 
-# visualiseMultiple1DNetworks()
-# visualiseEncodingDecodingMotion(data_x,data_y,excite,inhibit_scale)
-# unitTest(data_x, data_y)
-if __name__=="__main__":
-    freeze_support()
-    gridSearch(data_x,data_y)
+# plottingSearchResults() 
+# testingSample()
 
-# with open('./results/test.npy', 'rb') as f:
-#     a = np.load(f)
-# print(a)
+# if __name__=="__main__":
+#     freeze_support()
+#     gridSearchProcess(data_x,data_y)

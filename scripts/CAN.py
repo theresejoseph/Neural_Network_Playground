@@ -224,14 +224,13 @@ class attractorNetworkScaling:
         # if len(prev_weights>0)==0:
         #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
         #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights    
-        
      
         indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
 
         '''copied and shifted activity'''
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        non_zero_weights_shifted[(non_zero_idxs+round(delta))%self.N]=prev_weights[non_zero_idxs] #non zero weights shifted by delta
+        non_zero_weights_shifted[(non_zero_idxs+round(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],delta)*self.activity_mag #non zero weights shifted by delta
   
         '''inhibition''' #inhibit shifted neuron 
         for i in range(len(non_zero_weights_shifted)):
@@ -247,11 +246,11 @@ class attractorNetworkScaling:
 
         
 
-        if abs(delta)<self.excite_radius:
-            prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
-            return prev_weights/np.linalg.norm(prev_weights)
-        else:  
-            return prev_weights
+        # if abs(delta)<=self.excite_radius:
+        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
+        return prev_weights/np.linalg.norm(prev_weights)
+        # else:  
+        #     return prev_weights
 
 
 # class attractorNetworkSettlingLandmark:
