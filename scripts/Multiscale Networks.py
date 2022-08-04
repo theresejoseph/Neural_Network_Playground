@@ -18,7 +18,7 @@ split_output=[0,0,0]
 num_links=[3,17]
 excite=[1,7]
 # activity_mag=[1,1]
-inhibit_scale=[0.05,0.005]
+
 curr_parameter=[0,0]
 crossovers=np.zeros(5)
 
@@ -224,25 +224,23 @@ def multiResolutionTranslation(data_x,data_y):
 
     plt.show()
 
-# modify network so zero doesnt get decoded as 59
+
 def visualiseMultiResolutionTranslation(data_x,data_y):
     # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     '''initlising network and animate figures'''
-    fig = plt.figure(figsize=(13, 6))
-    ax0 =  plt.subplot2grid(shape=(6, 2), loc=(0, 0), rowspan=5,colspan=1)
-    # ax2 =  plt.subplot2grid(shape=(6, 3), loc=(0, 2), rowspan=5,colspan=1)
-    ax10 = plt.subplot2grid(shape=(6, 2), loc=(0, 1), rowspan=1,colspan=1)
-    ax11 = plt.subplot2grid(shape=(6, 2), loc=(1, 1), rowspan=1,colspan=1)
-    ax12 = plt.subplot2grid(shape=(6, 2), loc=(2, 1), rowspan=1,colspan=1)
-    ax13 = plt.subplot2grid(shape=(6, 2), loc=(3, 1), rowspan=1,colspan=1)
-    ax14 = plt.subplot2grid(shape=(6, 2), loc=(4, 1), rowspan=1,colspan=1)
-    axtxt = plt.subplot2grid(shape=(6, 2), loc=(5, 0), rowspan=1,colspan=1)
-    axtxt1 = plt.subplot2grid(shape=(6, 2), loc=(5, 1), rowspan=1,colspan=1)
+    fig = plt.figure(figsize=(6, 6))
+    ax10 = plt.subplot2grid(shape=(6, 1), loc=(0, 0), rowspan=1,colspan=1)
+    ax11 = plt.subplot2grid(shape=(6, 1), loc=(1, 0), rowspan=1,colspan=1)
+    ax12 = plt.subplot2grid(shape=(6, 1), loc=(2, 0), rowspan=1,colspan=1)
+    ax13 = plt.subplot2grid(shape=(6, 1), loc=(3, 0), rowspan=1,colspan=1)
+    ax14 = plt.subplot2grid(shape=(6, 1), loc=(4, 0), rowspan=1,colspan=1)
+    axtxt1 = plt.subplot2grid(shape=(6, 1), loc=(5, 0), rowspan=1,colspan=1)
     fig.tight_layout()
 
     num_links=[7,17]
-    excite=[4,7]
-    activity_mag=[0.05,1]
+    excite=[3,7]
+    activity_mag=[0.15,1]
+    inhibit_scale=[0.4,0.005]
 
     net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
     for n in range(len(prev_weights_trans)):
@@ -253,7 +251,6 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
         delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
         split_output=np.zeros((len(delta)))
         '''updating network'''    
-        
         for n in range(len(delta)):
             prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
             prev_weights[n][prev_weights[n][:]<0]=0
@@ -271,7 +268,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
 
     def animate(i):
         # global prev_weights_trans, num_links, excite,inhibit_scale
-        ax10.clear(),ax11.clear(),ax12.clear(),ax13.clear(),ax14.clear(), axtxt.clear(),axtxt1.clear()
+        ax10.clear(),ax11.clear(),ax12.clear(),ax13.clear(),ax14.clear(),axtxt1.clear()
         
         if i>=2:
             '''encoding mangnitude and direction of movement'''
@@ -291,44 +288,83 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             curr_parameter[0]=curr_parameter[0]+translation    
             print(f"{str(i)}  translation {translation} input output {round(curr_parameter[0],3)}  {str(decoded_translation )}  ")
             
-            axtxt.axis('off'),axtxt1.axis('off')
-            axtxt.text(0,0.2,f"Input Trans: {round(x2,3)}, Shift: {round(translation,4)}, Decoded Trans: {round(decoded_translation,3)}", c='r')
+            
+            axtxt1.text(0,0.5,f"Input Trans: {round(x2,3)}, Shift: {round(translation,4)}, Decoded Trans: {round(decoded_translation,3)}", c='r')
             # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
+            axtxt1.axis('off')
             axtxt1.text(0,0,"Decoded Position of Each Network: " + str(split_trans), c='r')
 
-            ax0.set_title("Ground Truth")
-            ax0.plot(i, curr_parameter[0],"k.")
-            # ax0.set_xlim([0,len(data_x)])
-            # ax0.axis('equal')
-
-            # ax2.set_title("Decoded Translation")
-            # ax2.plot(i, decoded_translation,'g.')
-            # ax2.set_xlim([0,len(data_x)])
-            # ax2.axis('equal')
-
             ax10.bar(np.arange(N[0]),prev_weights_trans[0][:],color='aqua')
-            ax10.axis('off')
+            ax10.get_xaxis().set_visible(False)
+            ax10.spines[['top', 'bottom', 'right']].set_visible(False)
 
             ax11.bar(np.arange(N[0]),prev_weights_trans[1][:],color='green')
-            ax11.axis('off')
+            ax11.get_xaxis().set_visible(False)
+            ax11.spines[['top', 'bottom', 'right']].set_visible(False)
 
             ax12.bar(np.arange(N[0]),prev_weights_trans[2][:],color='blue')
-            ax12.axis('off')
+            ax12.get_xaxis().set_visible(False)
+            ax12.spines[['top', 'bottom', 'right']].set_visible(False)
         
             ax13.bar(np.arange(N[0]),prev_weights_trans[3][:],color='purple')
-            ax13.axis('off')
+            ax13.get_xaxis().set_visible(False)
+            ax13.spines[['top', 'bottom', 'right']].set_visible(False)
             
             ax14.bar(np.arange(N[0]),prev_weights_trans[4][:],color='pink')
-            ax14.axis('off')
+            ax14.get_xaxis().set_visible(False)
+            ax14.spines[['top', 'bottom', 'right']].set_visible(False)
 
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
 
+def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_idx):
+    # parameters
+    
+        N=100
+        num_links=7
+        excite=3
+        scale = [0.01, 0.1, 1, 10, 100]
+        error=0
+        '''initiliase network'''
+        net=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
+        prev_weights=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
+        for n in range(len(prev_weights)):
+            prev_weights[n][net.activation(0)]=net.full_weights(num_links)
+        
+        delta_peak=np.zeros((len(data_x),len(scale)))
+        split_output=np.zeros((len(data_x),len(scale)))
+
+        for i in range(1,len(data_x)):
+            activity_len=[len(np.arange(N)[weights>0]) for weights in prev_weights]
+            if 0 in activity_len:
+                error = 1000
+            else: 
+                '''encoding mangnitude movement into multiple scales'''
+                x1, x2=data_x[i-1], data_x[i]
+                y1, y2= data_y[i-1], data_y[i]
+                
+                input=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
+                delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
+                
+                '''updating network'''    
+                for n in range(len(delta)):
+                    prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
+                    prev_weights[n][prev_weights[n][:]<0]=0
+                    split_output[i,n]=np.argmax(prev_weights[n][:])
+                delta_peak[i,:]=np.abs(split_output[i,:]-split_output[i-1,:])
+                decoded=np.sum(split_output*scale)*np.sign(input) 
+                for j in range(len(scale)):
+                    if j != input_idx:
+                        error+=np.sum([peak[j] for peak in delta_peak])
+        return(error)
+            
+            
 
 '''Translation Only'''
-data_y=np.zeros(1000)
-data_x=np.arange(25,300,1)#np.concatenate([ np.arange(0,5,0.25), np.arange(5,25,0.5),np.arange(25,50,1),np.arange(50,100,2),np.arange(100,200,4)])
+input_idx=2
+data_x=np.arange(0,200,1)#np.concatenate([ np.arange(0,5,0.25), np.arange(5,25,0.5),np.arange(25,50,1),np.arange(50,100,2),np.arange(100,200,4)])
+data_y=np.zeros(len(data_x))
 # data_x=np.linspace(0,9990,1000)
 
 # sparse_gt=data_processing()#[0::4]
@@ -337,119 +373,35 @@ data_x=np.arange(25,300,1)#np.concatenate([ np.arange(0,5,0.25), np.arange(5,25,
 
 # visualiseMultiResolutionFeedthroughTranslation(data_x,data_y)
 # multiResolutionTranslation(data_x,data_y)
-visualiseMultiResolutionTranslation(data_x,data_y)
+# visualiseMultiResolutionTranslation(data_x,data_y)
+def gridSearch():
+    error=np.zeros((40,40))
+    inhibit= list(np.linspace(0.005,1,40))
+    magnitude= list(np.linspace(0.005,1,40))
+    for i,inh in enumerate(inhibit):
+        for j,mag in enumerate(magnitude):
+            error[i,j]=MultiResolutionTranslation(data_x,data_y,inh,mag,input_idx)
+            print(i,j,error[i,j])
+    with open(f'./results/mutli_scale_index_{input_idx}.npy', 'wb') as f:
+        np.save(f, np.array(error))
+
+def plottingGridSearch():
+    inhibit= list(np.linspace(0.005,1,40))
+    magnitude= list(np.linspace(0.005,1,40))
+
+    with open(f'./results/mutli_scale_index_{input_idx}.npy', 'rb') as f:
+        error = np.load(f)
+        error[error==1000]=np.nan
+        norm_error=error/np.linalg.norm(error)
+    plt.figure(figsize=(10, 7))
+    ax0=plt.subplot(1,1,1)
 
 
-# def multiResolutionModulus(input,split_output):
-#     rounded=np.round(input,2)*100
-
-#     hundreds=(rounded)%10
-#     tens=(rounded//10)%10
-#     ones=(rounded//100)
-
-#     scale=[1,0.1,0.01]
-#     return [ones,tens,hundreds], scale 
-
-# def visualiseMultiResolutionModulus(data_x,data_y):
-#     global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
-#     # global curr_x,curr_y
-#     fig = plt.figure(figsize=(13, 4))
-#     ax0 =  plt.subplot2grid(shape=(3, 3), loc=(0, 0), rowspan=5,colspan=1)
-#     ax10 = plt.subplot2grid(shape=(3, 3), loc=(0, 1), rowspan=1,colspan=1)
-#     ax11 = plt.subplot2grid(shape=(3, 3), loc=(1, 1), rowspan=1,colspan=1)
-#     ax12 = plt.subplot2grid(shape=(3, 3), loc=(2, 1), rowspan=1,colspan=1)
-#     ax2 = plt.subplot2grid(shape=(3, 3), loc=(0, 2), rowspan=5,colspan=1)
-#     fig.tight_layout()
-
-#     curr_x,curr_y=np.zeros((len(data_x))), np.zeros((len(data_y)))
-#     theta=np.zeros((len(data_x)))
-#     theta[0]=0
-#     theta[1]=90
-    
-   
-#     net=attractorNetwork(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-#     prev_weights[1][net.activation(theta[1])]=net.full_weights(num_links[1])
-    
-#     for n in range(len(prev_weights_rot)):
-#         prev_weights_rot[n][net.activation(90)]=net.full_weights(num_links[1])
-
-
-#     def animate(i):
-#         global prev_weights_trans,prev_weights_rot, num_links, excite, activity_mag,inhibit_scale,split_output
-#         # ax10.clear(),ax11.clear(),ax12.clear(),ax13.clear(),ax14.clear()
-        
-#         if i>=2:
-#             '''encoding mangnitude and direction of movement'''
-#             x0=data_x[i-2]
-#             x1=data_x[i-1]
-#             x2=data_x[i]
-#             y0=data_y[i-2]
-#             y1=data_y[i-1]
-#             y2=data_y[i]
-            
-#             translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
-#             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
-
-#             net=attractorNetwork(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
-#             decoded_translation=multiResolutionUpdate(translation,prev_weights_trans,net)
-    
-#             # net=attractorNetwork(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-#             # prev_weights[1][:]= net.update_weights_dynamics(prev_weights[1][:],rotation)
-#             # prev_weights[1][prev_weights[1][:]<0]=0
-#             # decoded_rotation=activityDecodingAngle(prev_weights[1][:],num_links[1],N[1])*1.09#-prev_trans
-#             # # decoded_rotation=np.argmax(prev_weights[1][:])
-            
-#             delta, scale = multiResolutionModulus(abs(rotation),split_output)
-#             split_output=np.zeros((len(delta)))
-
-#             print(rotation,delta)
-
-#             '''updating network'''    
-#             net=attractorNetwork(N[1],num_links[1],excite[1], activity_mag[1],inhibit_scale[1])
-            
-#             for n in range(len(delta)):
-#                 prev_weights_rot[n][:]= net.update_weights_dynamics(prev_weights_rot[n][:],delta[n])
-#                 prev_weights_rot[n][prev_weights_rot[n][:]<0]=0
-#                 split_output[n]=np.argmax(prev_weights_rot[n][:])#-prev_trans
-#             '''decoding mangnitude and direction of movement'''
-#             decoded_rotation=np.sum(split_output*scale)*np.sign(rotation)
-    
-#             # theta[i]=(theta[i-1]+rotation)%360
-#             # curr_x[i]=curr_x[i-1]+(translation*np.cos(np.deg2rad(theta[i-1])))
-#             # curr_y[i]=curr_y[i-1]+(translation*np.sin(np.deg2rad(theta[i-1])))
-
-            
-#             # curr_x[i]=curr_x[i-1]+ (decoded_translation*np.cos(np.deg2rad(theta[i-1])))
-#             # curr_y[i]=curr_y[i-1]+ (decoded_translation*np.sin(np.deg2rad(theta[i-1])))
-#             curr_x[i]=curr_x[i-1]+ (decoded_translation*np.cos(np.deg2rad(decoded_rotation)))
-#             curr_y[i]=curr_y[i-1]+ (decoded_translation*np.sin(np.deg2rad(decoded_rotation)))
-
-        
-#             # print(f"{str(i)}   {str(translation)}   {str(decoded_translation )}  ----- {np.rad2deg(math.atan2(y2-y1,x2-x1))}   {decoded_rotation}")
-#             '''decoding mangnitude and direction of movement'''
-            
-#             ax0.plot(x2,y2,"k.")
-#             ax0.set_title("Ground Truth Position")
-#             ax0.axis('equal')
-#             # ax0.axis('equal')  
-#             # 
-#             ax2.set_title("Attractor Rotation Network")
-#             ax2.plot(curr_x[i],curr_y[i],'g.')
-#             ax2.axis('equal')
-
-#             # ax10.set_title("Whole Deg",fontsize=6)
-#             # ax10.bar(np.arange(N[1]),prev_weights_rot[0][:],color='blue')
-#             # ax10.axis('off')
-
-#             # ax11.set_title("1/10 Deg",fontsize=6)
-#             # ax11.bar(np.arange(N[1]),prev_weights_rot[1][:],color='purple')
-#             # ax11.axis('off')
-
-#             # ax12.set_title("1/100 Deg",fontsize=6)
-#             # ax12.bar(np.arange(N[1]),prev_weights_rot[2][:],color='pink')
-#             # ax12.axis('off')
-            
-
-#     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
-#     plt.show()
-
+    ax0.set_title('Error')
+    ax0.imshow(np.log(error))
+    ax0.set_xlabel('Inhibition')
+    ax0.set_ylabel('Magnitude')
+    ax0.set_xticklabels([round(a,4) for a in inhibit])
+    ax0.set_yticklabels([round(a,4) for a in magnitude])
+    plt.show()
+plottingGridSearch()

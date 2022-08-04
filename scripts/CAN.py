@@ -220,15 +220,17 @@ class attractorNetworkScaling:
             return frac_weights
 
     def update_weights_dynamics(self,prev_weights,delta,moreResults=None):
+        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+
         # '''initialise'''
-        # if len(prev_weights>0)==0:
+        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        # if len(non_zero_idxs)==0:
         #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
         #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights    
      
-        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-
+       
         '''copied and shifted activity'''
-        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         non_zero_weights_shifted[(non_zero_idxs+round(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],delta)*self.activity_mag #non zero weights shifted by delta
   
