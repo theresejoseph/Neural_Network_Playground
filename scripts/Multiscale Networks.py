@@ -225,7 +225,7 @@ def multiResolutionTranslation(data_x,data_y):
     plt.show()
 
 
-def visualiseMultiResolutionTranslation(data_x,data_y):
+def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale):
     # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     '''initlising network and animate figures'''
     fig = plt.figure(figsize=(6, 6))
@@ -239,10 +239,10 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
 
     num_links=[7,17]
     excite=[3,7]
-    activity_mag=[0.15,1]
-    inhibit_scale=[0.4,0.005]
+    # activity_mag=0.15
+    # inhibit_scale=0.4
 
-    net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+    net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag,inhibit_scale)
     for n in range(len(prev_weights_trans)):
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
@@ -282,7 +282,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y):
             translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
 
-            net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag[0],inhibit_scale[0])
+            net0=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag,inhibit_scale)
             decoded_translation,split_trans=multiResolutionUpdate(translation,prev_weights_trans,net0)
     
             curr_parameter[0]=curr_parameter[0]+translation    
@@ -357,7 +357,7 @@ def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_id
                 for j in range(len(scale)):
                     if j != input_idx:
                         error+=np.sum([peak[j] for peak in delta_peak])
-        return(error)
+        return error
             
             
 
@@ -385,7 +385,7 @@ def gridSearch():
     with open(f'./results/mutli_scale_index_{input_idx}.npy', 'wb') as f:
         np.save(f, np.array(error))
 
-def plottingGridSearch():
+def plottingGridSearch(plot=False):
     inhibit= list(np.linspace(0.005,1,40))
     magnitude= list(np.linspace(0.005,1,40))
 
@@ -396,12 +396,27 @@ def plottingGridSearch():
     plt.figure(figsize=(10, 7))
     ax0=plt.subplot(1,1,1)
 
+    zeros=np.vstack((np.where(error==0)[0],np.where(error==0)[1]))
+    print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
+
 
     ax0.set_title('Error')
-    ax0.imshow(np.log(error))
+    error[error==0]=np.nan
+    ax0.imshow(error)
     ax0.set_xlabel('Inhibition')
     ax0.set_ylabel('Magnitude')
-    ax0.set_xticklabels([round(a,4) for a in inhibit])
-    ax0.set_yticklabels([round(a,4) for a in magnitude])
-    plt.show()
-plottingGridSearch()
+    ax0.set_xticks(np.arange(40),[round(a,4) for a in inhibit],rotation=90)
+    ax0.set_yticks(np.arange(40), [round(a,4) for a in magnitude])
+    # ax0.grid(True)
+
+    # plt.show()
+    if plot== False: 
+        return zeros 
+    else:
+        plt.show()
+
+
+zeros=plottingGridSearch()
+inhibit= list(np.linspace(0.005,1,40))
+magnitude= list(np.linspace(0.005,1,40))
+visualiseMultiResolutionTranslation(data_x,data_y,magnitude[zeros[0,10]],inhibit[zeros[1,10]])
