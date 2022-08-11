@@ -127,8 +127,10 @@ filename=f'./results/GA_MultiScale/30_gens_factor10.npy'
 
 with open(filename, 'rb') as f:
     data = np.load(f)
-plt.plot([max(fit) for fit in data[:,:,5]])
-plt.show()
+# plt.plot([max(fit) for fit in data[:,:,5]])
+# plt.title('Best Fitness over 30 Generation')
+# plt.show()
+print(data)
 
 
 def visualiseMultiResolutionTranslation(genome):
@@ -231,5 +233,6 @@ def visualiseMultiResolutionTranslation(genome):
     plt.show()
 
 # fittest=[1.48000000e+02, 1.20000000e+01, 1.00000000e+00, 7.07215044e-02, 4.74091433e-01]
-# visualiseMultiResolutionTranslation(fittest)
+fittest=[1.67000000e+02, 2.00000000e+00, 3.00000000e+00, 9.23424531e-02, 5.20268520e-01]
+visualiseMultiResolutionTranslation(fittest)
 # print(MultiResolutionTranslation(fittest))

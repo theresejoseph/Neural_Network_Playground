@@ -421,7 +421,7 @@ data_y=np.zeros(len(data_x))
 # f'./results/GridSearch_MultiScale/mutli_scale_index_{input_idx}.npy'
 # gridSearch(f'./results/GridSearch_MultiScale/mutliScale_factor_test10.npy',10)
 
-zeros=plottingGridSearch( f'./results/GridSearch_MultiScale/mutliScale_factor_test10.npy',10)
+zeros=plottingGridSearch( f'./results/GridSearch_MultiScale/mutliScale_factor_of_2.npy',40)
 # inhibit= list(np.linspace(0.005,1,5))
 # magnitude= list(np.linspace(0.005,1,5))
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,0.2537)
