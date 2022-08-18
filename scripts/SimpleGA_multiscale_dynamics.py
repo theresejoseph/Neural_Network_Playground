@@ -120,6 +120,7 @@ def GeneticAlgorithm(num_gens,population_size,filename):
     with open(filename, 'wb') as f:
         np.save(f, np.array(order_population))
 
+'''Test Area'''
 num_gens=30
 population_size=20
 filename=f'./results/GA_MultiScale/30_gens_factor10.npy'
