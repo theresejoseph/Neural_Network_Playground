@@ -1,6 +1,10 @@
 from cgi import print_arguments
 import math
+from turtle import width
 import numpy as np 
+import matplotlib.pyplot as plt
+from sympy import fraction
+from matplotlib.animation import FuncAnimation
 
 class attractorNetwork:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
@@ -81,10 +85,8 @@ class attractorNetwork:
             excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
 
         '''update activity'''
-        for k in range(30):
-            prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
 
-        
+        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
 
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
@@ -247,12 +249,204 @@ class attractorNetworkScaling:
             excite[self.excitations(non_zero_idxs[i])]+=self.full_weights(self.excite_radius)*prev_weights[non_zero_idxs[i]]
 
         
-
         # if abs(delta)<=self.excite_radius:
         prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
         return prev_weights/np.linalg.norm(prev_weights)
-        # else:  
-        #     return prev_weights
+ 
+ 
+class attractorNetwork2D:
+    '''defines 1D attractor network with N neurons, angles associated with each neurons 
+    along with inhitory and excitatory connections to update the weights'''
+    def __init__(self, N1, N2, excite_radius, activity_mag,inhibit_scale):
+        self.excite_radius=excite_radius
+        self.N1=N1
+        self.N2=N2  
+        self.activity_mag=activity_mag
+        self.inhibit_scale=inhibit_scale
+
+    def full_weights(self,radius):
+        len=(radius*2)+1
+        x, y = np.meshgrid(np.linspace(-1,1,len), np.linspace(-1,1,len))
+        sigma, mu = 1.0, 0.0
+        return np.exp(-( ((x-mu)**2 + (y-mu)**2) / ( 2.0 * sigma**2 ) ) )
+
+    def inhibitions(self,weights):
+        ''' constant inhibition scaled by amount of active neurons'''
+        return np.sum(weights[weights>0]*self.inhibit_scale)
+
+    def excitations(self,idx,idy):
+        '''each neuron excites itself and num_links neurons within a moore neighbourhood with wraparound connections'''
+        excite_rowvals=[]
+        for i in range(-self.excite_radius,self.excite_radius+1):
+            excite_rowvals.append((idx + i) % self.N1)
+        
+        excite_colvals=[]
+        for i in range(-self.excite_radius,self.excite_radius+1):
+            excite_colvals.append((idy + i) % self.N2)
+
+        gauss=self.full_weights(self.excite_radius)
+        excite=np.zeros((self.N1,self.N2))
+        for i,r in enumerate(excite_rowvals):
+            for j,c in enumerate(excite_colvals):
+                excite[r,c]=gauss[i,j]
+        return excite
+
+
+    def fractional_weights(self,full_shift,delta_row,delta_col):
+        mysign=lambda x: 1 if x > 0 else -1
+        frac_row, frac_col=delta_row - int(delta_row),delta_col - int(delta_col)
+        inv_frac_row, inv_frac_col=[1-(delta_row%1),1-(delta_col%1)]
+
+        non_zero_weights=np.nonzero(full_shift)
+        shifted_row, shifted_col=np.zeros((self.N1,self.N2)), np.zeros((self.N1,self.N2))
+        shifted_col[non_zero_weights[0],(non_zero_weights[1]+mysign(frac_col))%self.N2]=full_shift[non_zero_weights]
+        shifted_row[(non_zero_weights[0]+mysign(frac_row))%self.N1, non_zero_weights[1]]=full_shift[non_zero_weights]
+        
+        shifted_rowThencol, shifted_colThenrow=np.zeros((self.N1,self.N2)), np.zeros((self.N1,self.N2))
+        non_zero_col, non_zero_row=np.nonzero(shifted_col), np.nonzero(shifted_row)
+        shifted_colThenrow[(non_zero_col[0]+ mysign(frac_row))%self.N1, non_zero_col[1]]=shifted_col[non_zero_col]
+        shifted_rowThencol[non_zero_row[0], (non_zero_row[1]+ mysign(frac_col))%self.N2]=shifted_row[non_zero_row]
+
+        col=full_shift*inv_frac_col + shifted_col*abs(frac_col)
+        colRow=col*inv_frac_row + shifted_colThenrow*abs(frac_row)
+
+        row=full_shift*inv_frac_row + shifted_row*abs(frac_row)
+        rowCol=row*inv_frac_col + shifted_rowThencol*abs(frac_col)
+
+        return (rowCol + colRow)/2
+        
+
+    def update_weights_dynamics(self,prev_weights, delta_row, delta_col,moreResults=None):
+        non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
+
+        '''copied and shifted activity'''
+        full_shift=np.zeros((self.N1,self.N2))
+        full_shift[(non_zero_rows + int(np.floor(delta_row)))%self.N1, (non_zero_cols+ int(np.floor(delta_col)))%self.N2]=prev_weights[non_zero_rows, non_zero_cols]
+        copy_shift=self.fractional_weights(full_shift,delta_row,delta_col)*self.activity_mag
+
+        '''excitation'''
+        # do we excite the copied activity or the copied and shifted activity
+        excited=np.zeros((self.N1,self.N2))
+        copyPaste=prev_weights+copy_shift
+        non_zero_copyShift=np.nonzero(copyPaste) 
+        for row, col in zip(non_zero_copyShift[0], non_zero_copyShift[1]):
+            excited+=self.excitations(row,col)*copyPaste[row,col]
+        
+
+        '''inhibitions'''
+        inhibit_val=0
+        shift_excite=copy_shift+prev_weights+excited
+        non_zero_inhibit=np.nonzero(shift_excite) 
+        for row, col in zip(non_zero_inhibit[0], non_zero_inhibit[1]):
+            inhibit_val+=shift_excite[row,col]*self.inhibit_scale
+        inhibit_array=np.tile(inhibit_val,(self.N1,self.N2))
+
+        '''update activity'''
+        # new_weights=np.zeros((self.N1,self.N2))
+        prev_weights+=copy_shift+excited-inhibit_val
+        prev_weights[prev_weights<0]=0
+
+        if moreResults==True:
+            return prev_weights/np.linalg.norm(prev_weights),copy_shift,excited,inhibit_array
+        else:
+            return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
+
+
+def visulaiseFractionalWeights():
+    fig = plt.figure(figsize=(5, 6))
+    ax0 = fig.add_subplot(4, 1, 1)
+    ax1 = fig.add_subplot(4, 1, 2)
+    ax2 = fig.add_subplot(4, 1, 3)
+    ax3 = fig.add_subplot(4, 1, 4)
+    fig.tight_layout()
+
+    weights=np.array([0,0,0,0,0,2,3,4,5,4,3,2,0,0,0,0])
+    idx=np.nonzero(weights)[0]
+    shifted_right=np.zeros(len(weights))
+    shifted_right[idx+1]=weights[idx]
+    frac=weights*0.25 + shifted_right*0.75
+    frac2=weights*0.01 + shifted_right*0.99
+
+
+    ax0.bar(np.arange(len(weights)),weights,color='r')
+    ax0.set_ylim([0,10])
+    ax1.bar(np.arange(len(weights)),frac)
+    ax1.set_title('0.75 unit copy paste')
+    ax1.set_ylim([0,10])
+    ax2.bar(np.arange(len(weights)),frac2)
+    ax2.set_title('0.9 unit copy paste')
+    ax2.set_ylim([0,10])
+    ax3.bar(np.arange(len(weights)),shifted_right)
+    ax3.set_title('1 unit copy paste')
+    ax3.set_ylim([0,10])
+    plt.show()
+
+def visulaiseDeconstructed2DAttractor():
+    fig = plt.figure(figsize=(13, 4))
+    ax0 = fig.add_subplot(1, 4, 1)
+    ax1 = fig.add_subplot(1, 4, 2)
+    ax2 = fig.add_subplot(1, 4, 3)
+    ax3 = fig.add_subplot(1, 4, 4)
+    fig.tight_layout()
+
+    N1,N2,excite_radius,activity_mag,inhibit_scale=  10, 10, 1, 1, 0.01
+    delta_row, delta_col = 0.167, 0.33
+    net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
+    old_weights=net.excitations(0,9)
+
+    ax0.imshow(old_weights)
+    ax0.set_title('Previous Activity')
+
+    old_weights, copy, excite,inhibit_array = net.update_weights_dynamics(old_weights,delta_row,delta_col,moreResults=True)
+    ax1.imshow(copy)
+    non_zero_copy=np.nonzero(copy)
+    print(copy[non_zero_copy[0],non_zero_copy[1]])
+    ax1.set_title('Copied and Shifted Activity')
+
+    ax2.imshow(excite)
+    ax2.set_title('Exctied Activity')
+
+    ax3.imshow(old_weights)
+    ax3.set_title('Inhibited Activity')
+    plt.show()
+
+def visulaise2DFractions():
+    fig = plt.figure(figsize=(13, 4))
+    ax0 = fig.add_subplot(1, 2, 1)
+    ax3 = fig.add_subplot(1, 2, 2)
+    fig.tight_layout()
+
+    N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 0.01
+    net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
+    prev_weights=net.excitations(5,5)
+
+
+    ax0.imshow(prev_weights)
+    ax0.set_title('Previous Activity')
+    ax0.invert_yaxis()
+
+    def animate(i):
+        ax3.clear(), ax0.clear()
+        global prev_weights, another_prev_weights
+        another_prev_weights=net.update_weights_dynamics(another_prev_weights,1,1)
+        ax0.imshow(another_prev_weights)
+        ax0.set_title('Previous Activity')
+        ax0.invert_yaxis()
+
+        prev_weights=net.update_weights_dynamics(prev_weights,0.1,0.1)
+        ax3.imshow(prev_weights)
+        ax3.set_title('Copied and Shifted 0.75 Column 0.75 Row')
+        ax3.invert_yaxis()
+    ani = FuncAnimation(fig, animate, interval=100,frames=1000,repeat=False)
+    plt.show()
+
+# visulaiseFractionalWeights()
+# visulaiseDeconstructed2DAttractor()
+N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 0.01
+net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
+prev_weights=net.excitations(5,5)
+another_prev_weights=net.excitations(5,5)
+# visulaise2DFractions()
 
 
 # class attractorNetworkSettlingLandmark:
