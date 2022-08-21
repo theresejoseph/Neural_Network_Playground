@@ -36,7 +36,7 @@ def plotting_CAN_dynamics():
     reset=wig.Button(button2_ax,'Reset')
     inhibit_scale=wig.Slider(inhax, 'Scale of Inhibition', 0, 0.01, 0.005)
     excite = wig.Slider(exciteax, 'Excitation Radius', 1, 10, 2, valstep=1)
-    delta1 = wig.Slider(delta1ax, 'Delta 1', -10, 10, 1)
+    delta1 = wig.Slider(delta1ax, 'Delta 1', -10, 10, 0)
     delta2 = wig.Slider(delta2ax, 'Delta 2', -10, 10, 0)
 
     def animate(i):
@@ -115,5 +115,5 @@ def fixedShift_visulaisation():
     ani = FuncAnimation(fig, animate, interval=1,frames=1000,repeat=False)
     plt.show()
 '''Testing''' 
-
+  
 plotting_CAN_dynamics()

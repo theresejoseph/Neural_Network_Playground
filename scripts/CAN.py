@@ -1,9 +1,6 @@
-from cgi import print_arguments
 import math
-from turtle import width
 import numpy as np 
 import matplotlib.pyplot as plt
-from sympy import fraction
 from matplotlib.animation import FuncAnimation
 
 class attractorNetwork:
@@ -328,7 +325,7 @@ class attractorNetwork2D:
         # do we excite the copied activity or the copied and shifted activity
         excited=np.zeros((self.N1,self.N2))
         copyPaste=prev_weights+copy_shift
-        non_zero_copyShift=np.nonzero(copyPaste) 
+        non_zero_copyShift=np.nonzero(copyPaste)  
         for row, col in zip(non_zero_copyShift[0], non_zero_copyShift[1]):
             excited+=self.excitations(row,col)*copyPaste[row,col]
         
@@ -376,7 +373,7 @@ def visulaiseFractionalWeights():
     ax2.bar(np.arange(len(weights)),frac2)
     ax2.set_title('0.9 unit copy paste')
     ax2.set_ylim([0,10])
-    ax3.bar(np.arange(len(weights)),shifted_right)
+    ax3.bar(np.arange(len(weights)),shifted_right, color='g')
     ax3.set_title('1 unit copy paste')
     ax3.set_ylim([0,10])
     plt.show()
@@ -428,21 +425,21 @@ def visulaise2DFractions():
     def animate(i):
         ax3.clear(), ax0.clear()
         global prev_weights, another_prev_weights
-        another_prev_weights=net.update_weights_dynamics(another_prev_weights,1,1)
+        another_prev_weights=net.fractional_weights(another_prev_weights,0.9,0.9)
         ax0.imshow(another_prev_weights)
-        ax0.set_title('Previous Activity')
+        ax0.set_title('Copied and Shifted 0.9 Column 0.9 Row')
         ax0.invert_yaxis()
 
-        prev_weights=net.update_weights_dynamics(prev_weights,0.1,0.1)
+        prev_weights=net.fractional_weights(prev_weights,0.1,0.1)
         ax3.imshow(prev_weights)
-        ax3.set_title('Copied and Shifted 0.75 Column 0.75 Row')
+        ax3.set_title('Copied and Shifted 0.1 Column 0.1 Row')
         ax3.invert_yaxis()
     ani = FuncAnimation(fig, animate, interval=100,frames=1000,repeat=False)
     plt.show()
 
 # visulaiseFractionalWeights()
 # visulaiseDeconstructed2DAttractor()
-N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 0.01
+N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 4, 1, 0.01
 net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
 prev_weights=net.excitations(5,5)
 another_prev_weights=net.excitations(5,5)

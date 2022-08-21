@@ -362,6 +362,7 @@ def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_id
 
 
 def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_idx):
+    global error
     '''initlising network and animate figures'''
     fig = plt.figure(figsize=(8, 4))
     ax10 = plt.subplot2grid(shape=(6, 3), loc=(0, 0), rowspan=5,colspan=1)
@@ -385,6 +386,7 @@ def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_sca
     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
 
     def animate(i):
+        global error
         i=i+2
         ax10.clear(),ax11.clear(),ax12.clear(), axtxt1.clear()
     
@@ -493,10 +495,10 @@ def MultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_
     return error      
 
 
-def gridSearch(filename,n_steps,error_func):
+def gridSearch(filename,n_steps,error_func,lower_inh,upper_inh,lower_mag,upper_mag):
     error=np.zeros((n_steps,n_steps))
-    inhibit= list(np.linspace(0.0005,0.005,n_steps))
-    magnitude= list(np.linspace(0.005,1,n_steps))
+    inhibit= list(np.linspace(lower_inh,upper_inh,n_steps))
+    magnitude= list(np.linspace(lower_mag,upper_mag,n_steps))
     for i,inh in enumerate(inhibit):
         for j,mag in enumerate(magnitude):
             # print(mag,inh)
@@ -505,15 +507,15 @@ def gridSearch(filename,n_steps,error_func):
     with open(filename, 'wb') as f:
         np.save(f, np.array(error))
 
-def plottingGridSearch(filename,n_steps):
-    inhibit= list(np.linspace(0.0005,0.005,n_steps))
-    magnitude= list(np.linspace(0.005,1,n_steps))
+def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag):
+    inhibit= list(np.linspace(lower_inh,upper_inh,n_steps))
+    magnitude= list(np.linspace(lower_mag,upper_mag,n_steps))
     with open(filename, 'rb') as f:
         error = np.load(f)
-        error[error==10000]=np.nan
+        error[error==broke_error]=np.nan
         norm_error=error/np.linalg.norm(error)
-    plt.figure(figsize=(10, 7))
-    ax0=plt.subplot(1,1,1)
+
+    fig, ax0=plt.subplots(figsize=(10, 7), ncols=1)
 
     zeros=np.vstack((np.where(error==0)[0],np.where(error==0)[1]))
     # print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
@@ -521,9 +523,10 @@ def plottingGridSearch(filename,n_steps):
 
     ax0.set_title('Error')
     # error[error==0]=np.nan
-    ax0.imshow(error)
-    ax0.set_ylabel('Inhibition')
-    ax0.set_xlabel('Magnitude')
+    pos= ax0.imshow(error)
+    fig.colorbar(pos)
+    ax0.set_xlabel('Inhibition')
+    ax0.set_ylabel('Magnitude')
     ax0.set_yticks(np.arange(n_steps),[round(a,4) for a in inhibit])
     ax0.set_xticks(np.arange(n_steps), [round(a,4) for a in magnitude],rotation=90)
     # ax0.grid(True)
@@ -554,7 +557,7 @@ def plottingGridSearch(filename,n_steps):
 # f'./results/GridSearch_MultiScale/mutli_scale_index_{input_idx}.npy'
 # gridSearch(f'./results/GridSearch_MultiScale/mutliScale_factor_test10.npy',10)
 
-# zeros=plottingGridSearch( f'./results/GridSearch_MultiScale/mutliScale_factor_of_2.npy',40)
+# zeros=plottingGridSearch( f'./results/GridSearch_MultiScale/mutli_scale_index_2.npy',40,1000, 0.005,1,0.005,1)
 # inhibit= list(np.linspace(0.005,1,5))
 # magnitude= list(np.linspace(0.005,1,5))
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,0.2537)
@@ -566,10 +569,11 @@ data_y=np.arange(0,200,1)
 # error=MultiResolutionTranslation2D(data_x,data_y,1,0.0005,input_idx)
 # print(error)
 
-# visualiseMultiResolutionTranslation2D(data_x,data_y,1,0.005,input_idx)
+visualiseMultiResolutionTranslation2D(data_x,data_y,0.0305,0.005,input_idx)
 # doing 5 steps and 40 steps
 filename=f'./results/GridSearch_MultiScale/2D_attractor_1unit_40steps.npy'
 n_steps=40
+broke_error=10000
 func=MultiResolutionTranslation2D
-gridSearch(filename,n_steps,func)
-plottingGridSearch(filename,n_steps)
+# gridSearch(filename,n_steps,func,0.0005,0.005,0.005,1)
+# plottingGridSearch(filename,n_steps,broke_error,0.0005,0.005,0.005,1)
