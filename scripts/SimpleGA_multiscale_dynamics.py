@@ -1,6 +1,3 @@
-# represent genome 
-#np.[number or neurons , num_links, excitation width, activity magnitude,inhibition scale]
-
 import random
 import numpy as np
 from CAN import attractorNetworkScaling,attractorNetwork2D
@@ -16,11 +13,10 @@ def MultiResolutionTranslation(genome):
     activity_mag=genome[3]
     inhibit_scale=genome[4]
 
-    data_x=np.arange(0,200,1)
+    data_x=np.concatenate([  np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
     data_y=np.zeros(len(data_x))
 
     scale = [0.01, 0.1, 1, 10, 100]
-    input_idx=scale.index(1)
     fitness=0
 
     '''initiliase network'''
@@ -40,6 +36,8 @@ def MultiResolutionTranslation(genome):
             '''encoding mangnitude movement into multiple scales'''
             x1, x2=data_x[i-1], data_x[i]
             y1, y2= data_y[i-1], data_y[i]
+
+            input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
             
             input=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
             delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
@@ -67,11 +65,10 @@ def MultiResolution2D(genome):
     activity_mag=genome[3]
     inhibit_scale=genome[4]
 
-    data_x=np.arange(0,200,1)
-    data_y=np.arange(0,200,1)
+    data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
 
     scale = [ 0.1, 1, 10]
-    input_idx=scale.index(1)
     fitness=0
     
     '''initiliase network'''
@@ -92,6 +89,8 @@ def MultiResolution2D(genome):
             x1, x2=data_x[i-1], data_x[i]
             y1, y2= data_y[i-1], data_y[i]
 
+            input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
+
             delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
             delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
      
@@ -106,8 +105,8 @@ def MultiResolution2D(genome):
             delta_peak_rows[i,:]=np.abs(split_output_row[i,:]-split_output_row[i-1,:])
             delta_peak_cols[i,:]=np.abs(split_output_col[i,:]-split_output_col[i-1,:])
 
-            decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
-            decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
+            # decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
+            # decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
             
             for j in range(len(scale)):
                 if j != input_idx:
@@ -116,63 +115,64 @@ def MultiResolution2D(genome):
                 else:
                     fitness+=delta_peak_rows[i,j]
                     fitness+=delta_peak_cols[i,j]
-    print(fitness)
+    # print(fitness)
     return fitness
 
-def mutate(genome):
+def mutate(genome,mutate_amount):
     # if random value is greater than 1-probabilty, then mutate the gene
     # if no genes are mutated then require one (pick randomly)
     # amount of mutation = value + gaussian (with varience)
     mutate_prob=np.array([random.random() for i in range(5)])
     mutate_indexs=np.argwhere(mutate_prob<=0.2)
-    mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.0005)])
     
     new_genome=np.array(genome)
     new_genome[mutate_indexs]+=mutate_amount[mutate_indexs]
     return new_genome 
 
-def checkMutation(genome):
-    ranges = [[50,100],[50,100],[1,10],[0.01,1],[0.0001,0.001]]
-    g=mutate(genome)
+def checkMutation(genome,ranges, mutate_amount):
+    g=mutate(genome,mutate_amount)
     while([ranges[i][0] <= g[i] <= ranges[i][1] for i in range(5)]!=[True]*5):
-        g=mutate(genome)
+        g=mutate(genome,mutate_amount)
     return g
 
-def sortByFitness(population,topK):
+def sortByFitness(population,topK,fitnessFunc):
     # fitness for each genome 
     # sort genomes by fitness
     fitness=np.zeros(len(population))
     for i in range (len(population)):
-        fitness[i]=MultiResolutionTranslation(population[i])
+        fitness[i]=fitnessFunc(population[i])
     idxs=np.argsort(fitness)[::-1]
 
     return fitness[idxs[:topK]],idxs[:topK]
 
-def selection(population):
+def selection(population_size,population,fitnessFunc,ranges, mutate_amount):
     # parent = take the best 5 (add to new population)
     # for every parent  make 3 children and add to new population 
-    fitnesses,indexes=sortByFitness(population,5)
+    num_parents=population_size//4
+    num_children=(population_size-num_parents)//num_parents
+
+    fitnesses,indexes=sortByFitness(population,num_parents,fitnessFunc)
     new_population=[population[idx] for idx in indexes]
-    for i in range(5):
-        for j in range(3):
-            new_population.append(checkMutation(population[indexes[i]]))
+    for i in range(num_parents):
+        for j in range(num_children):
+            new_population.append(checkMutation(population[indexes[i]],ranges, mutate_amount))
 
     return new_population
 
-def GeneticAlgorithm(num_gens,population_size,filename):
+def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount):
     '''initiliase'''
-    ranges = [[50,100],[50,100],[1,10],[0.01,1],[0.0001,0.001]]
-    
     population=[]
     for i in range(population_size):
-        genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.001)]
+        genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.01)+0.0005]
         population.append(genome)
     print(population)
     fitnesses=np.zeros((population_size,1))
     order_population=np.zeros((num_gens,population_size,6))
+
+    '''iterate through generations'''
     for i in range(num_gens):
-        population=np.array(selection(population))
-        fitnesses,indexes=sortByFitness(population,population_size)
+        population=np.array(selection(population_size,population, fitnessFunc,ranges, mutate_amount))
+        fitnesses,indexes=sortByFitness(population,population_size,fitnessFunc)
         order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
         print(fitnesses)
 
@@ -180,10 +180,14 @@ def GeneticAlgorithm(num_gens,population_size,filename):
         np.save(f, np.array(order_population))
 
 '''Test Area'''
+#np.[number or neurons , num_links, excitation width, activity magnitude,inhibition scale]
+mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
+ranges = [[50,100],[50,100],[1,10],[0.005,1],[0.0005,0.01]]
+fitnessFunc=MultiResolution2D
 num_gens=30
-population_size=10
+population_size=20
 filename=f'./results/GA_MultiScale/30_gens_2D.npy'
-GeneticAlgorithm(num_gens,population_size,filename)
+GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
 
 # with open(filename, 'rb') as f:
 #     data = np.load(f)

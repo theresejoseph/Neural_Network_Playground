@@ -7,6 +7,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
+import time 
 
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 
@@ -225,7 +226,11 @@ def multiResolutionTranslation(data_x,data_y):
     plt.show()
 
 
-def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale):
+
+
+
+
+def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,scale):
     # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     '''initlising network and animate figures'''
     fig = plt.figure(figsize=(6, 6))
@@ -239,15 +244,18 @@ def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale
 
     num_links=[7,17]
     excite=[3,7]
+    N=[100, 60]
+    curr_parameter=[0,0]
+    
     # activity_mag=0.15
     # inhibit_scale=0.4
+    prev_weights_trans=[np.zeros(N[0]), np.zeros(N[0]), np.zeros(N[0]),np.zeros(N[0]), np.zeros(N[0])]
 
     net=attractorNetworkScaling(N[0],num_links[0],excite[0], activity_mag,inhibit_scale)
     for n in range(len(prev_weights_trans)):
         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links[0])
 
     def multiResolutionUpdate(input,prev_weights,net): 
-        scale =  [0.25, 0.5, 1, 2, 4]
         delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
         split_output=np.zeros((len(delta)))
         '''updating network'''    
@@ -318,12 +326,11 @@ def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale
     plt.show()
 
 
-def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_idx):
+def MultiResolution1D(data_x,data_y,activity_mag,inhibit_scale,scale):
     # parameters
         N=100
         num_links=7
         excite=3
-        scale = [0.01, 0.1, 1, 10, 100]
         error=0
         '''initiliase network'''
         net=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
@@ -342,6 +349,9 @@ def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_id
                 '''encoding mangnitude movement into multiple scales'''
                 x1, x2=data_x[i-1], data_x[i]
                 y1, y2= data_y[i-1], data_y[i]
+
+                input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
+
                 
                 input=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
                 delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
@@ -361,7 +371,7 @@ def MultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,input_id
         return error
 
 
-def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_idx):
+def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale):
     global error
     '''initlising network and animate figures'''
     fig = plt.figure(figsize=(8, 4))
@@ -394,6 +404,8 @@ def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_sca
         x1, x2=data_x[i-1], data_x[i]
         y1, y2= data_y[i-1], data_y[i]
 
+        input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
+
         delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
         delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
         
@@ -423,7 +435,7 @@ def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_sca
         ax10.set_title(str(scale[0])+" Scale",fontsize=9)
         ax11.set_title(str(scale[1])+" Scale",fontsize=9)
         ax12.set_title(str(scale[2])+" Scale",fontsize=9)
-        axtxt1.text(0,1,f"Input Trans: {round(x2,3), round(y2,3)}, Shift: {1}, Decoded Trans: {decoded_col, decoded_row}", c='r')
+        axtxt1.text(0,1,f"Input Trans: {round(x2,3), round(y2,3)}, Shift: {round(x2-x1,2)},{round(y2-y1,2)}, Decoded Trans: {round(decoded_col), round(decoded_row)}", c='r')
         # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
         axtxt1.axis('off')
         axtxt1.text(0,0,f"Decoded Position of Each Network: {split_output_col[i]}, {split_output_row[i]}", c='r')
@@ -442,12 +454,11 @@ def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_sca
     plt.show()
 
 
-def MultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_idx):
+def MultiResolution2D(data_x,data_y,activity_mag,inhibit_scale,scale):
     # parameters
     N1=100
     N2=100
     excite=3
-    scale = [0.1, 1, 10]
     error=0
     
     '''initiliase network'''
@@ -461,12 +472,14 @@ def MultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_
         activity_sum=[np.sum(prev_weights[0][:]), np.sum(prev_weights[1][:]), np.sum(prev_weights[2][:])]
         # print(activity_sum)
         if True in np.isnan(activity_sum):
-            error = 10000
+            error = 100000
             break
         else: 
             '''encoding mangnitude movement into multiple scales'''
             x1, x2=data_x[i-1], data_x[i]
             y1, y2= data_y[i-1], data_y[i]
+
+            input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
 
             delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
             delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
@@ -482,8 +495,8 @@ def MultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_
             delta_peak_rows[i,:]=np.abs(split_output_row[i,:]-split_output_row[i-1,:])
             delta_peak_cols[i,:]=np.abs(split_output_col[i,:]-split_output_col[i-1,:])
 
-            decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
-            decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
+            # decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
+            # decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
             
             for j in range(len(scale)):
                 if j != input_idx:
@@ -495,15 +508,16 @@ def MultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_scale,input_
     return error      
 
 
-def gridSearch(filename,n_steps,error_func,lower_inh,upper_inh,lower_mag,upper_mag):
+def gridSearch(filename,n_steps,error_func,scale,lower_inh,upper_inh,lower_mag,upper_mag):
     error=np.zeros((n_steps,n_steps))
     inhibit= list(np.linspace(lower_inh,upper_inh,n_steps))
     magnitude= list(np.linspace(lower_mag,upper_mag,n_steps))
     for i,inh in enumerate(inhibit):
         for j,mag in enumerate(magnitude):
             # print(mag,inh)
-            error[i,j]=error_func(data_x,data_y,mag,inh,input_idx)
-            print(i,j,error[i,j])
+            t=time.time()
+            error[i,j]=error_func(data_x,data_y,mag,inh,scale)
+            print(i,j,error[i,j], time.time()-t)
     with open(filename, 'wb') as f:
         np.save(f, np.array(error))
 
@@ -525,8 +539,8 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
     # error[error==0]=np.nan
     pos= ax0.imshow(error)
     fig.colorbar(pos)
-    ax0.set_xlabel('Inhibition')
-    ax0.set_ylabel('Magnitude')
+    ax0.set_xlabel('Magnitude')
+    ax0.set_ylabel('Inhibition')
     ax0.set_yticks(np.arange(n_steps),[round(a,4) for a in inhibit])
     ax0.set_xticks(np.arange(n_steps), [round(a,4) for a in magnitude],rotation=90)
     # ax0.grid(True)
@@ -540,9 +554,6 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
            
 
 '''Translation Only'''
-# input_idx=2
-# data_x=np.arange(0,200,1)
-# data_y=np.zeros(len(data_x))
 # data_x=np.linspace(0,9990,1000)
 
 # sparse_gt=data_processing()#[0::4]
@@ -558,22 +569,33 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 # gridSearch(f'./results/GridSearch_MultiScale/mutliScale_factor_test10.npy',10)
 
 # zeros=plottingGridSearch( f'./results/GridSearch_MultiScale/mutli_scale_index_2.npy',40,1000, 0.005,1,0.005,1)
-# inhibit= list(np.linspace(0.005,1,5))
-# magnitude= list(np.linspace(0.005,1,5))
+
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,0.2537)
+'''1D Grid Search'''
+data_x=np.concatenate([  np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
+data_y=np.zeros(len(data_x))
+# print(np.arange(56.61,566.61,10))
+filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_5steps.npy'
+n_steps=5
+broke_error=1000
+func=MultiResolution1D
+scale=[0.01,0.1,1,10,100]
 
+# visualiseMultiResolutionTranslation(data_x,data_y,0.005,1,scale)
 
-input_idx=1
-data_x=np.arange(0,200,1)#np.concatenate([ np.arange(0,5,0.25), np.arange(5,25,0.5),np.arange(25,50,1),np.arange(50,100,2),np.arange(100,200,4)])
-data_y=np.arange(0,200,1)
-# error=MultiResolutionTranslation2D(data_x,data_y,1,0.0005,input_idx)
-# print(error)
+# gridSearch(filename,n_steps,func,scale,0,1,0,1)
+# plottingGridSearch(filename,n_steps,broke_error,0,1,0,1)
 
-visualiseMultiResolutionTranslation2D(data_x,data_y,0.0305,0.005,input_idx)
-# doing 5 steps and 40 steps
-filename=f'./results/GridSearch_MultiScale/2D_attractor_1unit_40steps.npy'
-n_steps=40
-broke_error=10000
-func=MultiResolutionTranslation2D
-# gridSearch(filename,n_steps,func,0.0005,0.005,0.005,1)
-# plottingGridSearch(filename,n_steps,broke_error,0.0005,0.005,0.005,1)
+'''2D Gridsearch'''
+data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+scale=[0.1,1,10]
+# print(MultiResolution2D(data_x,data_y,0.005,0.0005))
+# visualiseMultiResolutionTranslation2D(data_x,data_y,0,0)
+
+filename=f'./results/GridSearch_MultiScale/2D_attractor_1unit_5steps.npy'
+n_steps=5
+broke_error=100000
+func=MultiResolution2D
+# gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,1)
+plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,1)

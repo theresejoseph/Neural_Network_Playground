@@ -2,6 +2,7 @@ import math
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import time
 
 class attractorNetwork:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
@@ -271,22 +272,22 @@ class attractorNetwork2D:
         ''' constant inhibition scaled by amount of active neurons'''
         return np.sum(weights[weights>0]*self.inhibit_scale)
 
-    def excitations(self,idx,idy):
-        '''each neuron excites itself and num_links neurons within a moore neighbourhood with wraparound connections'''
-        excite_rowvals=[]
+    def excitations(self,idx,idy,scale=1):
+        '''A scaled 2D gaussian with excite radius is created at given neruon position with wraparound '''
+        
+        excite_rowvals=[] #wrap around row values 
+        excite_colvals=[] #wrap around column values 
         for i in range(-self.excite_radius,self.excite_radius+1):
             excite_rowvals.append((idx + i) % self.N1)
-        
-        excite_colvals=[]
-        for i in range(-self.excite_radius,self.excite_radius+1):
             excite_colvals.append((idy + i) % self.N2)
+         
 
-        gauss=self.full_weights(self.excite_radius)
-        excite=np.zeros((self.N1,self.N2))
+        gauss=self.full_weights(self.excite_radius)# 2D gaussian scaled 
+        excite=np.zeros((self.N1,self.N2)) # empty excite array 
         for i,r in enumerate(excite_rowvals):
             for j,c in enumerate(excite_colvals):
                 excite[r,c]=gauss[i,j]
-        return excite
+        return excite*scale 
 
 
     def fractional_weights(self,full_shift,delta_row,delta_col):
@@ -322,14 +323,17 @@ class attractorNetwork2D:
         copy_shift=self.fractional_weights(full_shift,delta_row,delta_col)*self.activity_mag
 
         '''excitation'''
-        # do we excite the copied activity or the copied and shifted activity
-        excited=np.zeros((self.N1,self.N2))
         copyPaste=prev_weights+copy_shift
-        non_zero_copyShift=np.nonzero(copyPaste)  
-        for row, col in zip(non_zero_copyShift[0], non_zero_copyShift[1]):
-            excited+=self.excitations(row,col)*copyPaste[row,col]
+        non_zero_copyPaste=np.nonzero(copyPaste)  
+        # print(len(non_zero_copyPaste[0]))
+        excited=np.zeros((self.N1,self.N2))
+        # t=time.time()
+        for row, col in zip(non_zero_copyPaste[0], non_zero_copyPaste[1]):
+            excited+=self.excitations(row,col,copyPaste[row,col])
+        # print(time.time()-t)
         
-
+        # excited=np.sum(excited_array, axis=0)
+        # print(np.shape(excited_array), np.shape(excited))
         '''inhibitions'''
         inhibit_val=0
         shift_excite=copy_shift+prev_weights+excited
@@ -425,12 +429,12 @@ def visulaise2DFractions():
     def animate(i):
         ax3.clear(), ax0.clear()
         global prev_weights, another_prev_weights
-        another_prev_weights=net.fractional_weights(another_prev_weights,0.9,0.9)
+        another_prev_weights=net.update_weights_dynamics(another_prev_weights,0.9,0.9)
         ax0.imshow(another_prev_weights)
         ax0.set_title('Copied and Shifted 0.9 Column 0.9 Row')
         ax0.invert_yaxis()
 
-        prev_weights=net.fractional_weights(prev_weights,0.1,0.1)
+        prev_weights=net.update_weights_dynamics(prev_weights,0.1,0.1)
         ax3.imshow(prev_weights)
         ax3.set_title('Copied and Shifted 0.1 Column 0.1 Row')
         ax3.invert_yaxis()
@@ -439,6 +443,7 @@ def visulaise2DFractions():
 
 # visulaiseFractionalWeights()
 # visulaiseDeconstructed2DAttractor()
+
 N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 4, 1, 0.01
 net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
 prev_weights=net.excitations(5,5)
