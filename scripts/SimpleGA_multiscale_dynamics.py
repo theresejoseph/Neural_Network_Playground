@@ -181,7 +181,7 @@ def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate
 
 '''Test Area'''
 #np.[number or neurons , num_links, excitation width, activity magnitude,inhibition scale]
-mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
+mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
 ranges = [[50,100],[50,100],[1,10],[0.005,1],[0.0005,0.01]]
 fitnessFunc=MultiResolution2D
 num_gens=30
