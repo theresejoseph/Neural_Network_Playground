@@ -1,17 +1,20 @@
 import argparse
 import gym
+import numpy as np 
 from collections import deque
 from CarRacingDQNAgent import CarRacingDQNAgent
 from common_functions import process_state_image
 from common_functions import generate_state_frame_stack_from_queue
 
+
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Play CarRacing by the trained model.')
-    parser.add_argument('-m', '--model', required=True, help='The `.h5` file of the trained model.')
-    parser.add_argument('-e', '--episodes', type=int, default=1, help='The number of episodes should the model plays.')
-    args = parser.parse_args()
-    train_model = args.model
-    play_episodes = args.episodes
+    # parser = argparse.ArgumentParser(description='Play CarRacing by the trained model.')
+    # parser.add_argument('-m', '--model', required=True, help='The `.h5` file of the trained model.')
+    # parser.add_argument('-e', '--episodes', type=int, default=1, help='The number of episodes should the model plays.')
+    # args = parser.parse_args()
+    train_model = './trial_600.h5' #args.model
+    play_episodes = 1#args.episodes
 
     env = gym.make('CarRacing-v0')
     agent = CarRacingDQNAgent(epsilon=0) # Set epsilon to 0 to ensure all actions are instructed by the agent
@@ -37,6 +40,14 @@ if __name__ == '__main__':
 
             next_state = process_state_image(next_state)
             state_frame_stack_queue.append(next_state)
+
+            posX= env.car.hull.position[0]
+            posY= env.car.hull.position[1]
+
+            print(posX, posY)
+
+            linV=np.sqrt(np.square(env.car.hull.linearVelocity[0])+ np.square(env.car.hull.linearVelocity[1]))
+            angV=env.car.hull.angularVelocity
 
             if done:
                 print('Episode: {}/{}, Scores(Time Frames): {}, Total Rewards: {:.2}'.format(e+1, play_episodes, time_frame_counter, float(total_reward)))

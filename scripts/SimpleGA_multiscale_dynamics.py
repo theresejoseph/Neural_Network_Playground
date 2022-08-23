@@ -65,8 +65,11 @@ def MultiResolution2D(genome):
     activity_mag=genome[3]
     inhibit_scale=genome[4]
 
-    data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
-    data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    # data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    # data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+
+    data_x=np.arange(1,100,1)
+    data_y=np.arange(1,100,1)
 
     scale = [ 0.1, 1, 10]
     fitness=0
@@ -149,12 +152,19 @@ def selection(population_size,population,fitnessFunc,ranges, mutate_amount):
     # parent = take the best 5 (add to new population)
     # for every parent  make 3 children and add to new population 
     num_parents=population_size//4
-    num_children=(population_size-num_parents)//num_parents
+    num_children_perParent=(population_size-num_parents)//num_parents
 
     fitnesses,indexes=sortByFitness(population,num_parents,fitnessFunc)
-    new_population=[population[idx] for idx in indexes]
+    print('Finsihed Checking Fitness of old population, now mutating parents to make a new generation')
+    
+    '''Add 5 random genomes into the population'''
+    new_population=[]
     for i in range(num_parents):
-        for j in range(num_children):
+        genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.01)+0.0005]
+        new_population.append(genome)
+    '''Make 15 Children from the fittest parents'''
+    for i in range(num_parents):
+        for j in range(num_children_perParent):
             new_population.append(checkMutation(population[indexes[i]],ranges, mutate_amount))
 
     return new_population
@@ -172,8 +182,11 @@ def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate
     '''iterate through generations'''
     for i in range(num_gens):
         population=np.array(selection(population_size,population, fitnessFunc,ranges, mutate_amount))
+        print('Finsihed making new populaiton  through mutation, now evaluting fitness and sorting')
         fitnesses,indexes=sortByFitness(population,population_size,fitnessFunc)
         order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
+        if i>5 and [max(fit) for fit in order_population[:,:,5]][-5]==[max(fit) for fit in order_population[:,:,5]][-1]*5:
+            break
         print(fitnesses)
 
     with open(filename, 'wb') as f:
@@ -181,12 +194,13 @@ def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate
 
 '''Test Area'''
 #np.[number or neurons , num_links, excitation width, activity magnitude,inhibition scale]
-mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
-ranges = [[50,100],[50,100],[1,10],[0.005,1],[0.0005,0.01]]
+# mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.05)])
+mutate_amount=np.array([int(np.random.normal(0,10)), int(np.random.normal(0,10)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
+ranges = [[50,100],[50,100],[1,10],[0.01,1],[0.0005,0.01]]
 fitnessFunc=MultiResolution2D
-num_gens=30
-population_size=20
-filename=f'./results/GA_MultiScale/30_gens_2D.npy'
+num_gens=20
+population_size=32
+filename=f'./results/GA_MultiScale/20_gens_2D_1net_32pop_100data.npy'
 GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
 
 # with open(filename, 'rb') as f:
@@ -296,7 +310,104 @@ def visualiseMultiResolutionTranslation(genome):
     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
     plt.show()
 
+def visualiseMultiResolutionTranslation2D(genome):
+    global error
+    '''initlising network and animate figures'''
+    fig = plt.figure(figsize=(8, 4))
+    ax10 = plt.subplot2grid(shape=(6, 3), loc=(0, 0), rowspan=5,colspan=1)
+    ax11 = plt.subplot2grid(shape=(6, 3), loc=(0, 1), rowspan=5,colspan=1)
+    ax12 = plt.subplot2grid(shape=(6, 3), loc=(0, 2), rowspan=5,colspan=1)
+    axtxt1 = plt.subplot2grid(shape=(6,3), loc=(5, 0), rowspan=1,colspan=3)
+    fig.tight_layout()
+
+    N1=int(genome[0])
+    N2=int(genome[1])
+    excite=int(genome[2])
+    activity_mag=genome[3]
+    inhibit_scale=genome[4]
+
+    # data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    # data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+
+    data_x=np.arange(1,1000,1)
+    data_y=np.arange(1,1000,1)
+
+    scale = [ 0.1, 1, 10]
+    error=0
+    
+    '''initiliase network'''
+    net=attractorNetwork2D(N1,N2,excite,activity_mag,inhibit_scale)
+    prev_weights=[net.excitations(0,0), net.excitations(0,0), net.excitations(0,0)]
+
+    delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
+    split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
+
+    def animate(i):
+        global error
+        i=i+2
+        ax10.clear(),ax11.clear(),ax12.clear(), axtxt1.clear()
+    
+        '''encoding mangnitude movement into multiple scales'''
+        x1, x2=data_x[i-1], data_x[i]
+        y1, y2= data_y[i-1], data_y[i]
+
+        input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
+
+        delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
+        delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
+        
+        '''updating network'''    
+        for n in range(len(delta_col)):
+            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
+            prev_weights[n][prev_weights[n][:]<0]=0
+            row_index,col_index=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
+            split_output_row[i,n]=row_index
+            split_output_col[i,n]=col_index
+
+        delta_peak_rows[i,:]=np.abs(split_output_row[i,:]-split_output_row[i-1,:])
+        delta_peak_cols[i,:]=np.abs(split_output_col[i,:]-split_output_col[i-1,:])
+
+        decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
+        decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
+        
+        for j in range(len(scale)):
+            if j != input_idx:
+                error+=np.sum([peak[j] for peak in delta_peak_rows])
+                error+=np.sum([peak[j] for peak in delta_peak_cols])
+            else:
+                error-=delta_peak_rows[i,j]
+                error-=delta_peak_cols[i,j]
+        
+        
+        ax10.set_title(str(scale[0])+" Scale",fontsize=9)
+        ax11.set_title(str(scale[1])+" Scale",fontsize=9)
+        ax12.set_title(str(scale[2])+" Scale",fontsize=9)
+        axtxt1.text(0,1,f"Input Trans: {round(x2,3), round(y2,3)}, Shift: {round(x2-x1,2)},{round(y2-y1,2)}, Decoded Trans: {round(decoded_col), round(decoded_row)}", c='r')
+        # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
+        axtxt1.axis('off')
+        axtxt1.text(0,0,f"Decoded Position of Each Network: {split_output_col[i]}, {split_output_row[i]}", c='r')
+
+        ax10.imshow(prev_weights[0][:])
+        ax10.invert_yaxis()
+
+        ax11.imshow(prev_weights[1][:])
+        ax11.invert_yaxis()
+
+        ax12.imshow(prev_weights[2][:])
+        ax12.invert_yaxis()
+        
+    # return error
+    ani = FuncAnimation(fig, animate, interval=100,frames=len(data_x)-2,repeat=False)
+    plt.show()
+
+
+'''1D'''
 # fittest=[1.48000000e+02, 1.20000000e+01, 1.00000000e+00, 7.07215044e-02, 4.74091433e-01]
 # fittest=[1.67000000e+02, 2.00000000e+00, 3.00000000e+00, 9.23424531e-02, 5.20268520e-01]
 # visualiseMultiResolutionTranslation(fittest)
 # print(MultiResolutionTranslation(fittest))
+
+'''2D'''
+# fittest=[7.60000000e+01,9.70000000e+01,5.00000000e+00,1.36576574e-01, 5.19946747e-03,1.20000000e+01]
+fittest2=[8.40000000e+01,9.80000000e+01,2.00000000e+00,3.76026794e-02,8.27480338e-03,-4.00000000e+01]
+# visualiseMultiResolutionTranslation2D(fittest2)

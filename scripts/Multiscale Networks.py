@@ -575,15 +575,15 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 data_x=np.concatenate([  np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
 data_y=np.zeros(len(data_x))
 # print(np.arange(56.61,566.61,10))
-filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_5steps.npy'
-n_steps=5
+filename=f'../results/GridSearch_MultiScale/1D_attractor_allunit_40steps.npy'
+n_steps=50
 broke_error=1000
 func=MultiResolution1D
 scale=[0.01,0.1,1,10,100]
 
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,1,scale)
 
-# gridSearch(filename,n_steps,func,scale,0,1,0,1)
+gridSearch(filename,n_steps,func,scale,0,1,0,1)
 # plottingGridSearch(filename,n_steps,broke_error,0,1,0,1)
 
 '''2D Gridsearch'''
@@ -593,9 +593,9 @@ scale=[0.1,1,10]
 # print(MultiResolution2D(data_x,data_y,0.005,0.0005))
 # visualiseMultiResolutionTranslation2D(data_x,data_y,0,0)
 
-filename=f'./results/GridSearch_MultiScale/2D_attractor_1unit_5steps.npy'
-n_steps=5
+filename=f'../results/GridSearch_MultiScale/2D_attractor_allunits_40steps.npy'
+n_steps=50
 broke_error=100000
 func=MultiResolution2D
-# gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,1)
-plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,1)
+gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,1)
+# plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,1)
