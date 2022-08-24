@@ -206,14 +206,14 @@ mutate_amount=np.array([int(np.random.normal(0,2)), int(np.random.normal(0,1)), 
 ranges = [[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005]]
 fitnessFunc=MultiResolution2D
 num_gens=20
-population_size=20
+population_size=28
 filename=f'./results/GA_MultiScale/20_gens_2D_1net_20pop_300points_3paramSet.npy'
 '''initiliase'''
 population=[]
 for i in range(population_size):
     genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1])]
     population.append(genome)
-# GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
+GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
 
 # with open(filename, 'rb') as f:
 #     data = np.load(f)
