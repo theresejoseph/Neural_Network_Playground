@@ -16,25 +16,31 @@ import gym
 from collections import deque
 from CarRacingDQNAgent import CarRacingDQNAgent
 
+import sys
+sys.path.append('./scripts')
+from CAN import attractorNetwork2D
 
-def process_state_image(state):
-    state=np.dot(state[...,:3], [0.2989, 0.5870, 0.1140])
-    state = state.astype(float)
-    state /= 255.0
-    return state
 
-def generate_state_frame_stack_from_queue(deque):
-    frame_stack = np.array(deque)
-    # Move stack dimension to the channel dimension (stack, x, y) -> (x, y, stack)
-    return np.transpose(frame_stack, (1, 2, 0))
 
 def carRacerExecution(queue):
-    train_model = './trial_600.h5' #args.model
+    train_model = './OpenAI-GYM-CarRacing-DQN-master/trial_600.h5' #args.model
     play_episodes = 1#args.episodes
 
     env = gym.make('CarRacing-v0')
     agent = CarRacingDQNAgent(epsilon=0) # Set epsilon to 0 to ensure all actions are instructed by the agent
     agent.load(train_model)
+
+    def process_state_image(state):
+        state=np.dot(state[...,:3], [0.2989, 0.5870, 0.1140])
+        state = state.astype(float)
+        state /= 255.0
+        return state
+
+    def generate_state_frame_stack_from_queue(deque):
+        frame_stack = np.array(deque)
+        # Move stack dimension to the channel dimension (stack, x, y) -> (x, y, stack)
+        return np.transpose(frame_stack, (1, 2, 0))
+
 
     for e in range(play_episodes):
         init_state = env.reset()
@@ -63,7 +69,7 @@ def carRacerExecution(queue):
             # angV=env.car.hull.angularVelocity
 
             queue.put((posX,posY,linVx,linVy))
-            time.sleep(0.1)
+            time.sleep(0.5)
 
             
 
@@ -76,37 +82,89 @@ def carRacerExecution(queue):
 def plottingPosition(queue):
     global int_x, int_y
     fig = plt.figure(figsize=(13, 4))
-    ax0 = fig.add_subplot(1, 2, 1)
-    ax3 = fig.add_subplot(1, 2, 2)
+    ax0 = fig.add_subplot(1, 5, 1)
+    ax1 = fig.add_subplot(1, 5, 2)
+    ax2 = fig.add_subplot(1, 5, 3)
+    ax3 = fig.add_subplot(1, 5, 4)
+    ax4 = fig.add_subplot(1, 5, 5)
     fig.tight_layout()
 
     curr_x, curr_y=[],[]
     int_x, int_y=0,0
+    '''initiliase network'''
+    scale=[0.01,0.1,1]
+    genome=[7.40000000e+01,2,2.00000000e+00,1.07922584e-01,7.02904729e-03,-8.80000000e+01]
+    N1=int(genome[0])
+    N2=int(genome[0])
+    num_links=int(genome[1])
+    excite=int(genome[2])
+    activity_mag=genome[3]
+    inhibit_scale=genome[4]
+    net=attractorNetwork2D(N1,N2,num_links,excite,activity_mag,inhibit_scale)
+    prev_weights=[net.neuron_activation(0,0), net.neuron_activation(0,0), net.neuron_activation(0,0)]
+
     
     def animate(i):
         global int_x, int_y
-        ax0.clear()
-
+        #ax1.clear(),ax2.clear(),ax3.clear()
+        '''True Position and Linear Velocities'''
         while not queue.empty():
             posX,posY,linVx,linVy= queue.get() 
             if len(curr_x)>0:
                 curr_x.append(posX-curr_x[0])
-                curr_y.append(posY-curr_y[0])
-                
+                curr_y.append(posY-curr_y[0]) 
             else:
                 curr_x.append(posX)
                 curr_y.append(posY)
             
-            int_x+=(linVx/50)
-            int_y+= (linVy/50)
-            print((linVx/50),(linVy/50))
+            linVx_adjust,linVy_adjust=linVx/50,linVy/50
+            int_x+=(linVx_adjust)
+            int_y+= (linVy_adjust)
+            # print((linVx/50),(linVy/50))
+
+            '''encoding mangnitude movement into multiple scales'''
+            delta_col = [(linVx_adjust/scale[0]), (linVx_adjust/scale[1]), (linVx_adjust/scale[2])]
+            delta_row = [(linVy_adjust/scale[0]), (linVy_adjust/scale[1]), (linVy_adjust/scale[2])]
             
+            '''updating network'''  
+            row_index,col_index=np.zeros(len(delta_col)),np.zeros(len(delta_col))
+            for n in range(len(delta_col)):
+                prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
+                prev_weights[n][prev_weights[n][:]<0]=0
+                row_index[n],col_index[n]=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
+                
+            '''Plotting'''
+            ax0.clear()
+            ax0.scatter(curr_x[1:],curr_y[1:],s=1)
+            ax0.set_title('True Car Racer Position')
+
+            ax4.scatter(col_index[0],row_index[0],s=1,color='r')
+            ax4.scatter(col_index[1],row_index[1],s=1,color='g')
+            ax4.scatter(col_index[2],row_index[2],s=1,color='b')
+            # ax4.scatter(col_index[1],row_index[1],color='g')
+            # ax4.scatter(col_index[2],row_index[2],color='b')
+            ax4.set_xlim([0,N1])
+            ax4.set_ylim([0,N2])
+
+
+            ax1.clear()
+            ax1.imshow(prev_weights[0][:])
+            ax1.invert_yaxis()
+            
+            ax2.clear()
+            ax2.set_xlabel(f"Input: {round(linVx_adjust,4)}, {round(linVy_adjust,4)} Position of Each Network: {row_index}, {col_index}", c='r')
+            ax2.imshow(prev_weights[1][:])
+            ax2.invert_yaxis()
+
+            ax3.clear()
+            ax3.imshow(prev_weights[2][:])
+            ax3.invert_yaxis()
+
+            ax1.set_title(str(scale[0])+" Scale",fontsize=9)
+            ax2.set_title(str(scale[1])+" Scale",fontsize=9)
+            ax3.set_title(str(scale[2])+" Scale",fontsize=9)
 
         
-        ax0.scatter(curr_x[1:],curr_y[1:])
-        ax0.set_title('True Car Racer Position')
-
-        ax3.scatter(int_x,int_y)
         
 
     ani = FuncAnimation(fig, animate, interval=1)

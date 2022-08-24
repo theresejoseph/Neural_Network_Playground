@@ -535,7 +535,7 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
     # print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
 
 
-    ax0.set_title('Error')
+    ax0.set_title(filename)
     # error[error==0]=np.nan
     pos= ax0.imshow(error)
     fig.colorbar(pos)

@@ -255,8 +255,9 @@ class attractorNetworkScaling:
 class attractorNetwork2D:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
     along with inhitory and excitatory connections to update the weights'''
-    def __init__(self, N1, N2, excite_radius, activity_mag,inhibit_scale):
+    def __init__(self, N1, N2, num_links, excite_radius, activity_mag,inhibit_scale):
         self.excite_radius=excite_radius
+        self.num_links=num_links
         self.N1=N1
         self.N2=N2  
         self.activity_mag=activity_mag
@@ -289,6 +290,22 @@ class attractorNetwork2D:
                 excite[r,c]=gauss[i,j]
         return excite*scale 
 
+    def neuron_activation(self,idx,idy):
+        '''A scaled 2D gaussian with excite radius is created at given neruon position with wraparound '''
+        
+        excite_rowvals=[] #wrap around row values 
+        excite_colvals=[] #wrap around column values 
+        for i in range(-self.num_links,self.num_links+1):
+            excite_rowvals.append((idx + i) % self.N1)
+            excite_colvals.append((idy + i) % self.N2)
+         
+
+        gauss=self.full_weights(self.num_links)# 2D gaussian scaled 
+        excite=np.zeros((self.N1,self.N2)) # empty excite array 
+        for i,r in enumerate(excite_rowvals):
+            for j,c in enumerate(excite_colvals):
+                excite[r,c]=gauss[i,j]
+        return excite
 
     def fractional_weights(self,full_shift,delta_row,delta_col):
         mysign=lambda x: 1 if x > 0 else -1
@@ -313,7 +330,6 @@ class attractorNetwork2D:
 
         return (rowCol + colRow)/2
         
-
     def update_weights_dynamics(self,prev_weights, delta_row, delta_col,moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
 
@@ -351,7 +367,6 @@ class attractorNetwork2D:
             return prev_weights/np.linalg.norm(prev_weights),copy_shift,excited,inhibit_array
         else:
             return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
-
 
 def visulaiseFractionalWeights():
     fig = plt.figure(figsize=(5, 6))
@@ -444,10 +459,10 @@ def visulaise2DFractions():
 # visulaiseFractionalWeights()
 # visulaiseDeconstructed2DAttractor()
 
-N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 4, 1, 0.01
-net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
-prev_weights=net.excitations(5,5)
-another_prev_weights=net.excitations(5,5)
+N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  100, 100,6, 4, 1, 0.01
+net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
+prev_weights=net.neuron_activation(5,5)
+another_prev_weights=net.neuron_activation(5,5)
 # visulaise2DFractions()
 
 
