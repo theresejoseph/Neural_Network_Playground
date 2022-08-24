@@ -59,24 +59,35 @@ def MultiResolutionTranslation(genome):
     return fitness
 
 def MultiResolution2D(genome):
-    N1=int(genome[0])
-    N2=int(genome[1])
-    excite=int(genome[2])
-    activity_mag=genome[3]
-    inhibit_scale=genome[4]
+    N1=100
+    N2=100
+    num_links1=int(genome[0])
+    excite1=int(genome[1])
+    activity_mag1=genome[2]
+    inhibit_scale1=genome[3]
 
-    # data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
-    # data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    num_links2=int(genome[4])
+    excite2=int(genome[5])
+    activity_mag2=genome[6]
+    inhibit_scale2=genome[7]
 
-    data_x=np.arange(1,100,1)
-    data_y=np.arange(1,100,1)
+    num_links3=int(genome[8])
+    excite3=int(genome[9])
+    activity_mag3=genome[10]
+    inhibit_scale3=genome[11]
+
+    data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+    data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+
+    # data_x=np.arange(1,100,1)
+    # data_y=np.arange(1,100,1)
 
     scale = [ 0.1, 1, 10]
     fitness=0
     
     '''initiliase network'''
-    net=attractorNetwork2D(N1,N2,excite,activity_mag,inhibit_scale)
-    prev_weights=[net.excitations(0,0), net.excitations(0,0), net.excitations(0,0)]
+    net=[attractorNetwork2D(N1,N2,num_links1,excite1,activity_mag1,inhibit_scale1),attractorNetwork2D(N1,N2,num_links2,excite2,activity_mag2,inhibit_scale2),attractorNetwork2D(N1,N2,num_links3,excite3,activity_mag3,inhibit_scale3)]
+    prev_weights=[net[0].neuron_activation(0,0), net[1].neuron_activation(0,0), net[2].neuron_activation(0,0)]
 
     delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
@@ -99,7 +110,7 @@ def MultiResolution2D(genome):
      
             '''updating network'''    
             for n in range(len(delta_col)):
-                prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
+                prev_weights[n][:]= net[n].update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
                 prev_weights[n][prev_weights[n][:]<0]=0
                 row_index,col_index=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
                 split_output_row[i,n]=row_index
@@ -156,36 +167,30 @@ def selection(population_size,population,fitnessFunc,ranges, mutate_amount):
 
     fitnesses,indexes=sortByFitness(population,num_parents,fitnessFunc)
     print('Finsihed Checking Fitness of old population, now mutating parents to make a new generation')
-    
+    new_population=[population[idx] for idx in indexes] #parents are added to the new population 
+
     '''Add 5 random genomes into the population'''
-    new_population=[]
-    for i in range(num_parents):
-        genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.01)+0.0005]
-        new_population.append(genome)
+    # for i in range(num_parents):
+    #     genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.01)+0.0005]
+    #     new_population.append(genome)
     '''Make 15 Children from the fittest parents'''
     for i in range(num_parents):
         for j in range(num_children_perParent):
             new_population.append(checkMutation(population[indexes[i]],ranges, mutate_amount))
-
     return new_population
 
-def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount):
-    '''initiliase'''
-    population=[]
-    for i in range(population_size):
-        genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.randint(ranges[2][0],ranges[2][1]), (random.random()*0.9)+0.1, (random.random()*0.01)+0.0005]
-        population.append(genome)
+def GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount):
     print(population)
     fitnesses=np.zeros((population_size,1))
-    order_population=np.zeros((num_gens,population_size,6))
+    order_population=[]
 
     '''iterate through generations'''
     for i in range(num_gens):
         population=np.array(selection(population_size,population, fitnessFunc,ranges, mutate_amount))
         print('Finsihed making new populaiton  through mutation, now evaluting fitness and sorting')
         fitnesses,indexes=sortByFitness(population,population_size,fitnessFunc)
-        order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
-        if i>5 and [max(fit) for fit in order_population[:,:,5]][-5]==[max(fit) for fit in order_population[:,:,5]][-1]*5:
+        order_population.append(np.hstack((np.array(population[indexes]), fitnesses[:,None])))
+        if i>=5 and [max(fit) for fit in order_population[:,:,5]][-5]==[max(fit) for fit in order_population[:,:,5]][-1]*5:
             break
         print(fitnesses)
 
@@ -194,21 +199,28 @@ def GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate
 
 '''Test Area'''
 #np.[number or neurons , num_links, excitation width, activity magnitude,inhibition scale]
+#np.[nnum_links, excitation width, activity magnitude,inhibition scale]*3
 # mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.05)])
-mutate_amount=np.array([int(np.random.normal(0,10)), int(np.random.normal(0,10)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
-ranges = [[50,100],[50,100],[1,10],[0.01,1],[0.0005,0.01]]
+
+mutate_amount=np.array([int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005), int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005), int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
+ranges = [[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005]]
 fitnessFunc=MultiResolution2D
 num_gens=20
-population_size=32
-filename=f'./results/GA_MultiScale/20_gens_2D_1net_32pop_100data.npy'
-GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
+population_size=20
+filename=f'./results/GA_MultiScale/20_gens_2D_1net_20pop_300points_3paramSet.npy'
+'''initiliase'''
+population=[]
+for i in range(population_size):
+    genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1])]
+    population.append(genome)
+# GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
 
 # with open(filename, 'rb') as f:
 #     data = np.load(f)
-# plt.plot([max(fit) for fit in data[:,:,5]])
-# plt.title('Best Fitness over 30 Generation')
+# plt.plot([max(fit) for fit in data[:,:,-1]])
+# plt.title('Best Fitness over 20 Generation')
 # plt.show()
-# print(data)
+# print(data[:,1,:])
 
 
 def visualiseMultiResolutionTranslation(genome):
@@ -320,24 +332,35 @@ def visualiseMultiResolutionTranslation2D(genome):
     axtxt1 = plt.subplot2grid(shape=(6,3), loc=(5, 0), rowspan=1,colspan=3)
     fig.tight_layout()
 
-    N1=int(genome[0])
-    N2=int(genome[1])
-    excite=int(genome[2])
-    activity_mag=genome[3]
-    inhibit_scale=genome[4]
+    N1=100
+    N2=100
+    num_links1=int(genome[0])
+    excite1=int(genome[1])
+    activity_mag1=genome[2]
+    inhibit_scale1=genome[3]
 
-    # data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
-    # data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+    num_links2=int(genome[4])
+    excite2=int(genome[5])
+    activity_mag2=genome[6]
+    inhibit_scale2=genome[7]
 
-    data_x=np.arange(1,1000,1)
-    data_y=np.arange(1,1000,1)
+    num_links3=int(genome[8])
+    excite3=int(genome[9])
+    activity_mag3=genome[10]
+    inhibit_scale3=genome[11]
+
+    data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+    data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+
+    # data_x=np.arange(1,1000,1)
+    # data_y=np.arange(1,1000,1)
 
     scale = [ 0.1, 1, 10]
     error=0
     
     '''initiliase network'''
-    net=attractorNetwork2D(N1,N2,excite,activity_mag,inhibit_scale)
-    prev_weights=[net.excitations(0,0), net.excitations(0,0), net.excitations(0,0)]
+    net=[attractorNetwork2D(N1,N2,num_links1,excite1,activity_mag1,inhibit_scale1),attractorNetwork2D(N1,N2,num_links2,excite2,activity_mag2,inhibit_scale2),attractorNetwork2D(N1,N2,num_links3,excite3,activity_mag3,inhibit_scale3)]
+    prev_weights=[net[0].neuron_activation(0,0), net[1].neuron_activation(0,0), net[2].neuron_activation(0,0)]
 
     delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
@@ -358,7 +381,7 @@ def visualiseMultiResolutionTranslation2D(genome):
         
         '''updating network'''    
         for n in range(len(delta_col)):
-            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
+            prev_weights[n][:]= net[n].update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
             prev_weights[n][prev_weights[n][:]<0]=0
             row_index,col_index=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
             split_output_row[i,n]=row_index
@@ -403,11 +426,13 @@ def visualiseMultiResolutionTranslation2D(genome):
 
 '''1D'''
 # fittest=[1.48000000e+02, 1.20000000e+01, 1.00000000e+00, 7.07215044e-02, 4.74091433e-01]
-# fittest=[1.67000000e+02, 2.00000000e+00, 3.00000000e+00, 9.23424531e-02, 5.20268520e-01]
+fittest=[1.67000000e+02, 2.00000000e+00, 3.00000000e+00, 9.23424531e-02, 5.20268520e-01]
 # visualiseMultiResolutionTranslation(fittest)
 # print(MultiResolutionTranslation(fittest))
 
 '''2D'''
 # fittest=[7.60000000e+01,9.70000000e+01,5.00000000e+00,1.36576574e-01, 5.19946747e-03,1.20000000e+01]
-fittest2=[8.40000000e+01,9.80000000e+01,2.00000000e+00,3.76026794e-02,8.27480338e-03,-4.00000000e+01]
-# visualiseMultiResolutionTranslation2D(fittest2)
+# fittest2=[8.40000000e+01,9.80000000e+01,2.00000000e+00,3.76026794e-02,8.27480338e-03,-4.00000000e+01]
+# fittest3=[ 7.40000000e+01,7.80000000e+01,2.00000000e+00,1.07922584e-01,7.02904729e-03,-8.80000000e+01]
+# fittest=[5.00000000e+00,3.00000000e+00,2.23220121e-02,3.62736020e-03,1.10000000e+01,3.00000000e+00,2.39987795e-02,5.51246640e-04,4.00000000e+00,2.00000000e+00,2.73989154e-01,2.03594051e-03,-4.34000000e+02]
+# visualiseMultiResolutionTranslation2D(fittest)
