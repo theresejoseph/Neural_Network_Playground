@@ -329,7 +329,7 @@ def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale
 def MultiResolution1D(data_x,data_y,activity_mag,inhibit_scale,scale):
     # parameters
         N=100
-        num_links=7
+        num_links=6
         excite=3
         error=0
         '''initiliase network'''
@@ -344,7 +344,7 @@ def MultiResolution1D(data_x,data_y,activity_mag,inhibit_scale,scale):
         for i in range(1,len(data_x)):
             activity_len=[len(np.arange(N)[weights>0]) for weights in prev_weights]
             if 0 in activity_len:
-                error = 1000
+                error = 100000
             else: 
                 '''encoding mangnitude movement into multiple scales'''
                 x1, x2=data_x[i-1], data_x[i]
@@ -458,12 +458,13 @@ def MultiResolution2D(data_x,data_y,activity_mag,inhibit_scale,scale):
     # parameters
     N1=100
     N2=100
+    num_links=6
     excite=3
     error=0
     
     '''initiliase network'''
-    net=attractorNetwork2D(N1,N2,excite,activity_mag,inhibit_scale)
-    prev_weights=[net.excitations(0,0), net.excitations(0,0), net.excitations(0,0)]
+    net=attractorNetwork2D(N1,N2,num_links,excite,activity_mag,inhibit_scale)
+    prev_weights=[net.neuron_activation(0,0), net.neuron_activation(0,0), net.neuron_activation(0,0)]
 
     delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
@@ -572,30 +573,28 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,0.2537)
 '''1D Grid Search'''
-data_x=np.concatenate([  np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
+data_x=np.concatenate([np.arange(0,1,0.01), np.arange(1,11,0.1), np.arange(11,111,1), np.arange(111,1111,10), np.arange(1111,11111,100)])
 data_y=np.zeros(len(data_x))
 # print(np.arange(56.61,566.61,10))
-filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_40steps.npy'
-n_steps=50
-broke_error=1000
+filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_50steps_smallerRange.npy'
+n_steps=40
+broke_error=100000
 func=MultiResolution1D
 scale=[0.01,0.1,1,10,100]
-
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,1,scale)
 
-# gridSearch(filename,n_steps,func,scale,0,1,0,1)
-plottingGridSearch(filename,n_steps,broke_error,0,1,0,1)
-
+gridSearch(filename,n_steps,func,scale,0,1,0,0.25)
+# plottingGridSearch(filename,n_steps,broke_error,0,0.2,0,0.25)
 '''2D Gridsearch'''
-data_x=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
-data_y=np.concatenate([ np.arange(0,5.1,0.1), np.arange(5.1,56.1,1), np.arange(55,566.1,10)])
+data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
 scale=[0.1,1,10]
 # print(MultiResolution2D(data_x,data_y,0.005,0.0005))
 # visualiseMultiResolutionTranslation2D(data_x,data_y,0,0)
 
-filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_40steps.npy'
-n_steps=50
+filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_50steps_smallerRange.npy'
+n_steps=40
 broke_error=100000
 func=MultiResolution2D
-# gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,1)
-plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,1)
+gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,0.4)
+# plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)
