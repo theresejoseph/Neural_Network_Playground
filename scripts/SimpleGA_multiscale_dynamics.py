@@ -203,10 +203,10 @@ def GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ra
 # mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.05)])
 
 mutate_amount=np.array([int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005), int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005), int(np.random.normal(0,2)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.005)])
-ranges = [[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005],[1,20],[1,10],[0.01,1],[0.0005,0.005]]
+ranges = [[1,10],[1,10],[0.001,1],[0.0005,0.005],[1,10],[1,10],[0.001,1],[0.00005,0.005],[1,10],[1,10],[0.001,1],[0.00005,0.005]]
 fitnessFunc=MultiResolution2D
 num_gens=20
-population_size=28
+population_size=20
 filename=f'./results/GA_MultiScale/20_gens_2D_1net_20pop_300points_3paramSet.npy'
 '''initiliase'''
 population=[]
