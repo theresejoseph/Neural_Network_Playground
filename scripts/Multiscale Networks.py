@@ -226,10 +226,6 @@ def multiResolutionTranslation(data_x,data_y):
     plt.show()
 
 
-
-
-
-
 def visualiseMultiResolutionTranslation(data_x,data_y,activity_mag,inhibit_scale,scale):
     # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
     '''initlising network and animate figures'''
@@ -596,5 +592,5 @@ filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_50steps_smaller
 n_steps=40
 broke_error=100000
 func=MultiResolution2D
-gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,0.4)
+# gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,0.4)
 # plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)

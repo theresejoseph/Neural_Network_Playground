@@ -82,11 +82,22 @@ def carRacerExecution(queue):
 def plottingPosition(queue):
     global int_x, int_y
     fig = plt.figure(figsize=(13, 4))
-    ax0 = fig.add_subplot(1, 5, 1)
-    ax1 = fig.add_subplot(1, 5, 2)
-    ax2 = fig.add_subplot(1, 5, 3)
-    ax3 = fig.add_subplot(1, 5, 4)
-    ax4 = fig.add_subplot(1, 5, 5)
+    fig_rows,fig_cols=2,4
+    ax0 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=2,colspan=1)
+    ax11 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1))
+    ax12 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 2))
+    ax13 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 3))
+
+    ax21 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1))
+    ax22 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 2))
+    ax23 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 3))
+
+
+    # ax0 = fig.add_subplot(fig_rows, fig_cols, 1)
+    # ax1 = fig.add_subplot(fig_rows, fig_cols, 2)
+    # ax2 = fig.add_subplot(fig_rows, fig_cols, 3)
+    # ax3 = fig.add_subplot(fig_rows, fig_cols, 4)
+    # ax4 = fig.add_subplot(1, fig_cols, 5)
     fig.tight_layout()
 
     curr_x, curr_y=[],[]
@@ -100,9 +111,9 @@ def plottingPosition(queue):
     excite=int(genome[2])
     activity_mag=genome[3]
     inhibit_scale=genome[4]
+
     net=attractorNetwork2D(N1,N2,num_links,excite,activity_mag,inhibit_scale)
     prev_weights=[net.neuron_activation(0,0), net.neuron_activation(0,0), net.neuron_activation(0,0)]
-
     
     def animate(i):
         global int_x, int_y
@@ -134,37 +145,25 @@ def plottingPosition(queue):
                 row_index[n],col_index[n]=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
                 
             '''Plotting'''
-            ax0.clear()
+            ax0.clear(),ax11.clear(),ax12.clear(),ax13.clear()#,ax21.clear(),ax22.clear(),ax23.clear()
             ax0.scatter(curr_x[1:],curr_y[1:],s=1)
             ax0.set_title('True Car Racer Position')
+            ax0.set_xlabel(f"Input: {round(linVx_adjust,4)}, {round(linVy_adjust,4)} Position of Each Network: {row_index}, {col_index}", c='r')
 
-            ax4.scatter(col_index[0],row_index[0],s=1,color='r')
-            ax4.scatter(col_index[1],row_index[1],s=1,color='g')
-            ax4.scatter(col_index[2],row_index[2],s=1,color='b')
-            # ax4.scatter(col_index[1],row_index[1],color='g')
-            # ax4.scatter(col_index[2],row_index[2],color='b')
-            ax4.set_xlim([0,N1])
-            ax4.set_ylim([0,N2])
-
-
-            ax1.clear()
-            ax1.imshow(prev_weights[0][:])
-            ax1.invert_yaxis()
+            ax21.scatter(col_index[0],row_index[0],s=1,color='r')
+            ax22.scatter(col_index[1],row_index[1],s=1,color='g')
+            ax23.scatter(col_index[2],row_index[2],s=1,color='b')
+            ax21.set_xlim([0,N1]),ax21.set_ylim([0,N2]),ax22.set_xlim([0,N1]),ax22.set_ylim([0,N2]),ax23.set_xlim([0,N1]),ax23.set_ylim([0,N2])
             
-            ax2.clear()
-            ax2.set_xlabel(f"Input: {round(linVx_adjust,4)}, {round(linVy_adjust,4)} Position of Each Network: {row_index}, {col_index}", c='r')
-            ax2.imshow(prev_weights[1][:])
-            ax2.invert_yaxis()
-
-            ax3.clear()
-            ax3.imshow(prev_weights[2][:])
-            ax3.invert_yaxis()
+            ax11.imshow(prev_weights[0][:])
+            ax12.imshow(prev_weights[1][:])
+            ax13.imshow(prev_weights[2][:])
+            ax11.invert_yaxis(),ax12.invert_yaxis(),ax13.invert_yaxis()
 
             ax1.set_title(str(scale[0])+" Scale",fontsize=9)
             ax2.set_title(str(scale[1])+" Scale",fontsize=9)
             ax3.set_title(str(scale[2])+" Scale",fontsize=9)
 
-        
         
 
     ani = FuncAnimation(fig, animate, interval=1)
