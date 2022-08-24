@@ -88,9 +88,9 @@ def plottingPosition(queue):
     ax12 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 2))
     ax13 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 3))
 
-    ax21 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1))
-    ax22 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 2))
-    ax23 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 3))
+    ax21 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(1, 1))
+    ax22 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(1, 2))
+    ax23 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(1, 3))
 
 
     # ax0 = fig.add_subplot(fig_rows, fig_cols, 1)
@@ -145,7 +145,7 @@ def plottingPosition(queue):
                 row_index[n],col_index[n]=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
                 
             '''Plotting'''
-            ax0.clear(),ax11.clear(),ax12.clear(),ax13.clear()#,ax21.clear(),ax22.clear(),ax23.clear()
+            ax0.clear(),ax11.clear(),ax12.clear(),ax13.clear() #,ax21.clear(),ax22.clear(),ax23.clear()
             ax0.scatter(curr_x[1:],curr_y[1:],s=1)
             ax0.set_title('True Car Racer Position')
             ax0.set_xlabel(f"Input: {round(linVx_adjust,4)}, {round(linVy_adjust,4)} Position of Each Network: {row_index}, {col_index}", c='r')
@@ -159,10 +159,9 @@ def plottingPosition(queue):
             ax12.imshow(prev_weights[1][:])
             ax13.imshow(prev_weights[2][:])
             ax11.invert_yaxis(),ax12.invert_yaxis(),ax13.invert_yaxis()
-
-            ax1.set_title(str(scale[0])+" Scale",fontsize=9)
-            ax2.set_title(str(scale[1])+" Scale",fontsize=9)
-            ax3.set_title(str(scale[2])+" Scale",fontsize=9)
+            ax11.set_title(str(scale[0])+" Scale",fontsize=9)
+            ax12.set_title(str(scale[1])+" Scale",fontsize=9)
+            ax13.set_title(str(scale[2])+" Scale",fontsize=9)
 
         
 

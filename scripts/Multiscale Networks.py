@@ -577,10 +577,10 @@ n_steps=40
 broke_error=100000
 func=MultiResolution1D
 scale=[0.01,0.1,1,10,100]
-# visualiseMultiResolutionTranslation(data_x,data_y,0.005,1,scale)
+visualiseMultiResolutionTranslation(data_x,data_y,0.7692,0.0064,scale)
 
-gridSearch(filename,n_steps,func,scale,0,1,0,0.25)
-# plottingGridSearch(filename,n_steps,broke_error,0,0.2,0,0.25)
+# gridSearch(filename,n_steps,func,scale,0,1,0,0.25)
+# plottingGridSearch(filename,n_steps,broke_error,0,1,0,0.25)
 '''2D Gridsearch'''
 data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
 data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
