@@ -380,13 +380,14 @@ def visualiseMultiResolutionTranslation2D(data_x,data_y,activity_mag,inhibit_sca
     # parameters
     N1=100
     N2=100
+    num_links=6
     excite=3
     scale = [0.1, 1, 10]
     error=0
     
     '''initiliase network'''
-    net=attractorNetwork2D(N1,N2,excite,activity_mag,inhibit_scale)
-    prev_weights=[net.excitations(0,0), net.excitations(0,0), net.excitations(0,0)]
+    net=attractorNetwork2D(N1,N2,num_links,excite,activity_mag,inhibit_scale)
+    prev_weights=[net.neuron_activation(0,0), net.neuron_activation(0,0), net.neuron_activation(0,0)]
 
     delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
@@ -530,7 +531,8 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 
     zeros=np.vstack((np.where(error==0)[0],np.where(error==0)[1]))
     # print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
-
+    print(error)
+    print(inhibit[15],magnitude[0])
 
     ax0.set_title(filename)
     # error[error==0]=np.nan
@@ -579,18 +581,18 @@ func=MultiResolution1D
 scale=[0.01,0.1,1,10,100]
 # visualiseMultiResolutionTranslation(data_x,data_y,0.7692,0.0064,scale)
 
-gridSearch(filename,n_steps,func,scale,0.6,1,0,0.2)
+# gridSearch(filename,n_steps,func,scale,0.6,1,0,0.2)
 # plottingGridSearch(filename,n_steps,broke_error,0,1,0,0.25)
 '''2D Gridsearch'''
 data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
 data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
 scale=[0.1,1,10]
 # print(MultiResolution2D(data_x,data_y,0.005,0.0005))
-# visualiseMultiResolutionTranslation2D(data_x,data_y,0,0)
+visualiseMultiResolutionTranslation2D(data_x,data_y,0.005,0.006923)
 
 filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_50steps_smallerRange.npy'
 n_steps=40
 broke_error=100000
 func=MultiResolution2D
 # gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,0.4)
-# plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)
+plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)
