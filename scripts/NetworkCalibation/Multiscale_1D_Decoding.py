@@ -17,11 +17,11 @@ from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkSca
 
 def visualiseMultiResolution1D(velocities,scale,visulaise=False):
     global prev_weights, num_links, excite, curr_parameter
-    N=100
+    N=300
     # num_links,excite,activity_mag,inhibit_scale=6,3,1.01078180e-01,8.42457941e-01
     # num_links,excite,activity_mag,inhibit_scale=6,3,0.6923,0.0064
     num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
-    num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
+    # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
     integratedPos=[0]
     decodedPos=[0]
 
@@ -94,6 +94,7 @@ def visualiseMultiResolution1D(velocities,scale,visulaise=False):
             ax14.spines[['top', 'bottom', 'right']].set_visible(False)
 
         ani = FuncAnimation(fig, animate, interval=1,frames=len(velocities),repeat=False)
+        plt.show()
     else: 
         fig = plt.figure(figsize=(13, 4))
         ax0 = fig.add_subplot(1, 3, 1)
@@ -132,4 +133,32 @@ def visualiseMultiResolution1D(velocities,scale,visulaise=False):
 '''test'''
 vels=np.concatenate([np.array([0.01]*25), np.zeros(25), np.array([0.1]*25), np.zeros(25), np.array([1]*25), np.zeros(25), np.array([10]*25), np.zeros(25), np.array([100]*25)])
 scale=[0.01,0.1,1,10,100]
-visualiseMultiResolution1D(vels,scale)
+from os import listdir
+from os.path import isfile, join
+
+path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'
+# filenames = next(walk(path), (None, None, []))[2]  # [] if no file
+
+filenames = [f for f in listdir(path)]
+filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+# print(filenames)
+
+'''
+vn:    velocity towards north (m/s)
+ve:    velocity towards east (m/s)
+vf:    forward velocity, i.e. parallel to earth-surface (m/s)
+vl:    leftward velocity, i.e. parallel to earth-surface (m/s)
+vu:    upward velocity, i.e. perpendicular to earth-surface (m/s)'''
+vn,ve,vf,vl,vu=np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames))
+for i in range(len(filenames)):
+    cur_file=pd.read_csv(path+filenames[i], delimiter=' ', header=None)
+    vn[i]=abs(cur_file[7])
+    ve[i]=abs(cur_file[8])
+    vf[i]=abs(cur_file[9])
+    vl[i]=abs(cur_file[10])
+    vu[i]=abs(cur_file[11])
+# print(vf)
+# print(vl)
+
+
+visualiseMultiResolution1D(vu,scale, visulaise=True)
