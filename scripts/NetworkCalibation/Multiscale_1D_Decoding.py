@@ -19,8 +19,8 @@ def visualiseMultiResolution1D(velocities,scale,visulaise=False):
     global prev_weights, num_links, excite, curr_parameter
     N=300
     # num_links,excite,activity_mag,inhibit_scale=6,3,1.01078180e-01,8.42457941e-01
-    # num_links,excite,activity_mag,inhibit_scale=6,3,0.6923,0.0064
-    num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
+    num_links,excite,activity_mag,inhibit_scale=6,3,0.6923,0.0064
+    # num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
     # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
     integratedPos=[0]
     decodedPos=[0]
@@ -161,4 +161,4 @@ for i in range(len(filenames)):
 # print(vl)
 
 
-visualiseMultiResolution1D(vu,scale, visulaise=True)
+visualiseMultiResolution1D(vl,scale, visulaise=True)
