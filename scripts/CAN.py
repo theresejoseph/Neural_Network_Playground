@@ -48,32 +48,35 @@ class attractorNetwork:
                 frac_weights[i]=non_zero_prev_weights[i-1]*frac + non_zero_prev_weights[i]*inv_frac
             return frac_weights
 
+    def frac_weights_1D(self, prev_weights, delta):
+        mysign=lambda x: 1 if x > 0 else -1
+        frac=delta - int(delta)
+        inv_frac=1-(delta%1)
+
+        non_zero_idxs=np.nonzero(prev_weights)[0]
+        shifted_weights=np.zeros(self.N)
+        shifted_weights[(non_zero_idxs+mysign(frac))%self.N]=prev_weights[non_zero_idxs]
+        
+        return prev_weights*inv_frac + shifted_weights*abs(frac)
+
+
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
-        indexes,non_zero_weights,non_zero_weights_shifted, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-        '''crossover'''
-        crossover=0
-        if np.argmax(prev_weights)+delta >= self.N:
-            crossover=(np.argmax(prev_weights)+int(delta))//self.N
-        elif np.argmax(prev_weights)+delta < 0:
-            crossover=(np.argmax(prev_weights)+int(delta))//self.N
+        indexes,non_zero_weights,full_shift, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+
 
         non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        if len(prev_weights[non_zero_idxs])==0:
-            prev_weights[self.activation(0)]=self.full_weights(self.num_links)
-            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        # if len(prev_weights[non_zero_idxs])==0:
+        #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
+        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
 
         '''copied and shifted activity'''
-        shifted_indexes=(non_zero_idxs+ int(delta)) % self.N
-        
-        non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
-        
-        non_zero_weights_shifted[shifted_indexes]=self.fractional_weights(prev_weights[non_zero_idxs],delta)  #non zero weights shifted by delta
-        
-        intermediate_activity=non_zero_weights_shifted+non_zero_weights
-        '''inhibition'''
-        for i in range(len(non_zero_weights_shifted)):
-            inhbit_val+=non_zero_weights_shifted[i]*self.inhibit_scale
-        
+        full_shift[(non_zero_idxs + int(np.floor(delta)))%self.N]=prev_weights[non_zero_idxs]
+
+        shift=self.fractional_weights(full_shift,delta)  #non zero weights shifted by delta
+        copy_shift=shift+prev_weights
+        shifted_indexes=np.nonzero(copy_shift)[0]
+
+
         '''excitation'''
         excitations_store=np.zeros((len(shifted_indexes),self.N))
         excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
@@ -82,14 +85,18 @@ class attractorNetwork:
             excitations_store[i,:]=excitation_array
             excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
 
-        '''update activity'''
+        '''inhibit'''
+        inhibit_val=0
+        shift_excite=copy_shift
+        non_zero_inhibit=np.nonzero(shift_excite) 
+        for idx in non_zero_inhibit[0]:
+            inhibit_val+=shift_excite[idx]*self.inhibit_scale
 
-        prev_weights+=(non_zero_weights_shifted+excite-inhbit_val)
+        '''update activity'''
+        prev_weights+=(copy_shift+excite-inhbit_val)
 
         if moreResults==True:
-           return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, non_zero_weights_shifted, intermediate_activity,[inhbit_val]*self.N, excitations_store
-        elif cross==True:  
-           return prev_weights/np.linalg.norm(prev_weights) ,crossover
+           return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, intermediate_activity,[inhbit_val]*self.N, excitations_store
         else: 
             return prev_weights/np.linalg.norm(prev_weights)
         
@@ -368,6 +375,7 @@ class attractorNetwork2D:
         else:
             return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
 
+'''Tester Functions'''
 def visulaiseFractionalWeights():
     fig = plt.figure(figsize=(5, 6))
     ax0 = fig.add_subplot(4, 1, 1)
@@ -377,6 +385,10 @@ def visulaiseFractionalWeights():
     fig.tight_layout()
 
     weights=np.array([0,0,0,0,0,2,3,4,5,4,3,2,0,0,0,0])
+    N1,num_links,excite_radius,activity_mag,inhibit_scale= len(weights),6, 4, 1, 0.01
+    net=attractorNetwork( N1,num_links,excite_radius,activity_mag,inhibit_scale)
+
+
     idx=np.nonzero(weights)[0]
     shifted_right=np.zeros(len(weights))
     shifted_right[idx+1]=weights[idx]
@@ -389,10 +401,12 @@ def visulaiseFractionalWeights():
     ax1.bar(np.arange(len(weights)),frac)
     ax1.set_title('0.75 unit copy paste')
     ax1.set_ylim([0,10])
-    ax2.bar(np.arange(len(weights)),frac2)
-    ax2.set_title('0.9 unit copy paste')
+    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.75))
+    ax2.set_title('0.75 unit copy paste')
     ax2.set_ylim([0,10])
-    ax3.bar(np.arange(len(weights)),shifted_right, color='g')
+    old_frac=np.zeros(len(weights))
+    old_frac[np.nonzero(weights)[0]-1]=net.fractional_weights(weights[weights>0],-0.75)
+    ax3.bar(np.arange(len(weights)),old_frac, color='g')
     ax3.set_title('1 unit copy paste')
     ax3.set_ylim([0,10])
     plt.show()
@@ -433,8 +447,7 @@ def visulaise2DFractions():
     fig.tight_layout()
 
     N1,N2,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 0.01
-    net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
-    prev_weights=net.excitations(5,5)
+    net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
 
 
     ax0.imshow(prev_weights)
@@ -459,10 +472,10 @@ def visulaise2DFractions():
 # visulaiseFractionalWeights()
 # visulaiseDeconstructed2DAttractor()
 
-N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  100, 100,6, 4, 1, 0.01
-net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
-prev_weights=net.neuron_activation(5,5)
-another_prev_weights=net.neuron_activation(5,5)
+# N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  100, 100,6, 4, 1, 0.01
+# net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
+# prev_weights=net.neuron_activation(5,5)
+# another_prev_weights=net.neuron_activation(5,5)
 # visulaise2DFractions()
 
 
