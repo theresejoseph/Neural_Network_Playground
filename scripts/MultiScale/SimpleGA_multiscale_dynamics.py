@@ -16,9 +16,9 @@ def MultiResolutionTranslation(genome):
     activity_mag=genome[2]
     inhibit_scale=genome[3]
 
-    data_x=np.concatenate([np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
+    # data_x=np.concatenate([np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
+    data_x=np.concatenate([np.arange(0,5000,100), np.arange(5000,5500,10), np.arange(5500,5550,1), np.arange(5550,5555,0.1), np.arange(5555,5555.5,0.01)])
     data_y=np.zeros(len(data_x))
-
     scale = [0.01, 0.1, 1, 10, 100]
     fitness=0
 
