@@ -138,7 +138,7 @@ def visualiseMultiResolution1D(velocities,scale,velocity_type, visualise=False):
 
 def visualiseMultiResolution1DLandmark(velocities_1rep,scale,visulaise=False):
     global prev_weights, num_links, excite, curr_parameter
-    N=200
+    N=400
     # velocities=np.concatenate([velocities_1rep,velocities_1rep])
     velocities=velocities_1rep
 
@@ -149,6 +149,7 @@ def visualiseMultiResolution1DLandmark(velocities_1rep,scale,visulaise=False):
     # num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
     # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
     num_links,excite,activity_mag,inhibit_scale=5,10,7.79285135e-01,0.03 #0.0307657494
+    num_links,excite,activity_mag,inhibit_scale=9,1,2.07046267e-03,4.45269855e-02
     integratedPos=[0]
     decodedPos=[0]
     landmark_storage=[]
