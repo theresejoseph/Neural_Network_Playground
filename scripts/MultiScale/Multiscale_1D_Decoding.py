@@ -139,11 +139,16 @@ def visualiseMultiResolution1D(velocities,scale,velocity_type, visualise=False):
 def visualiseMultiResolution1DLandmark(velocities_1rep,scale,visulaise=False):
     global prev_weights, num_links, excite, curr_parameter
     N=200
-    velocities=np.concatenate([velocities_1rep,velocities_1rep,velocities_1rep])
+    # velocities=np.concatenate([velocities_1rep,velocities_1rep])
+    velocities=velocities_1rep
+
     # num_links,excite,activity_mag,inhibit_scale=6,3,1.01078180e-01,8.42457941e-01
-    num_links,excite,activity_mag,inhibit_scale=6,3,0.6923,0.0064
+
+    # num_links,excite,activity_mag,inhibit_scale=6,3,0.6923,0.0064 #good one 
+
     # num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
     # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
+    num_links,excite,activity_mag,inhibit_scale=5,10,7.79285135e-01,0.03 #0.0307657494
     integratedPos=[0]
     decodedPos=[0]
     landmark_storage=[]
@@ -288,6 +293,7 @@ def visualiseMultiResolution1DLandmark(velocities_1rep,scale,visulaise=False):
 
 '''test'''
 vels=np.concatenate([np.array([0.01]*25), np.zeros(25), np.array([0.1]*25), np.zeros(25), np.array([1]*25), np.zeros(25), np.array([10]*25), np.zeros(25), np.array([100]*25)])
+velocities=np.concatenate([np.array([100]*25), np.array([10]*25), np.array([1]*25), np.array([0.1]*25), np.array([0.01]*25)])
 
 scale=[0.01,0.1,1,10,100]
 path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'
@@ -312,4 +318,4 @@ for i in range(len(filenames)):
 
 
 # visualiseMultiResolution1D(vu,scale,'East')
-visualiseMultiResolution1DLandmark(ve,scale,visulaise=True)
+visualiseMultiResolution1DLandmark(velocities,scale,visulaise=True)
