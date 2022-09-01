@@ -2,12 +2,13 @@ import random
 import numpy as np
 import sys
 sys.path.append('./scripts')
-from CAN import attractorNetworkScaling,attractorNetwork2D
+from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import math
 
 
+#1D input positions 
 def MultiResolutionTranslation(genome):
     N=int(genome[0])
     num_links=int(genome[1])
@@ -60,6 +61,7 @@ def MultiResolutionTranslation(genome):
                     fitness+=delta_peak[i,j]
     return fitness
 
+#1D input velocites 
 def MultiResolution1D_Decoding(genome):
     N=100
     num_links=int(genome[0])
@@ -67,14 +69,14 @@ def MultiResolution1D_Decoding(genome):
     activity_mag=genome[2]
     inhibit_scale=genome[3]
 
-    velocities=np.concatenate([np.array([0.01]*25), np.zeros(25), np.array([0.1]*25), np.zeros(25), np.array([1]*25), np.zeros(25), np.array([10]*25), np.zeros(25), np.array([100]*25)])
+    velocities=np.concatenate([np.array([100]*25), np.array([10]*25), np.array([1]*25), np.array([0.1]*25), np.array([0.01]*25)])
 
     scale = [0.01, 0.1, 1, 10, 100]
     fitness=0
 
     '''initiliase network'''
     prev_weights=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
-    net=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
         prev_weights[n][net.activation(0)]=net.full_weights(num_links)
     
@@ -100,14 +102,14 @@ def MultiResolution1D_Decoding(genome):
                 split_output[n]=np.argmax(prev_weights[n][:])
             
             '''finding fitness based on activity velocity'''
-            decoded=np.sum(split_output*scale)*np.sign(input) 
+            decoded=np.sum(split_output*scale)
             integratedPos.append(integratedPos[-1]+input)
             decodedPos.append(decoded)  
 
     fitness=np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))*-1
     return fitness 
 
-
+#2D input positions 
 def MultiResolution2D(genome):
     N1=100
     N2=100
@@ -355,9 +357,9 @@ def visualiseMultiResolutionTranslation(genome):
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/20_gens_20pop_decoding.npy'
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.1)])
-    ranges = [[1,10],[1,10],[0,1],[0,0.2]]
+    filename=f'./results/GA_MultiScale/20_gens_20pop_decoding_reverse.npy'
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.005)])
+    ranges = [[1,10],[1,10],[0,1],[0,0.1]]
     fitnessFunc=MultiResolution1D_Decoding
     num_gens=20
     population_size=20
@@ -384,7 +386,7 @@ def runGA1D(plot=False):
 # print(MultiResolution1D_Decoding(genome))
 
 
-# runGA1D(plot=False)
+runGA1D(plot=False)
 runGA1D(plot=True)
 
 
