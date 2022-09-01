@@ -10,13 +10,13 @@ import math
 
 #1D input positions 
 def MultiResolutionTranslation(genome):
-    N=int(genome[0])
-    num_links=int(genome[1])
-    excite=int(genome[2])
-    activity_mag=genome[3]
-    inhibit_scale=genome[4]
+    N=100
+    num_links=int(genome[0])
+    excite=int(genome[1])
+    activity_mag=genome[2]
+    inhibit_scale=genome[3]
 
-    data_x=np.concatenate([  np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
+    data_x=np.concatenate([np.arange(0,0.51,0.01), np.arange(0.51,5.61,0.1), np.arange(5.61,56.61,1), np.arange(56.61,566.61,10), np.arange(566.61,5666.61,100)])
     data_y=np.zeros(len(data_x))
 
     scale = [0.01, 0.1, 1, 10, 100]
@@ -357,10 +357,10 @@ def visualiseMultiResolutionTranslation(genome):
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/20_gens_20pop_decoding_reverse.npy'
+    filename=f'./results/GA_MultiScale/20_gens_20pop_positions.npy'
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.005)])
-    ranges = [[1,10],[1,10],[0,1],[0,0.1]]
-    fitnessFunc=MultiResolution1D_Decoding
+    ranges = [[1,10],[1,10],[0,1],[0,0.05]]
+    fitnessFunc=MultiResolutionTranslation
     num_gens=20
     population_size=20
     '''initiliase'''
