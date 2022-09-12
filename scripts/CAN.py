@@ -51,54 +51,44 @@ class attractorNetwork:
     def frac_weights_1D(self, prev_weights, delta):
         mysign=lambda x: 1 if x > 0 else -1
         frac=delta - int(delta)
-        inv_frac=1-(delta%1)
+        inv_frac=1-abs(frac)
 
         non_zero_idxs=np.nonzero(prev_weights)[0]
         shifted_weights=np.zeros(self.N)
         shifted_weights[(non_zero_idxs+mysign(frac))%self.N]=prev_weights[non_zero_idxs]
-        
         return prev_weights*inv_frac + shifted_weights*abs(frac)
 
-
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
-        indexes,non_zero_weights,full_shift, inhbit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-
-
-        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-        # if len(prev_weights[non_zero_idxs])==0:
-        #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
-        #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-
-        '''copied and shifted activity'''
-        full_shift[(non_zero_idxs + int(np.floor(delta)))%self.N]=prev_weights[non_zero_idxs]
-
-        shift=self.fractional_weights(full_shift,delta)  #non zero weights shifted by delta
-        copy_shift=shift+prev_weights
-        shifted_indexes=np.nonzero(copy_shift)[0]
-
-
-        '''excitation'''
-        excitations_store=np.zeros((len(shifted_indexes),self.N))
-        excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
-        for i in range(len(shifted_indexes)):
-            excitation_array[self.excitations(shifted_indexes[i])]=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
-            excitations_store[i,:]=excitation_array
-            excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
-
-        '''inhibit'''
-        inhibit_val=0
-        shift_excite=copy_shift
-        non_zero_inhibit=np.nonzero(shift_excite) 
-        for idx in non_zero_inhibit[0]:
-            inhibit_val+=shift_excite[idx]*self.inhibit_scale
-
-        '''update activity'''
-        prev_weights+=(copy_shift+excite-inhbit_val)
+        indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+        
+        for i in range(4):
+            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+            '''copied and shifted activity'''
+            full_shift[(non_zero_idxs + int(np.floor(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
+            shift=self.frac_weights_1D(full_shift,delta)  #non zero weights shifted by delta
+            copy_shift=shift+prev_weights
+            shifted_indexes=np.nonzero(copy_shift)[0]
+            '''excitation'''
+            excitations_store=np.zeros((len(shifted_indexes),self.N))
+            excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
+            for i in range(len(shifted_indexes)):
+                excitation_array[self.excitations(shifted_indexes[i])]=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
+                excitations_store[i,:]=excitation_array
+                excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
+            '''inhibit'''
+            # shift_excite=copy_shift
+            non_zero_inhibit=np.nonzero(excite) 
+            for idx in non_zero_inhibit[0]:
+                inhibit_val+=excite[idx]*self.inhibit_scale
+            '''update activity'''
+            prev_weights+=(copy_shift+excite-inhibit_val)
+            prev_weights=prev_weights/np.linalg.norm(prev_weights)
 
         if moreResults==True:
-           return prev_weights/np.linalg.norm(prev_weights), non_zero_weights, intermediate_activity,[inhbit_val]*self.N, excitations_store
+           return prev_weights/np.linalg.norm(prev_weights), non_zero_weights,[inhibit_val]*self.N, excitations_store
         else: 
             return prev_weights/np.linalg.norm(prev_weights)
+
         
 
 class attractorNetworkSettling:
@@ -234,10 +224,7 @@ class attractorNetworkScaling:
         # if len(non_zero_idxs)==0:
         #     prev_weights[self.activation(0)]=self.full_weights(self.num_links)
         #     non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights    
-     
-       
         '''copied and shifted activity'''
-        
         non_zero_weights[non_zero_idxs]=prev_weights[non_zero_idxs] 
         non_zero_weights_shifted[(non_zero_idxs+round(delta))%self.N]=self.fractional_weights(prev_weights[non_zero_idxs],delta)*self.activity_mag #non zero weights shifted by delta
   
@@ -398,15 +385,17 @@ def visulaiseFractionalWeights():
 
     ax0.bar(np.arange(len(weights)),weights,color='r')
     ax0.set_ylim([0,10])
-    ax1.bar(np.arange(len(weights)),frac)
+
+    ax1.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.1))
     ax1.set_title('0.75 unit copy paste')
     ax1.set_ylim([0,10])
-    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.75))
+
+    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.9))
     ax2.set_title('0.75 unit copy paste')
     ax2.set_ylim([0,10])
-    old_frac=np.zeros(len(weights))
-    old_frac[np.nonzero(weights)[0]-1]=net.fractional_weights(weights[weights>0],-0.75)
-    ax3.bar(np.arange(len(weights)),old_frac, color='g')
+
+    
+    ax3.bar(np.arange(len(weights)),shifted_right, color='g')
     ax3.set_title('1 unit copy paste')
     ax3.set_ylim([0,10])
     plt.show()

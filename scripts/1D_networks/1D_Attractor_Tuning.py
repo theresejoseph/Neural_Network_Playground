@@ -6,6 +6,8 @@ import os
 import pandas as pd 
 from matplotlib.animation import FuncAnimation
 
+import sys
+sys.path.append('./scripts')
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling, attractorNetwork, multiResolution,attractorNetworkScaling, imageHistogram
 from matplotlib.colors import LinearSegmentedColormap
 from multiprocessing import Process, Pool
