@@ -30,6 +30,8 @@ def visualiseMultiResolution1D(velocities,scale,velocity_type, visualise=False):
 
     num_links,excite,activity_mag,inhibit_scale=1,3,1.21745813e-01,9.96673372e-02
 
+    num_links,excite,activity_mag,inhibit_scale=1,3,0.0521745813,5.96673372e-02
+
 
     # num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
     # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
@@ -446,7 +448,7 @@ velocities=np.concatenate([np.array([0.01]*25), np.zeros(25), np.array([0.1]*25)
 # velocities increasing then decreainf 
 velocities=np.concatenate([np.array([100]*25), np.array([10]*25), np.array([1]*25), np.array([0.1]*25), np.array([0.01]*25), np.array([0.1]*25),  np.array([1]*25),  np.array([10]*25),  np.array([100]*25)])
 # random normal distribution 
-velocities=np.concatenate([np.random.normal(100,10,20),np.random.normal(10,1,20), np.random.normal(1,0.1,20), np.random.normal(0.1,0.01,20), np.random.normal(0.01,0.001,21)])
+velocities=np.concatenate([np.random.uniform(100,10,20),np.random.uniform(10,1,20), np.random.uniform(1,0.1,20), np.random.uniform(0.1,0.01,20), np.random.uniform(0.01,0.001,21)])
 # velocities=np.random.normal(1,0.5,50)
 scale=[0.01,0.1,1,10,100]
 path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'

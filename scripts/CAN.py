@@ -59,9 +59,9 @@ class attractorNetwork:
         return prev_weights*inv_frac + shifted_weights*abs(frac)
 
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
-        indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
         
         for i in range(4):
+            indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
             non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
             '''copied and shifted activity'''
             full_shift[(non_zero_idxs + int(np.floor(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
@@ -365,10 +365,12 @@ class attractorNetwork2D:
 '''Tester Functions'''
 def visulaiseFractionalWeights():
     fig = plt.figure(figsize=(5, 6))
-    ax0 = fig.add_subplot(4, 1, 1)
-    ax1 = fig.add_subplot(4, 1, 2)
-    ax2 = fig.add_subplot(4, 1, 3)
-    ax3 = fig.add_subplot(4, 1, 4)
+    nrows=5
+    ax0 = fig.add_subplot(nrows, 1, 1)
+    ax1 = fig.add_subplot(nrows, 1, 2)
+    ax2 = fig.add_subplot(nrows, 1, 3)
+    ax3 = fig.add_subplot(nrows, 1, 4)
+    ax4 = fig.add_subplot(nrows, 1, 5)
     fig.tight_layout()
 
     weights=np.array([0,0,0,0,0,2,3,4,5,4,3,2,0,0,0,0])
@@ -377,27 +379,33 @@ def visulaiseFractionalWeights():
 
 
     idx=np.nonzero(weights)[0]
-    shifted_right=np.zeros(len(weights))
+    shifted_right,shifted_left=np.zeros(len(weights)),np.zeros(len(weights))
     shifted_right[idx+1]=weights[idx]
+    shifted_left[idx-1]=weights[idx]
     frac=weights*0.25 + shifted_right*0.75
     frac2=weights*0.01 + shifted_right*0.99
 
 
     ax0.bar(np.arange(len(weights)),weights,color='r')
     ax0.set_ylim([0,10])
+    ax0.set_title('Orginal')
 
-    ax1.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.1))
-    ax1.set_title('0.75 unit copy paste')
+    ax1.bar(np.arange(len(weights)),shifted_left)
+    ax1.set_title('1 unit Left')
     ax1.set_ylim([0,10])
 
-    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.9))
-    ax2.set_title('0.75 unit copy paste')
+    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.1),color='m')
+    ax2.set_title('0.1 unit copy paste')
     ax2.set_ylim([0,10])
 
     
-    ax3.bar(np.arange(len(weights)),shifted_right, color='g')
-    ax3.set_title('1 unit copy paste')
+    ax3.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.6), color='m')
+    ax3.set_title('0.6 unit copy paste')
     ax3.set_ylim([0,10])
+
+    ax4.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.9), color='m')
+    ax4.set_title('0.9 unit copy paste')
+    ax4.set_ylim([0,10])
     plt.show()
 
 def visulaiseDeconstructed2DAttractor():
