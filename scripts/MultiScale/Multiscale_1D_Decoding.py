@@ -619,6 +619,48 @@ def data_processing_oxts():
         vu[i]=cur_file[11]
     return vn,ve,vf,vl,vu
 
+def data_processing():
+    path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'
+    filenames = [f for f in listdir(path)]
+    filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+    '''
+    lat:   latitude of the oxts-unit (deg)
+    lon:   longitude of the oxts-unit (deg)
+    alt:   altitude of the oxts-unit (m)
+    roll:  roll angle (rad),    0 = level, positive = left side up,      range: -pi   .. +pi
+    pitch: pitch angle (rad),   0 = level, positive = front down,        range: -pi/2 .. +pi/2
+    yaw:   heading (rad),       0 = east,  positive = counter clockwise, range: -pi   .. +pi
+    vn:    velocity towards north (m/s)
+    ve:    velocity towards east (m/s)
+    vf:    forward velocity, i.e. parallel to earth-surface (m/s)
+    vl:    leftward velocity, i.e. parallel to earth-surface (m/s)
+    vu:    upward velocity, i.e. perpendicular to earth-surface (m/s)
+    ax:    acceleration in x, i.e. in direction of vehicle front (m/s^2)
+    ay:    acceleration in y, i.e. in direction of vehicle left (m/s^2)
+    ay:    acceleration in z, i.e. in direction of vehicle top (m/s^2)
+    af:    forward acceleration (m/s^2)
+    al:    leftward acceleration (m/s^2)
+    au:    upward acceleration (m/s^2)
+    wx:    angular rate around x (rad/s)
+    wy:    angular rate around y (rad/s)
+    wz:    angular rate around z (rad/s)
+    wf:    angular rate around forward axis (rad/s)
+    wl:    angular rate around leftward axis (rad/s)
+    wu:    angular rate around upward axis (rad/s)
+    pos_accuracy:  velocity accuracy (north/east in m)
+    vel_accuracy:  velocity accuracy (north/east in m/s)
+    navstat:       navigation status (see navstat_to_string)
+    numsats:       number of satellites tracked by primary GPS receiver
+    posmode:       position mode of primary GPS receiver (see gps_mode_to_string)
+    velmode:       velocity mode of primary GPS receiver (see gps_mode_to_string)
+    orimode:       orientation mode of primary GPS receiver (see gps_mode_to_string)
+    '''
+    data=np.zeros((30,len(filenames)))
+    print(len(filenames))
+    for i in range(len(filenames)):
+        curr_file=pd.read_csv(path+filenames[i], delimiter=' ', header=None).to_numpy()
+        data[:,i]=curr_file
+    return data
 
 '''test'''
 gt,mag,rot=data_processing_groundTruth()
@@ -636,7 +678,39 @@ filename=f'./results/AblationStudyScales/10scales_3starts.npy'
 # gridSearch(filename,multiscale_1d_CAN_error,velocities)
 # plottingGridSearch(filename)
 
-pathIntegrationVelOnly(rot,mag,'KittiDataset')
+# pathIntegrationVelOnly(rot,mag,'KittiDataset')
 # visualiseMultiResolution1D(mag,scale,'Curated',visualise=False)
 # visualiseMultiResolution1DLandmark(velocities,scale,visulaise=False)
 # visualiseMultiResolution1DPLotAll(velocities,scale,visulaise=True)
+
+with open('./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/timestamps.txt') as f:
+    seconds = [float(line.rstrip().rsplit(':', 1)[1]) for line in f]
+del_secs=np.zeros(len(seconds))
+for i in range(1,len(seconds)):
+    del_secs[i]=seconds[i]-seconds[i-1]
+
+
+data=data_processing()
+lat=data[0,:]-data[0,0]
+long=data[1,:]-data[1,0]
+vn=data[6,:]
+ve=data[7,:]
+vf=data[8,:]
+vl=data[9,:]
+wf=data[20,:]
+wl=data[21,:]
+
+print(lat,long)
+forw=vf*del_secs
+left=vl*del_secs
+north=vn*del_secs
+east=ve*del_secs
+
+fig, ax0=plt.subplots(figsize=(10, 7), ncols=1)
+ax0.set_title('GPS Position')
+ax0.plot(lat*111139,long*111139, '.')
+# ax0.plot(forw,left, '.')
+ax0.plot(east,north,'.')
+ax0.set_ylabel('Longitude')
+ax0.set_xlabel('Latitude')
+plt.show()
