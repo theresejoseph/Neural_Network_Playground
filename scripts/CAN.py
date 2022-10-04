@@ -60,7 +60,7 @@ class attractorNetwork:
 
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
         
-        for i in range(4):
+        for i in range(9):
             indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
             non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
             '''copied and shifted activity'''
@@ -390,21 +390,21 @@ def visulaiseFractionalWeights():
     ax0.set_ylim([0,10])
     ax0.set_title('Orginal')
 
-    ax1.bar(np.arange(len(weights)),shifted_left)
-    ax1.set_title('1 unit Left')
+    ax1.bar(np.arange(len(weights)),net.frac_weights_1D(weights,0.25),color='m')
+    ax1.set_title('0.25 unit copy paste')
     ax1.set_ylim([0,10])
 
-    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.1),color='m')
-    ax2.set_title('0.1 unit copy paste')
+    ax2.bar(np.arange(len(weights)),net.frac_weights_1D(weights,0.5),color='m')
+    ax2.set_title('0.5 unit copy paste')
     ax2.set_ylim([0,10])
 
     
-    ax3.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.6), color='m')
-    ax3.set_title('0.6 unit copy paste')
+    ax3.bar(np.arange(len(weights)),net.frac_weights_1D(weights,0.75), color='m')
+    ax3.set_title('0.75 unit copy paste')
     ax3.set_ylim([0,10])
 
-    ax4.bar(np.arange(len(weights)),net.frac_weights_1D(weights,-0.9), color='m')
-    ax4.set_title('0.9 unit copy paste')
+    ax4.bar(np.arange(len(weights)), shifted_right, color='b')
+    ax4.set_title('1 unit Right')
     ax4.set_ylim([0,10])
     plt.show()
 
