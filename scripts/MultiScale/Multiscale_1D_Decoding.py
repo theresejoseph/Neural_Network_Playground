@@ -690,27 +690,5 @@ for i in range(1,len(seconds)):
     del_secs[i]=seconds[i]-seconds[i-1]
 
 
-data=data_processing()
-lat=data[0,:]-data[0,0]
-long=data[1,:]-data[1,0]
-vn=data[6,:]
-ve=data[7,:]
-vf=data[8,:]
-vl=data[9,:]
-wf=data[20,:]
-wl=data[21,:]
 
-print(lat,long)
-forw=vf*del_secs
-left=vl*del_secs
-north=vn*del_secs
-east=ve*del_secs
 
-fig, ax0=plt.subplots(figsize=(10, 7), ncols=1)
-ax0.set_title('GPS Position')
-ax0.plot(lat*111139,long*111139, '.')
-# ax0.plot(forw,left, '.')
-ax0.plot(east,north,'.')
-ax0.set_ylabel('Longitude')
-ax0.set_xlabel('Latitude')
-plt.show()
