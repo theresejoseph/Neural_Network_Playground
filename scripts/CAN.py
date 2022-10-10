@@ -60,11 +60,13 @@ class attractorNetwork:
 
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
         
-        for i in range(9):
+        for i in range(3):
             indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
             non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
             '''copied and shifted activity'''
-            full_shift[(non_zero_idxs + int(np.floor(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
+            full_shift_amount=lambda x: np.floor(x) if x > 0 else np.ceil(x)
+            full_shift[(non_zero_idxs + int(full_shift_amount(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
+            # print(int(np.floor(delta)))
             shift=self.frac_weights_1D(full_shift,delta)  #non zero weights shifted by delta
             copy_shift=shift+prev_weights
             shifted_indexes=np.nonzero(copy_shift)[0]
