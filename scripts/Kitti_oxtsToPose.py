@@ -196,19 +196,19 @@ def attractor_GPS_imu():
     for n in range(len(prev_weights)):
         prev_weights[n][net.activation(0)]=net.full_weights(num_links)
 
-
+    plt.style.use(['science', 'no-latex', 'grid'])
     fig = plt.figure(figsize=(8, 6))
     fig_rows,fig_cols=6,1
     ax0 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=5,colspan=1)
     # ax1 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1), rowspan=5,colspan=1)
     # ax2 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 2), rowspan=5,colspan=1)
-    axtxt = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(5, 0), rowspan=1,colspan=1)
+    # axtxt = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(5, 0), rowspan=1,colspan=1)
     # fig.tight_layout()
 
     ax0.plot(np.arange(len(xs)),(xs),label='GPS observed x trajectory'), ax0.set_title(f'IMU GPS Integrated X Positions with Attractor Network')#, ax0.axis('equal')
     ax0.plot(np.arange(len(x_imu)),(x_imu),label='imu observed x trajectory')
-    axtxt.axis('off'), 
-    axtxt.text(0,0,f'Num_links: {num_links}, Excite_radius: {excite}, Activity_magnitude: {activity_mag}, Inhibition_scale: {inhibit_scale}', color='r',fontsize=12)
+    # axtxt.axis('off'), 
+    # axtxt.text(0,0,f'Num_links: {num_links}, Excite_radius: {excite}, Activity_magnitude: {activity_mag}, Inhibition_scale: {inhibit_scale}', color='r',fontsize=12)
 
     for i in range(2,len(x_imu)):
         input1=xs[i]-xs[i-1]
@@ -235,10 +235,12 @@ def attractor_GPS_imu():
         print(f"{str(i)}  translation {input1} input output {round(integratedPos1[-1],3)} {round(integratedPos2[-1],3)} {str(decoded_translation )}  ")
 
     fitness=np.sum(abs(np.array(integratedPos1)-np.array(decodedPos)))*-1
-    print(fitness), axtxt.text(0,-1,f'Error: {fitness}', fontsize=12, c='g')
+    print(fitness), 
+    # axtxt.text(0,-1,f'Error: {fitness}', fontsize=12, c='g')
     # ax1.plot(np.arange(len(integratedPos1)),integratedPos1,np.arange(len(integratedPos2)),integratedPos2), ax1.set_title('Integrated Position')#, ax1.axis('equal')
     ax0.plot((np.array(decodedPos)),label='decoded attractor x trajectory')#, ax2.axis('equal')
-    ax0.grid(), ax0.legend()
+    ax0.legend()
+    
     plt.show()
 
 # EKF()
