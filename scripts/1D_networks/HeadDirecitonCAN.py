@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+import matplotlib.animation as anim
 import math 
 
 def col_round(x):
@@ -10,8 +10,8 @@ def col_round(x):
   
 ######################--VARABLES--############################
 #simulation
-sim_speed=100
-iters=400
+sim_speed=500
+iters=360
 prediction,current, true=[],[],[]
 
 #network
@@ -20,7 +20,7 @@ N_inc=360/N # number of degrees per neuron
 neurons=np.arange(0,N)
 curr_theta=0
 iteration=1
-delta=2
+delta=1
 prev_weights=np.zeros(N)
 inhbit_val=0.05
 num_links=3
@@ -31,7 +31,7 @@ input_error=0
 inc=40 # increment angle for landmarks 
 ang_rate=1 #deg per iteration for the robot
 radius=1.8  #meter
-landmark_dect_toler=2
+landmark_dect_toler=6
 
 '''#robot parameters
 whl_wdth=0.8 # meter
@@ -198,22 +198,25 @@ def selfMotion_Landmark(radius,inc,iters):
     lndmrks=np.stack((np.array(mark_x),np.array(mark_y)),axis=1)
 
     # create the figure and axes objects
-    fig = plt.figure(figsize=(7,7.5))
-    gs = fig.add_gridspec(4,2)
+    plt.style.use(['science', 'no-latex'])
+    fig = plt.figure(figsize=(7,7))
+    gs = fig.add_gridspec(2,2)
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     ax3 = fig.add_subplot(gs[1, :])
-    ax4= fig.add_subplot(gs[2, :])
-    ax5= fig.add_subplot(gs[3, :])
-    fig.tight_layout()
+    fig.tight_layout(pad=5.0)
+    # ax4= fig.add_subplot(gs[2, :])
+    # ax5= fig.add_subplot(gs[3, :])
+    # fig.tight_layout()
     def animate(i):
         if i >= 1:
             global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error
-            ax1.clear(), ax2.clear(), ax3.clear(), ax4.clear(), ax5.clear()
+            ax1.clear(), ax2.clear(), ax3.clear(),
+            #  ax4.clear(), ax5.clear()
             ax1.scatter(mark_x, mark_y, marker="*", c='b') #landmarks 
             '''calculating values'''
             #detecting landmark
-            if delta in (np.array(lndmrk_angles)-curr_theta):
+            if any(i < landmark_dect_toler for i in abs(np.array(lndmrk_angles)-curr_theta)):
                 lndmrk_id=np.argmin(abs(np.array(lndmrk_angles)-curr_theta))
                 lndmrk_neuron=int(lndmrk_angles[lndmrk_id])
                 ax1.scatter(lndmrks[lndmrk_id,0], lndmrks[lndmrk_id,1], marker="*", c='r')
@@ -233,6 +236,8 @@ def selfMotion_Landmark(radius,inc,iters):
             ax1. set_aspect('equal')
             ax1.set_xlim([-2,2])
             ax1.set_ylim([-2,2])
+            ax1.set_xlabel('x axis [m]')
+            ax1.set_ylabel('y axis [m]')
             ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04) #robot angle
 
             #plotting arrows of bumps
@@ -240,24 +245,28 @@ def selfMotion_Landmark(radius,inc,iters):
             ax2.set_xlim([-0.2*12,0.2*12])
             ax2.set_ylim([-0.2*12,0.2*12])
             ax2. set_aspect('equal')
+            ax2.set_xlabel('x axis [m]')
+            ax2.set_ylabel('y axis [m]')
             for j in range(0,N):
                 ax2.arrow(0,0,x[j]*10,y[j]*10)
 
             #plotting activity for self motion 
             ax3.set_title('Attractor Network Dynamics')
-            ax3.bar(neurons, prev_weights,width=0.8)
+            ax3.bar(neurons, prev_weights,width=0.8,label='Selfmotion Activity')
             ax3.set_ylim([-0.2,0.5])
+            ax3.set_xlabel('Neurons')
+            ax3.set_ylabel('Activity Weight')
 
-            ax4.set_title('Selfmotion Activity')
-            ax4.bar(neurons, selfmotion_weights,width=0.8, color='purple')
-            ax4.set_ylim([-0.2,0.5])
+            # ax4.set_title('Self Motion and Landmark Activity')
+            # ax4.bar(neurons, selfmotion_weights,width=0.8, color='purple')
+            # ax4.set_ylim([-0.2,0.5])
 
             #plotting activity for landmark 
             if landmark_weights is not None:
-                ax5.set_title('Landmark Activity')
-                ax5.bar(neurons, landmark_weights,width=0.8, color='green')
-                ax5.set_ylim([-0.2,0.5])
-            
+                # ax5.set_title('Landmark Activity')
+                ax3.bar(neurons, landmark_weights,width=0.8, label='Landmark Activity',color='red')
+                # ax5.set_ylim([-0.2,0.5])
+            ax3.legend()
                 
 
 
@@ -273,8 +282,12 @@ def selfMotion_Landmark(radius,inc,iters):
             # ax5.legend([line1, line2], ['prediction error', 'input error'])
 
     '''animation for driving in a circle'''
-    ani = FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
-    plt.show()
+    ani = anim.FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
+    # plt.show()
+
+    f = r"/home/therese/Documents/Neural_Network_Playground/results/animation.gif" 
+    writergif = anim.PillowWriter(fps=10) 
+    ani.save(f, writer=writergif)
 
 def landmark_learning(radius,inc,iters):
     # Landmarks position and angle -> every inc degrees with radius of 1.8m
@@ -350,6 +363,8 @@ def landmark_learning(radius,inc,iters):
             ax1. set_aspect('equal')
             ax1.set_xlim([-2,2])
             ax1.set_ylim([-2,2])
+            ax1.set_xlabel('x axis [m]')
+            ax1.set_xlabel('y axis [m]')
             ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04) #robot angle
 
             #plotting arrows of bumps
@@ -359,6 +374,8 @@ def landmark_learning(radius,inc,iters):
             ax2.set_xlim([-0.2*10,0.2*10])
             ax2.set_ylim([-0.2*10,0.2*10])
             ax2. set_aspect('equal')
+            ax2.set_xlabel('x axis [m]')
+            ax2.set_xlabel('y axis [m]')
             for j in range(0,N):
                 ax2.arrow(0,0,x[j]*10,y[j]*10)
 

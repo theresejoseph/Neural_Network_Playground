@@ -603,7 +603,7 @@ def data_processing_groundTruth():
     return gt,mag,rot
 
 def data_processing_oxts():
-    path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'
+    path='./data/2011_09_26/2011_09_26_drive_0005_sync/oxts/data/'
     filenames = [f for f in listdir(path)]
     filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     '''
@@ -638,7 +638,7 @@ velocities=np.concatenate([np.random.uniform(0,10,20), np.random.uniform(0,1,20)
 
 
 # pathIntegrationVelOnly(rot,mag,'KittiDataset')
-# visualiseMultiResolution1D(mag,scale,'Curated',visualise=False)
+visualiseMultiResolution1D(velocities,scale,'Curated',visualise=True)
 # visualiseMultiResolution1DLandmark(velocities,scale,visulaise=False)
 # visualiseMultiResolution1DPLotAll(velocities,scale,visulaise=True)
 
