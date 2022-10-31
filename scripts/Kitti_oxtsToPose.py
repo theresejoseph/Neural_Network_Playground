@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import sys
 import CAN as can
 
-
 # path='./data/2011_09_26_2/2011_09_26_drive_0001_sync/oxts/data/'
 # filenames = [f for f in listdir(path)]
 # filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
@@ -16,7 +15,7 @@ import CAN as can
 
 kitti_root_dir = './data'
 kitti_date = '2011_09_26'
-kitti_drive = '0005'
+kitti_drive = '0027'
 
 
 '''GPS'''
@@ -184,9 +183,9 @@ def normalise(x):
 
 
 def attractor_GPS_imu():
-    N=100
+    N=200
     scale=[0.25,0.5,1,2,4]
-    num_links,excite,activity_mag,inhibit_scale=1,3,0.1001745813,2.96673372e-02
+    num_links,excite,activity_mag,inhibit_scale=1,3,0.1051745813,2.96673372e-02
     integratedPos1=[0]
     integratedPos2=[0]
     decodedPos=[0]
@@ -194,10 +193,9 @@ def attractor_GPS_imu():
     prev_weights=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
     net=can.attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
-        prev_weights[n][net.activation(0)]=net.full_weights(num_links)
+        prev_weights[n][net.activation(N//2)]=net.full_weights(num_links)
 
-    plt.style.use(['science', 'no-latex', 'grid'])
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(6, 6))
     fig_rows,fig_cols=6,1
     ax0 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=5,colspan=1)
     # ax1 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1), rowspan=5,colspan=1)
@@ -205,8 +203,9 @@ def attractor_GPS_imu():
     # axtxt = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(5, 0), rowspan=1,colspan=1)
     # fig.tight_layout()
 
-    ax0.plot(np.arange(len(xs)),(xs),label='GPS observed x trajectory'), ax0.set_title(f'IMU GPS Integrated X Positions with Attractor Network')#, ax0.axis('equal')
-    ax0.plot(np.arange(len(x_imu)),(x_imu),label='imu observed x trajectory')
+    # ax0.plot(np.arange(len(xs)),(xs),label='GPS observed x trajectory'), 
+    ax0.set_title(f'IMU and Attractor Network Integrated Positions Drive {kitti_drive}')#, ax0.axis('equal')
+    ax0.plot(np.arange(len(x_imu)),(x_imu),label='IMU Observed Trajectory')
     # axtxt.axis('off'), 
     # axtxt.text(0,0,f'Num_links: {num_links}, Excite_radius: {excite}, Activity_magnitude: {activity_mag}, Inhibition_scale: {inhibit_scale}', color='r',fontsize=12)
 
@@ -226,7 +225,7 @@ def attractor_GPS_imu():
             prev_weights[n][prev_weights[n][:]<0]=0
             split_output[n]=can.activityDecoding(prev_weights[n][:],5,N)
         
-        decoded_translation=np.sum(split_output*scale)
+        decoded_translation=np.sum((split_output-(N//2))*scale)
 
         integratedPos1.append(integratedPos1[-1]+input1)
         integratedPos2.append(integratedPos2[-1]+input2)
@@ -238,7 +237,7 @@ def attractor_GPS_imu():
     print(fitness), 
     # axtxt.text(0,-1,f'Error: {fitness}', fontsize=12, c='g')
     # ax1.plot(np.arange(len(integratedPos1)),integratedPos1,np.arange(len(integratedPos2)),integratedPos2), ax1.set_title('Integrated Position')#, ax1.axis('equal')
-    ax0.plot((np.array(decodedPos)),label='decoded attractor x trajectory')#, ax2.axis('equal')
+    ax0.plot((np.array(decodedPos)),label='Decoded Attractor Trajectory')#, ax2.axis('equal')
     ax0.legend()
     
     plt.show()
