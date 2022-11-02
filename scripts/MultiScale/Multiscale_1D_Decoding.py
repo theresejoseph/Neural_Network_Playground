@@ -1,4 +1,4 @@
-from turtle import color
+
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -7,9 +7,7 @@ import pandas as pd
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 from matplotlib.colors import ListedColormap
-from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d import Axes3D 
-from scipy import signal
 import time 
 from os import listdir
 import sys
@@ -17,6 +15,7 @@ sys.path.append('./scripts')
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 import CAN as can
 import pykitti
+import json 
 
 
 def visualiseMultiResolution1D(velocities,scale,velocity_type, visualise=False):
@@ -593,65 +592,6 @@ def plottingGridSearch(filename):
 filename=f'./results/AblationStudyScales/10scales_3starts.npy'
 # gridSearch(filename,multiscale_1d_CAN_error,velocities)
 # plottingGridSearch(filename)
-
-'''Kitti Data'''
-def data_processing_groundTruth():
-    poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
-    gt = np.zeros((len(poses), 3, 4))
-    for i in range(len(poses)):
-        gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
-    gt=gt[0::4]
-    data_x=gt[:, :, 3][:,0][:100]
-    data_y=gt[:, :, 3][:,2][:100]
-    mag,rot=np.zeros(len(data_x)),np.zeros(len(data_x))
-    for i in range(1,len(data_x)):  
-        x1=data_x[i-1]
-        x2=data_x[i]
-        y1=data_y[i-1]
-        y2=data_y[i]
-        mag[i]=np.sqrt(((x2-x1)**2)+((y2-y1)**2))
-        rot[i]=(math.atan2(y2-y1,x2-x1)) 
-    return gt,mag,rot
-
-def data_processing_oxts():
-    path='./data/2011_09_26/2011_09_26_drive_0005_sync/oxts/data/'
-    filenames = [f for f in listdir(path)]
-    filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
-    '''
-    vn:    velocity towards north (m/s)
-    ve:    velocity towards east (m/s)
-    vf:    forward velocity, i.e. parallel to earth-surface (m/s)
-    vl:    leftward velocity, i.e. parallel to earth-surface (m/s)
-    vu:    upward velocity, i.e. perpendicular to earth-surface (m/s)'''
-    vn,ve,vf,vl,vu=np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames)), np.zeros(len(filenames))
-    for i in range(len(filenames)):
-        cur_file=pd.read_csv(path+filenames[i], delimiter=' ', header=None)
-        vn[i]=cur_file[7]
-        ve[i]=cur_file[8]
-        vf[i]=cur_file[9]
-        vl[i]=cur_file[10]
-        vu[i]=cur_file[11]
-    return vn,ve,vf,vl,vu
-
-def pykitti_loading_data():
-    kitti_root_dir = './data'
-    kitti_date = '2011_09_26'
-    kitti_drive = '0005'
-
-    dataset = pykitti.raw(kitti_root_dir, kitti_date, kitti_drive)
-    gt_trajectory_lla = []  # [longitude(deg), latitude(deg), altitude(meter)] x N
-    gt_yaws = []  # [yaw_angle(rad),] x N
-    gt_yaw_rates= []  # [vehicle_yaw_rate(rad/s),] x N
-    gt_forward_velocities = []  # [vehicle_forward_velocity(m/s),] x N
-    for oxts_data in dataset.oxts:
-        packet = oxts_data.packet
-        gt_trajectory_lla.append([
-            packet.lon,
-            packet.lat,
-            packet.alt])
-        gt_yaws.append(packet.yaw)
-        gt_yaw_rates.append(packet.wz)
-        gt_forward_velocities.append(packet.vf)
 
 
 '''Test Networks'''
