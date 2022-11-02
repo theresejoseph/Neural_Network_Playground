@@ -126,3 +126,7 @@ def plotCombinedSpeedProfile():
     all_cities_combined_speeds=saveOrLoadNp(f'./data/train_extra/speedProfiles_of_all_cities_combined',None,'load')
     axs.plot(all_cities_combined_speeds)
     plt.show()
+
+'''Testing'''
+# gt,mag,rot=data_processing_groundTruth()
+# vn,ve,vf,vl,vu=data_processing_oxts()

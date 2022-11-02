@@ -595,8 +595,6 @@ filename=f'./results/AblationStudyScales/10scales_3starts.npy'
 
 
 '''Test Networks'''
-gt,mag,rot=data_processing_groundTruth()
-vn,ve,vf,vl,vu=data_processing_oxts()
 scale=[0.25,0.5,1,2,4]
 
 # increasing 
