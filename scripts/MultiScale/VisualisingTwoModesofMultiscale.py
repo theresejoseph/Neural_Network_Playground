@@ -18,6 +18,9 @@ sys.path.append('./scripts')
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 import CAN as can
 import pykitti
+import json 
+from DataHandling import saveOrLoadNp
+
 
 def GIF_MultiResolution1D(velocities,scale, visualise=False):
     global prev_weights, num_links, excite, curr_parameter
@@ -90,11 +93,11 @@ def GIF_MultiResolution1D(velocities,scale, visualise=False):
 
         input_axes=[ax10, ax11, ax12, ax13, ax14]
         color_list=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1)]
-        closest_Scale_index=np.argmin(abs(scale-input))
-        input_axes[closest_Scale_index].axis('on')
-        input_axes[closest_Scale_index].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
+        cs_idx=np.argmin(abs(scale-input))
+        input_axes[cs_idx].axis('on')
+        input_axes[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        ax15.scatter(integratedPos[-1],i,color=color_list[closest_Scale_index])
+        ax15.scatter(integratedPos[-1],i,color=color_list[cs_idx])
         ax15.set_xbound([0,300])
         ax15.get_yaxis().set_visible(False)
         ax15.spines[['top', 'left', 'right']].set_visible(False)
@@ -106,7 +109,7 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     global prev_weights, num_links, excite, curr_parameter
     N=10
      
-    num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813,2.96673372e-02*5
+    num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*10,2.96673372e-02*5
 
     integratedPos=[0]
     decodedPos=[0]
@@ -114,7 +117,7 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     prev_weights=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
-        prev_weights[n][net.activation(N//2)]=net.full_weights(num_links)
+        prev_weights[n][net.activation(0)]=net.full_weights(num_links)
 
     '''initlising network and animate figures'''
     fig = plt.figure(figsize=(6, 6))
@@ -137,19 +140,22 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
 
         delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
         split_output=np.zeros((len(delta)))
-        '''updating network'''    
-        wraparound=np.zeros(len(delta))
-        wraparound[0]=(np.argmax(prev_weights[0][:]) + delta[0])%N
-        prev_weights[0][:]= net.update_weights_dynamics(prev_weights[0][:],delta[0])
-        prev_weights[0][prev_weights[0][:]<0]=0
-        split_output[0]=np.argmax(prev_weights[0][:])
-        for n in range(1,len(delta)):
-            wraparound[n]=(np.argmax(prev_weights[n][:]) + wraparound[n-1])%N
-            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
-            prev_weights[n][prev_weights[n][:]<0]=0
-            split_output[n]=can.activityDecoding(prev_weights[n][:],1,N)
+        '''updating network'''
+        for i in range(5):
+            cs_idx=np.argmin(abs(scale-input))    # closest scale index
+            wraparound=np.zeros(len(delta))
+            wraparound[cs_idx]=(np.argmax(prev_weights[0][:]) + delta[0])%N
+            prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[0])
+            prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
+            split_output[cs_idx]=np.argmax(prev_weights[0][:])
+
+            for n in range(cs_idx+1,len(delta)):
+                wraparound[n]=(np.argmax(prev_weights[n][:]) + wraparound[n-1])%N
+                prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
+                prev_weights[n][prev_weights[n][:]<0]=0
+                split_output[n]=can.activityDecoding(prev_weights[n][:],1,N)
         
-        decoded_translation=np.sum((split_output-N//2)*scale)
+        decoded_translation=np.sum((split_output)*scale)
 
         integratedPos.append(integratedPos[-1]+input)
         decodedPos.append(decoded_translation)   
@@ -179,25 +185,26 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
 
         input_axes=[ax10, ax11, ax12, ax13, ax14]
         color_list=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1)]
-        closest_Scale_index=np.argmin(abs(scale-input))
-        input_axes[closest_Scale_index].axis('on')
-        input_axes[closest_Scale_index].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
+        input_axes[cs_idx].axis('on')
+        input_axes[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        ax15.scatter(integratedPos[-1],i,color=color_list[closest_Scale_index])
+        ax15.scatter(integratedPos[-1],i,color=color_list[cs_idx])
         ax15.set_xbound([0,1000])
         ax15.get_yaxis().set_visible(False)
         ax15.spines[['top', 'left', 'right']].set_visible(False)
 
     ani = FuncAnimation(fig, animate, interval=10,frames=len(velocities),repeat=False)
-    # plt.show()
+    plt.show()
 
-    f = r"./results/hierachical_multiscale_animation.gif"
-    writergif = animation.PillowWriter(fps=5) 
-    ani.save(f, writer=writergif)
+    # f = r"./results/hierachical_multiscale_animation.gif"
+    # writergif = animation.PillowWriter(fps=5) 
+    # ani.save(f, writer=writergif)
 
 # scale=[0.25,0.5,1,2,4]
 # velocities=np.concatenate([np.array([scale[0]]*25), np.array([scale[1]]*25), np.array([scale[2]]*25), np.array([scale[3]]*25), np.array([scale[4]]*25), np.array([scale[3]]*25),  np.array([scale[2]]*25),  np.array([scale[1]]*25),  np.array([scale[0]]*25)])
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
-scale=[0.01,0.1,1,10,100]
-velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
+scale=[0.1,1,10,100,1000]
+# velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
+
+velocities=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{0}',None,'load')
 GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=True)

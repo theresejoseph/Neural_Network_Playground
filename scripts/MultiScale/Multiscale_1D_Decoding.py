@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -16,31 +15,14 @@ from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkSca
 import CAN as can
 import pykitti
 import json 
+from DataHandling import saveOrLoadNp
 
 
 def visualiseMultiResolution1D(velocities,scale,velocity_type, visualise=False):
     global prev_weights, num_links, excite, curr_parameter
     N=100
-    # num_links,excite,activity_mag,inhibit_scale=6,3,1.01078180e-01,8.42457941e-01
-    num_links,excite,activity_mag,inhibit_scale=3,3,0.6923,0.0064
-
-
-    num_links,excite,activity_mag,inhibit_scale=1,1,9.37279639e-02,1.91339076e-02
-    num_links,excite,activity_mag,inhibit_scale=1,5,0.920393357,0.04
-    num_links,excite,activity_mag,inhibit_scale=4,7,9.17296828e-01,5.59935054e-03
-
-    num_links,excite,activity_mag,inhibit_scale=1,1,4.33654032e-02,8.51548180e-02
-
-    num_links,excite,activity_mag,inhibit_scale=1,3,1.21745813e-01,5.96673372e-02
-
     num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813,2.96673372e-02
 
-
-    # num_links,excite,activity_mag,inhibit_scale=1,4,1.00221581e-01,1.29876096e-01
-    # num_links,excite,activity_mag,inhibit_scale=9,7,8.66094143e-01,5.46047909e-02
-
-    # num_links,excite,activity_mag,inhibit_scale=7,4,8.79135325e-03,4.64271510e-02
-    # num_links,excite,activity_mag,inhibit_scale=1,1,5.90329937e-01,1.00934699e-02
     integratedPos=[0]
     decodedPos=[0]
 
@@ -516,95 +498,18 @@ def pathIntegrationVelOnly(rot,velocities,velocity_type):
     ax2.plot(tru_x,tru_y,x,y), ax2.set_title('Path Integration'),ax2.legend(['Ground Truth','Integrated Mag&Rot'])
     plt.show()
 
-'''Ablation study of scale ratios - Grid Search'''
-def scaleVals(start_idx,ratio):
-    start=[1,1/ratio,1/(ratio**2)]
-    scale=[start[start_idx]]
-    for i in range(4):
-        scale.append(scale[-1]*ratio)
-    return scale
 
-def multiscale_1d_CAN_error(velocities,start_idx, ratio):
-    scale=scaleVals(start_idx, ratio)
-    # print(start_idx, ratio,scale)
-    N=100
-    num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813,2.96673372e-02
-    integratedMag=[0]
-    decodedMag=[0]
-
-    prev_weights=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
-    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
-    for n in range(len(prev_weights)):
-        prev_weights[n][net.activation(0)]=net.full_weights(num_links)
-    
-    for i in range(1,len(velocities)):
-        input=velocities[i]
-
-        delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
-        split_output=np.zeros((len(delta)))
-        '''updating network'''    
-        for n in range(len(delta)):
-            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
-            prev_weights[n][prev_weights[n][:]<0]=0
-            split_output[n]=np.argmax(prev_weights[n][:])
-        
-        decoded_translation=np.sum(split_output*scale)
-
-        integratedMag.append(integratedMag[-1]+input)
-        decodedMag.append(decoded_translation)   
-
-    fitness=np.sum(abs(np.array(integratedMag)-np.array(decodedMag)))*-1
-    return fitness
-
-def gridSearch(filename,error_func,velocities):
-    start_idxs=[0,1,2]
-    ratios=list(np.arange(2,11))
-    error=np.zeros((len(start_idxs),len(ratios)))
-    for i,stid in enumerate(start_idxs):
-        for j,rat in enumerate(ratios):
-            # print(mag,inh)
-            t=time.time()
-            error[i,j]=error_func(velocities,stid, rat)
-            print(i,j,error[i,j], time.time()-t)
-    with open(filename, 'wb') as f:
-        np.save(f, np.array(error))
-
-def plottingGridSearch(filename):
-    start_idxs=[0,1,2]
-    ratios=list(np.arange(2,11))
-    with open(filename, 'rb') as f:
-        error = np.load(f)
-        norm_error=error/np.linalg.norm(error)
-
-    fig, ax0=plt.subplots(figsize=(10, 7), ncols=1)
-    print(error)
-    ax0.set_title(filename)
-    pos= ax0.imshow(error)
-    fig.colorbar(pos)
-    ax0.set_ylabel('Start Value')
-    ax0.set_xlabel('Ratio')
-    ax0.set_xticks(np.arange(len(ratios)),[round(a,4) for a in ratios])
-    ax0.set_yticks(np.arange(len(start_idxs)), [1,'1/ratio','1/ratio^2'],rotation=90)
-    # ax0.grid(True)
-
-    plt.show()
-
-filename=f'./results/AblationStudyScales/10scales_3starts.npy'
-# gridSearch(filename,multiscale_1d_CAN_error,velocities)
-# plottingGridSearch(filename)
 
 
 '''Test Networks'''
 scale=[0.25,0.5,1,2,4]
-
 # increasing 
 velocities=np.concatenate([np.array([0.01]*25), np.zeros(25), np.array([0.1]*25), np.zeros(25), np.array([1]*25), np.zeros(25), np.array([10]*25), np.zeros(25), np.array([100]*25)])
 # velocities increasing then decreainf 
 velocities=np.concatenate([np.array([scale[0]]*25), np.array([scale[1]]*25), np.array([scale[2]]*25), np.array([scale[3]]*25), np.array([scale[4]]*25), np.array([scale[3]]*25),  np.array([scale[2]]*25),  np.array([scale[1]]*25),  np.array([scale[0]]*25)])
 # random uniform distribution 
-# velocities=np.concatenate([np.random.uniform(0,10,20), np.random.uniform(0,1,20), np.random.uniform(0,0.1,21)])
+velocities=np.concatenate([np.random.uniform(0,10,20), np.random.uniform(0,1,20), np.random.uniform(0,0.1,21)])
 
-# velocities=np.array([scale[0]]*2)
 
 # pathIntegrationVelOnly(rot,mag,'KittiDataset')
 # visualiseMultiResolution1D(velocities,scale,'Curated',visualise=True)

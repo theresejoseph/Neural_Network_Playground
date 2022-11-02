@@ -130,3 +130,6 @@ def plotCombinedSpeedProfile():
 '''Testing'''
 # gt,mag,rot=data_processing_groundTruth()
 # vn,ve,vf,vl,vu=data_processing_oxts()
+
+# plotSpeedProfileforEachCity()
+# plotCombinedSpeedProfile()
