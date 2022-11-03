@@ -60,31 +60,30 @@ class attractorNetwork:
 
     def update_weights_dynamics(self,prev_weights, delta, moreResults=None, cross=None):
         
-        for i in range(3):
-            indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
-            non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
-            '''copied and shifted activity'''
-            full_shift_amount=lambda x: np.floor(x) if x > 0 else np.ceil(x)
-            full_shift[(non_zero_idxs + int(full_shift_amount(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
-            # print(int(np.floor(delta)))
-            shift=self.frac_weights_1D(full_shift,delta)  #non zero weights shifted by delta
-            copy_shift=shift+prev_weights
-            shifted_indexes=np.nonzero(copy_shift)[0]
-            '''excitation'''
-            excitations_store=np.zeros((len(shifted_indexes),self.N))
-            excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
-            for i in range(len(shifted_indexes)):
-                excitation_array[self.excitations(shifted_indexes[i])]=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
-                excitations_store[i,:]=excitation_array
-                excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
-            '''inhibit'''
-            # shift_excite=copy_shift
-            non_zero_inhibit=np.nonzero(excite) 
-            for idx in non_zero_inhibit[0]:
-                inhibit_val+=excite[idx]*self.inhibit_scale
-            '''update activity'''
-            prev_weights+=(copy_shift+excite-inhibit_val)
-            prev_weights=prev_weights/np.linalg.norm(prev_weights)
+        indexes,non_zero_weights,full_shift,inhibit_val=np.arange(self.N),np.zeros(self.N),np.zeros(self.N),0
+        non_zero_idxs=indexes[prev_weights>0] # indexes of non zero prev_weights
+        '''copied and shifted activity'''
+        full_shift_amount=lambda x: np.floor(x) if x > 0 else np.ceil(x)
+        full_shift[(non_zero_idxs + int(full_shift_amount(delta)))%self.N]=prev_weights[non_zero_idxs]*self.activity_mag
+        # print(int(np.floor(delta)))
+        shift=self.frac_weights_1D(full_shift,delta)  #non zero weights shifted by delta
+        copy_shift=shift+prev_weights
+        shifted_indexes=np.nonzero(copy_shift)[0]
+        '''excitation'''
+        excitations_store=np.zeros((len(shifted_indexes),self.N))
+        excitation_array,excite=np.zeros(self.N),np.zeros(self.N)
+        for i in range(len(shifted_indexes)):
+            excitation_array[self.excitations(shifted_indexes[i])]=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
+            excitations_store[i,:]=excitation_array
+            excite[self.excitations(shifted_indexes[i])]+=self.full_weights(self.excite_radius)*prev_weights[shifted_indexes[i]]
+        '''inhibit'''
+        # shift_excite=copy_shift
+        non_zero_inhibit=np.nonzero(excite) 
+        for idx in non_zero_inhibit[0]:
+            inhibit_val+=excite[idx]*self.inhibit_scale
+        '''update activity'''
+        prev_weights+=(copy_shift+excite-inhibit_val)
+        prev_weights=prev_weights/np.linalg.norm(prev_weights)
 
         if moreResults==True:
            return prev_weights/np.linalg.norm(prev_weights), non_zero_weights,[inhibit_val]*self.N, excitations_store
