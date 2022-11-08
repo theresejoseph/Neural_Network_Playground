@@ -72,6 +72,26 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,i,N):
         print(f"{str(i)}  translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
         
 
+def testing_CAN_shift():
+    #Network and initliasation 
+    N,num_links,excite,activity_mag,inhibit_scale=100, 1,3,0.0721745813*5,2.96673372e-02
+    prev_weights=np.zeros(N)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights[net.activation(0)]=net.full_weights(num_links)
+
+    scale=0.5
+    inputs=np.linspace(0,20,200)
+    outputs=np.zeros(len(inputs))
+    for i in range(len(inputs)):
+        prev_weights=net.update_weights_dynamics(prev_weights,inputs[i]/scale)
+        outputs[i]=np.argmax(prev_weights)
+
+    plt.plot(inputs,outputs, inputs, inputs)
+    # plt.xlim([0, 20])
+    plt.show()
+
+
+
 def GIF_MultiResolution1D(velocities,scale, visualise=False):
     global prev_weights, num_links, excite, curr_parameter
     N=100
@@ -295,9 +315,10 @@ velocities=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{1}',None,'load')
 num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02 #hierarchy
 scale=[0.5,1,2,4,8]
 # GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False)
-MultiResolutionFeedthrough1D(velocities,scale)
+# MultiResolutionFeedthrough1D(velocities,scale)
 
-num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02 #og
-scale=[0.1,1,10,100,1000]
+
+# scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
 # MultiResolution1D(velocities,scale)
+testing_CAN_shift()
