@@ -391,7 +391,7 @@ def visulaiseFractionalWeights():
     ax0.set_ylim([0,10])
     ax0.set_title('Orginal')
 
-    ax1.bar(np.arange(len(weights)),net.frac_weights_1D(weights,0.25),color='m')
+    ax1.bar(np.arange(len(weights)),net.frac_weights_1D(weights,0.012),color='m')
     ax1.set_title('0.25 unit copy paste')
     ax1.set_ylim([0,10])
 
