@@ -566,6 +566,9 @@ def visulaise2DFractions():
 
 def activityDecoding(prev_weights,radius,N):
     '''Isolating activity at a radius around the peak to decode position'''
+    # if np.argmax(prev_weights)==0:
+    #     return 0
+    # else:
     neurons=np.arange(N)
     peak=np.argmax(prev_weights) 
     local_activity=np.zeros(N)
@@ -577,6 +580,9 @@ def activityDecoding(prev_weights,radius,N):
     x,y=local_activity*np.cos(np.deg2rad(neurons*360/N)), local_activity*np.sin(np.deg2rad(neurons*360/N))
     vect_sum=np.rad2deg(math.atan2(sum(y),sum(x))) % 360
     weighted_sum = N*(vect_sum/360)
+
+    if weighted_sum==N:
+        weighted_sum=0
 
     return weighted_sum
 

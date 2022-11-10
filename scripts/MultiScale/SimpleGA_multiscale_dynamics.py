@@ -4,6 +4,7 @@ import numpy as np
 import sys
 sys.path.append('./scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
+import CAN as can
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import math
@@ -181,6 +182,33 @@ def MultiResolution2D(genome):
     # print(fitness)
     return fitness
 
+#improving operation point 
+def CAN_tuningShiftAccuracy(genome):
+    N=100
+    num_links=int(genome[0])
+    excite=int(genome[1])
+    activity_mag=genome[2]
+    inhibit_scale=genome[3]
+    iterations=int(genome[4])
+    
+    prev_weights=np.zeros(N)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights[net.activation(0)]=net.full_weights(num_links)
+    inputs=np.linspace(0,1,70)
+    outputs=np.zeros(len(inputs))
+    peaks=np.zeros(len(inputs))
+
+    for i in range(1,len(inputs)):
+        for iter in range(iterations):
+            prev_weights=net.update_weights_dynamics(prev_weights,inputs[i])
+            prev_weights[prev_weights<0]=0
+        
+        peaks[i]=can.activityDecoding(prev_weights,3,N)
+        outputs[i]=(abs(can.activityDecoding(prev_weights,4,N)-peaks[i-1]))
+    
+    return (np.sum(abs(outputs-inputs)))*-1
+       
+
 class GeneticAlgorithm:
     def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges,mutate_amount):
         self.num_gens=num_gens
@@ -193,7 +221,7 @@ class GeneticAlgorithm:
     def initlisePopulation(self,numRandGenomes):
         population=[]
         for i in range(numRandGenomes):
-            genome=[random.randint(self.ranges[0][0],self.ranges[0][1]), random.randint(self.ranges[1][0],self.ranges[1][1]), random.uniform(self.ranges[2][0],self.ranges[2][1]), random.uniform(self.ranges[3][0],self.ranges[3][1])]
+            genome=[random.randint(self.ranges[0][0],self.ranges[0][1]), random.randint(self.ranges[1][0],self.ranges[1][1]), random.uniform(self.ranges[2][0],self.ranges[2][1]), random.uniform(self.ranges[3][0],self.ranges[3][1]), random.randint(self.ranges[1][0],self.ranges[1][1])]
             population.append(genome)
         return population 
 
@@ -255,7 +283,8 @@ class GeneticAlgorithm:
             order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
 
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
-            if i>=5 and current_fitnesses[-5]==current_fitnesses[-1]*5:
+            stop_val=10
+            if i>=stop_val and current_fitnesses[-stop_val]==current_fitnesses[-1]*stop_val:
                 break
             print(fitnesses)
 
@@ -268,16 +297,16 @@ class GeneticAlgorithm:
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
     filename=f'./results/GA_MultiScale/20_gens_20pop_positions_transFitness.npy'
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
-    ranges = [[1,10],[1,10],[0.1,1],[0,0.1]]
-    fitnessFunc=MultiResolutionTranslation
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10]]
+    fitnessFunc=CAN_tuningShiftAccuracy#MultiResolutionTranslation
     num_gens=20
     population_size=20
 
     if plot==True:
         with open(filename, 'rb') as f:
             data = np.load(f)
-        plt.plot([max(fit) for fit in data[:,:,-1]])
+        plt.plot([max(fit) for fit in data[:,:,-1]], 'g.')
         plt.title('Best Fitness over 20 Generation')
         plt.show()
         print(data[:,1,:])
