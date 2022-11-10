@@ -24,28 +24,29 @@ from DataHandling import saveOrLoadNp
 
 
 def scale_selection(input,scales):
-    if input<=scales[0]*4:
+    swap_val=4
+    if input<=scales[0]*swap_val:
         scale_idx=0
-    elif input>scales[0]*4 and input<=scales[1]*4:
+    elif input>scales[0]*swap_val and input<=scales[1]*swap_val:
         scale_idx=1
-    elif input>scales[1]*4 and input<=scales[2]*4:
+    elif input>scales[1]*swap_val and input<=scales[2]*swap_val:
         scale_idx=2
-    elif input>scales[2]*4:
+    elif input>scales[2]*swap_val:
         scale_idx=3
     return scale_idx
 
 def inputToAllNetwork(integratedPos,decodedPos,net,i,N):
     input=velocities[i]
 
-    delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
+    delta = [(input/scales[0]), (input/scales[1]), (input/scales[2]), (input/scales[3]), (input/scales[4])]
     for i in range(9):
         split_output=np.array([np.argmax(x) for x in prev_weights])
-        cs_idx=np.argmin(abs(scale-input))
+        cs_idx=np.argmin(abs(scales-input))
         prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
         split_output[cs_idx]=can.activityDecoding(prev_weights[cs_idx][:],5,N)
     
-    decoded_translation=np.sum((split_output)*scale)
+    decoded_translation=np.sum((split_output)*scales)
     integratedPos.append(integratedPos[-1]+input)
     decodedPos.append(decoded_translation)   
     print(f"{str(i)}  translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )}  ")
@@ -114,7 +115,7 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N):
     split_output=np.array([np.argmax(prev_weights[n][:]) for n in range(len(delta))])
 
     
-    decoded_translation=np.sum(((split_output))*scales)*1.375
+    decoded_translation=np.sum(((split_output))*scales)
 
     integratedPos.append(integratedPos[-1]+input)
     decodedPos.append(decoded_translation)   
@@ -338,7 +339,45 @@ def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=Tru
         return np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))
 
 
+def animate_CAN():
+    global prev_weights
+    fig, axs = plt.subplots(1,1, figsize=(8, 5))
+    fig.subplots_adjust(hspace=0.9)
+    fig.suptitle("CAN with varying Input Speeds", fontsize=14, y=0.98)
+    
+    N,num_links,excite,activity_mag,inhibit_scale=100, 1,3,0.0721745813*5,2.96673372e-02
+    prev_weights=np.zeros(N)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights[net.activation(0)]=net.full_weights(num_links)
+    scales=[0.25,0.5,1,2,4]
+    inputs=np.linspace(0,scales[2]*20,200)/scales[2]
+    outputs=np.zeros(len(inputs))
 
+    def animate(i):
+        global prev_weights
+        axs.clear()
+        prev_weights=net.update_weights_dynamics(prev_weights,inputs[i])
+        prev_weights[prev_weights<0]=0
+
+        outputs[i+1]=(abs(np.argmax(prev_weights)-outputs[i]))
+        # print(outputs[i+1], inputs[i])
+
+        axs.bar(np.arange(N),prev_weights,color=(0.9,0.4,0.5,0.4))
+        axs.set_title(f"Input: {round(inputs[i],2)}, Output: {outputs[i+1]}")
+        axs.set_ylim([0, 0.6])
+        
+    
+    ani = FuncAnimation(fig, animate, interval=10,frames=len(inputs)-1,repeat=False)
+    # plt.show()
+
+    f = r"./results/CAN_with_varying_InputSpeeds.gif" 
+    writergif = animation.PillowWriter(fps=5) 
+    ani.save(f, writer=writergif)
+   
+    
+
+
+    
 
 def testing_CAN_shift():
     #Network and initliasation 
@@ -349,14 +388,13 @@ def testing_CAN_shift():
     scales=[0.25,0.5,1,2,4]
 
     fig, axs = plt.subplots(3,2, figsize=(15, 6))
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle("Input shift vs Decoding", fontsize=18, y=0.95)
+    fig.subplots_adjust(hspace=0.9)
+    fig.suptitle("Input vs Decoding CAN Activity Shift", fontsize=14, y=0.95)
     axs = axs.ravel()
     axs[-1].axis('off')
 
     for j,scale in enumerate(scales):
-        inputs=np.linspace(0,scale*20,200)/scale
-        # print(np.cumsum(inputs))
+        inputs=np.linspace(0,scales[0]*20,200)/scales[0]
         outputs=np.zeros(len(inputs))
         minimum_error_region=[]
         for i in range(1,len(inputs)):
@@ -367,11 +405,14 @@ def testing_CAN_shift():
             if (abs(outputs[i]-inputs[i]))<0.5:
                 # print(scale, outputs[i], inputs[i])
                 minimum_error_region.append([inputs[i],outputs[i]])
+        
         min_err_out=np.array([minimum_error_region[i][0] for i in range(len(minimum_error_region))])
         min_err_in=np.array([minimum_error_region[i][1] for i in range(len(minimum_error_region))])
         axs[j].plot(inputs*scale,outputs*scale)
         axs[j].plot(min_err_in*scale,min_err_out*scale, 'r.')
-        axs[j].set_title(f'{scale} Shift Per Neuron')
+        axs[j].set_title(f'{scale}meter Shift Per Neuron')
+        axs[j].set_ylabel('Decoded Speeds')
+        axs[j].set_xlabel('Input Speeds ')
         
         prev_weights=np.zeros(N)
         prev_weights[net.activation(0)]=net.full_weights(num_links)
@@ -406,10 +447,11 @@ velocities=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{0}',None,'load')
 N,num_links,excite,activity_mag,inhibit_scale=100,1,3,0.0721745813*100,2.96673372e-02 #hierarchy
 scales=[0.5,1,2,4,100]
 # GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
-# MultiResolutionFeedthrough1D(velocities,scales)
+MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
 # MultiResolution1D(velocities,scale)
-testing_CAN_shift()
+# animate_CAN()
+# testing_CAN_shift()
 # testAllcities()
