@@ -5,11 +5,13 @@ import sys
 sys.path.append('./scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 import CAN as can
+from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
+from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import math
 
-
+'''GA Fitness Functions'''
 #1D input velocities comparing movement wihtin undesired scale 
 def MultiResolutionTranslation(genome):
     N=100
@@ -182,7 +184,7 @@ def MultiResolution2D(genome):
     # print(fitness)
     return fitness
 
-#improving operation point 
+#input to outuput accuracy
 def CAN_tuningShiftAccuracy(genome):
     N=100
     num_links=int(genome[0])
@@ -194,7 +196,7 @@ def CAN_tuningShiftAccuracy(genome):
     prev_weights=np.zeros(N)
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights[net.activation(0)]=net.full_weights(num_links)
-    inputs=np.linspace(0,1,70)
+    inputs=np.concatenate([np.linspace(0,0.25,15), np.linspace(0.25,1,15), np.array([4]*5),  np.array([16]*2)])
     outputs=np.zeros(len(inputs))
     peaks=np.zeros(len(inputs))
 
@@ -207,8 +209,37 @@ def CAN_tuningShiftAccuracy(genome):
         outputs[i]=(abs(can.activityDecoding(prev_weights,4,N)-peaks[i-1]))
     
     return (np.sum(abs(outputs-inputs)))*-1
-       
+# tuning with wraparound 
+def CAN_tuningShiftAccuracywithWraparound(genome):
+    #genome parameters 
+    N=100
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4]) #int
+    wrap_iterations= int(genome[5]) #int
+    wrap_mag=genome[6] #uni
+    wrap_inhi=genome[7] #uni
+    
+    #initialising network
+    scales=[0.25,1,4,16,100,10000]
+    prev_weights=np.zeros(N)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights[net.activation(0)]=net.full_weights(num_links)
+    inputs=np.concatenate([np.array([16]*110),np.linspace(100,300,100)])
+    integratedPos=[0]
+    decodedPos=[0]
 
+    for i in range(1,len(inputs)):
+        hierarchicalNetwork(integratedPos,decodedPos,net,inputs[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
+
+    
+    return (np.sum(abs(np.array(decodedPos)-np.array(integratedPos))))*-1
+
+
+
+'''Implementation'''
 class GeneticAlgorithm:
     def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges,mutate_amount):
         self.num_gens=num_gens
@@ -217,11 +248,19 @@ class GeneticAlgorithm:
         self.fitnessFunc=fitnessFunc
         self.ranges=ranges
         self.mutate_amount=mutate_amount
-    
+
+    def rand(self,range_idx,intOruni):
+        # return random integer or float from uniform distribution  within the allowed range of each parameter 
+        if intOruni=='int':
+            return random.randint(self.ranges[range_idx][0],self.ranges[range_idx][1])
+        elif intOruni=='uni':
+            return random.uniform(self.ranges[range_idx][0],self.ranges[range_idx][1])
+
     def initlisePopulation(self,numRandGenomes):
         population=[]
         for i in range(numRandGenomes):
-            genome=[random.randint(self.ranges[0][0],self.ranges[0][1]), random.randint(self.ranges[1][0],self.ranges[1][1]), random.uniform(self.ranges[2][0],self.ranges[2][1]), random.uniform(self.ranges[3][0],self.ranges[3][1]), random.randint(self.ranges[1][0],self.ranges[1][1])]
+            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
             population.append(genome)
         return population 
 
@@ -263,6 +302,7 @@ class GeneticAlgorithm:
         # new_population=[population[idx] for idx in indexes] #parents are added to the new population 
         '''Add 5 random genomes into the population'''
         new_population=self.initlisePopulation(num_parents)
+        
         '''Make 15 Children from the fittest parents'''
         for i in range(num_parents):
             for j in range(num_children_perParent):
@@ -277,13 +317,14 @@ class GeneticAlgorithm:
 
         '''iterate through generations'''
         for i in range(self.num_gens):
+            print(f'Current Generation {i}')
             population=np.array(self.selection(population))
             print('Finsihed making new populaiton  through mutation, now evaluting fitness and sorting')
             fitnesses,indexes=self.sortByFitness(population,self.population_size)
             order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
 
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
-            stop_val=10
+            stop_val=5
             if i>=stop_val and current_fitnesses[-stop_val]==current_fitnesses[-1]*stop_val:
                 break
             print(fitnesses)
@@ -291,22 +332,22 @@ class GeneticAlgorithm:
         with open(self.filename, 'wb') as f:
             np.save(f, np.array(order_population))
 
-
-
-
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/20_gens_20pop_positions_transFitness.npy'
+    filename=f'./results/GA_MultiScale/20_gens_20pop_wraparound.npy'
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
+    # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
+
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
     ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10]]
-    fitnessFunc=CAN_tuningShiftAccuracy#MultiResolutionTranslation
+    fitnessFunc=CAN_tuningShiftAccuracy
     num_gens=20
-    population_size=20
+    population_size=32
 
     if plot==True:
         with open(filename, 'rb') as f:
             data = np.load(f)
-        plt.plot([max(fit) for fit in data[:,:,-1]], 'g.')
+        plt.plot([max(fit) for fit in data[:,:,-1]], 'g*-')
         plt.title('Best Fitness over 20 Generation')
         plt.show()
         print(data[:,1,:])
@@ -317,7 +358,7 @@ def runGA1D(plot=False):
 runGA1D(plot=False)
 runGA1D(plot=True)
 
-
+# def decodedPosAfterupdate(weights,input):
 
 
 
@@ -449,10 +490,6 @@ def visualiseMultiResolutionTranslation(genome):
 #     genome=[random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1]), random.randint(ranges[0][0],ranges[0][1]), random.randint(ranges[1][0],ranges[1][1]), random.uniform(ranges[2][0],ranges[2][1]), random.uniform(ranges[3][0],ranges[3][1])]
 #     population.append(genome)
 # GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
-
-
-
-
 
 
 def visualiseMultiResolutionTranslation2D(genome):
