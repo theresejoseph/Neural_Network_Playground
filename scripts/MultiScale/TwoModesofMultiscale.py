@@ -14,14 +14,21 @@ from scipy import signal
 import time 
 from os import listdir
 import sys
-sys.path.append('./scripts')
+sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 import CAN as can
 import pykitti
 import json 
 from DataHandling import saveOrLoadNp
 
-
+def decodedPosAfterupdate(net,weights,input):
+    original=can.activityDecoding(weights,4,N)
+    for i in range(iterations):
+        weights= net.update_weights_dynamics(weights,input)
+    if can.activityDecoding(weights,4,N)<original:
+        return 1
+    else: 
+        return 0
 
 def scale_selection(input,scales):
     swap_val=1
@@ -86,40 +93,44 @@ def hierarchicalIncrementalNetwork(integratedPos,decodedPos,net,i,N):
 
         print(f"{str(i)}  translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
         
-def hierarchicalNetwork(integratedPos,decodedPos,net,input,N):
+def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_iterations, wrap_mag, wrap_inhi):
     # wrap_mag=2.851745813
     # wrap_inhi=2.96673372e-02/2
-    wrap_iterations=10
-    wrap_mag=0.63344853*10
+    
     delta = [(input/scales[0]), (input/scales[1]), (input/scales[2]), (input/scales[3]), (input/scales[4])]
     split_output=np.zeros((len(scales)))
     
     '''updating selected network'''
     cs_idx=scale_selection(input,scales)
-    wraparound=np.zeros(len(scales)-1)
-    wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//N
-    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N), delta[cs_idx], wraparound[cs_idx])
+    wraparound=np.zeros(len(scales))
+    # wraparound[cs_idx]=decodedPosAfterupdate(net,prev_weights[cs_idx][:],delta[cs_idx])
+    wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
+    # wraparound[cs_idx]=(np.argmax(prev_weights[cs_idx][:]) + delta[cs_idx])//N
+    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N), delta[cs_idx], wraparound[cs_idx], cs_idx)
+    
+
     for iter in range(iterations):
         prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
 
     '''wrap around network update'''
-    net=attractorNetwork(N,num_links,excite, wrap_mag,inhibit_scale)
-    for n in range(cs_idx+1,len(scales)-1):
-        wraparound[n]=(can.activityDecoding(prev_weights[n][:],4,N) + wraparound[n-1])//N
-    if np.sum(wraparound)>0:
-        print(wraparound)
+    net=attractorNetwork(N,num_links,excite, wrap_mag,wrap_inhi)
+    for n in range(cs_idx+1,len(scales)):
+        # wraparound[n]=(np.argmax(prev_weights[cs_idx][:]) + delta[cs_idx])//N
+        wraparound[n]=(can.activityDecoding(prev_weights[n][:],4,N) + (wraparound[n-1]*scales[n-1]))//(N-1)
+
+    print(can.activityDecoding(prev_weights[4][:],4,N), wraparound[4],can.activityDecoding(prev_weights[3][:],4,N), wraparound[3])
+
     for j in range(4):
         for iter in range(wrap_iterations):
             prev_weights[-2][:]= net.update_weights_dynamics(prev_weights[-2][:],(wraparound[j]*scales[j]*N)/scales[-2])
             # print(wraparound[n], (wraparound[n]*scales[n]*N)/scales[-1])
             prev_weights[-2][prev_weights[-2][:]<0]=0
 
-    for k in range(4,len(scales)-1):
-        for iter in range(wrap_iterations):
-            prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[k]*scales[k]*N)/scales[-1])
-            # print(wraparound[n], (wraparound[n]*scales[n]*N)/scales[-1])
-            prev_weights[-1][prev_weights[-1][:]<0]=0
+    for iter in range(wrap_iterations):
+        prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[4]*scales[4]*N)/scales[-1])
+        # print(wraparound[n], (wraparound[n]*scales[n]*N)/scales[-1])
+        prev_weights[-1][prev_weights[-1][:]<0]=0
 
     # can.activityDecoding(prev_weights[n][:],4,N)
 
@@ -257,15 +268,16 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
         global prev_weights
         axs[-1].clear()
 
-        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N)
+        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
         for k in range(ncols-1):
             axs[k].clear()
             axs[k].set_title(f"Resolution ({scale[k]}m per Neuron)",fontsize=10)
        
             axs[k].bar(np.arange(N),prev_weights[k][:],color=colors[k])
-            axs[k].axis('off')
+            axs[k].spines[['top', 'left', 'right']].set_visible(False)
 
+           
 
         # cs_idx=np.argmin(abs(scale-velocities[i]))
         cs_idx=scale_selection(velocities[i],scales)
@@ -273,12 +285,14 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
         axs[cs_idx].axis('on')
         axs[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        axs[-1].scatter(integratedPos[-1],i,color=color_list[cs_idx])
-        axs[-1].set_xbound([0,10000])
+        axs[-1].scatter(integratedPos[-1],0.75,color=color_list[cs_idx])
+        axs[-1].scatter(decodedPos[-1],0.25,color='g')
+        axs[-1].set_xbound([0,40000])
+        axs[-1].set_ybound([0,1])
         axs[-1].get_yaxis().set_visible(False)
         axs[-1].spines[['top', 'left', 'right']].set_visible(False)
 
-    ani = FuncAnimation(fig, animate, interval=10,frames=len(velocities),repeat=False)
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(velocities),repeat=False)
     if visualise==True:
         f = r"./results/Hierarchical_ScaleSelection_Multiscale_Citiscape.gif" 
         writergif = animation.PillowWriter(fps=10) 
@@ -299,7 +313,7 @@ def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=Tru
     
 
     for i in range(len(velocities)):
-        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N)
+        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
     
     if visualise==True:
         '''initlising network and animate figures'''
@@ -418,18 +432,34 @@ def testAllcities():
 
 # velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
 
-velocities=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{5}',None,'load')
+velocities=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{22}',None,'load')
+velocities=np.concatenate([np.array([100]*80),np.array([16]*200)])
+
 # N,num_links,excite,activity_mag,inhibit_scale=100,1,3,0.0721745813*100,2.96673372e-02 #hierarchy
 # N,num_links,excite,activity_mag,inhibit_scale=100, 4,7,2.33652075e-01,3.15397654e-02
 # N,num_links,excite,activity_mag,inhibit_scale,iterations=100,9,4,0.49018873,0.06870083,6
-N,num_links,excite,activity_mag,inhibit_scale,iterations=100,1,1,0.63344853,0.09274966,6
+# N,num_links,excite,activity_mag,inhibit_scale,iterations=100,1,1,0.63344853,0.09274966,6
+# wrap_iterations=10
+# wrap_mag=0.63344853*10
+# wrap_inhi=inhibit_scale
 scales=[0.25,1,4,16,100,10000]
+N=100   
+num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations,wrap_mag,wrap_inhi=2,3,1.2878113,0.08947041,3,2,2.21454636,0.08230016
+num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations,wrap_mag,wrap_inhi=4,6,1.44615670e+00,5.44855219e-02,2,7,2.42691166e+00,4.45296033e-02
+num_links,excite,activity_mag,inhibit_scale,iterations=1,6,2.92694865,0.09309933,2
+# num_links,excite,activity_mag,inhibit_scale,iterations=5,2,0.6791916,0.05619186,7 
 
-# GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
-MultiResolutionFeedthrough1D(velocities,scales)
+
+wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
+
+
+GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
+# MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
 # MultiResolution1D(velocities,scale)
 # testing_and_animate_CAN(animate=True)
 # testAllcities()
+
+#  inputs=np.concatenate([np.linspace(0,1,25), np.array([4]*5),  np.array([16]*1)])

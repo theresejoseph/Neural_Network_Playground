@@ -581,7 +581,7 @@ def activityDecoding(prev_weights,radius,N):
     vect_sum=np.rad2deg(math.atan2(sum(y),sum(x))) % 360
     weighted_sum = N*(vect_sum/360)
 
-    if weighted_sum==N:
+    if weighted_sum>(N-1):
         weighted_sum=0
 
     return weighted_sum
