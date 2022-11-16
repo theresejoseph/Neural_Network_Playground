@@ -239,11 +239,13 @@ def MultiResolution1D(velocities,scale, visualise=False):
 
 
 def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
-    global prev_weights
+    global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
 
     integratedPos=[0]
     decodedPos=[0]
+    speeds=[0]
+    
 
     prev_weights=[np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)]
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
@@ -439,7 +441,7 @@ def testAllcities():
 # velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
 
 velocities=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{1}',None,'load')
-# velocities=np.concatenate([np.array([16]*200),np.array([100]*80)])
+velocities=np.concatenate([np.array([16]*200),np.array([100]*80)])
 # velocities=np.concatenate([np.random.uniform(0,0.9,50), np.random.uniform(1,10,50), np.random.uniform(30,100.1,21)])
 
 # N,num_links,excite,activity_mag,inhibit_scale=100,1,3,0.0721745813*100,2.96673372e-02 #hierarchy
@@ -458,17 +460,17 @@ num_links,excite,activity_mag,inhibit_scale,iterations=7,1,1.15234255,0.09776188
 num_links,excite,activity_mag,inhibit_scale,iterations=1,6,2.29804683,0.14980466,2
 num_links,excite,activity_mag,inhibit_scale,iterations=7,10,2.13954369,0.12387683,2 # best rn
 # num_links,excite,activity_mag,inhibit_scale,iterations=6,9,2.17651734,0.12845625,2
-num_links,excite,activity_mag,inhibit_scale,iterations=3,1,2.70241295,0.15825576,2
+# num_links,excite,activity_mag,inhibit_scale,iterations=3,1,2.70241295,0.15825576,2
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
 
-# GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
+GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
 # MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
 # MultiResolution1D(velocities,scale)
 # testing_and_animate_CAN(animate=True)
-testAllcities()
+# testAllcities()
 
 #  inputs=np.concatenate([np.linspace(0,1,25), np.array([4]*5),  np.array([16]*1)])

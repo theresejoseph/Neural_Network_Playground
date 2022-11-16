@@ -62,11 +62,12 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
 def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
-    global prev_weights
+    global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
 
     integratedPos=[0]
     decodedPos=[0]
+    speeds=[0]
 
     prev_weights=[np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)]
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
