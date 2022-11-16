@@ -196,7 +196,7 @@ def CAN_tuningShiftAccuracy(genome):
     prev_weights=np.zeros(N)
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights[net.activation(0)]=net.full_weights(num_links)
-    inputs=np.concatenate([np.linspace(0,0.25,15), np.linspace(0.25,1,15), np.array([4]*5),  np.array([16]*2)])
+    inputs=np.concatenate([np.linspace(0,0.25,15), np.linspace(0.25,1,15), np.array([4]*5),  np.array([16]*3)])
     outputs=np.zeros(len(inputs))
     peaks=np.zeros(len(inputs))
 
@@ -269,7 +269,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.2)
+        mutate_indexs=np.argwhere(mutate_prob<=0.6)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -302,11 +302,13 @@ class GeneticAlgorithm:
         # new_population=[population[idx] for idx in indexes] #parents are added to the new population 
         '''Add 5 random genomes into the population'''
         new_population=self.initlisePopulation(num_parents)
-        
+
         '''Make 15 Children from the fittest parents'''
         for i in range(num_parents):
             for j in range(num_children_perParent):
-                new_population.append(self.checkMutation(population[indexes[i]]))
+                new_genome_inrange=self.checkMutation(population[indexes[i]])
+                # print(population[indexes[i]], new_genome_inrange)
+                new_population.append(new_genome_inrange)
         return new_population
     
     def implimentGA(self):
@@ -325,7 +327,7 @@ class GeneticAlgorithm:
 
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
             stop_val=5
-            if i>=stop_val and current_fitnesses[-stop_val]==current_fitnesses[-1]*stop_val:
+            if i>=stop_val and all(element == current_fitnesses[i] for element in current_fitnesses[i-stop_val:i]):
                 break
             print(fitnesses)
 
@@ -338,10 +340,10 @@ def runGA1D(plot=False):
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10]]
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.03), np.random.normal(0,0.03), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0.05,3],[0,0.2],[1,10]]
     fitnessFunc=CAN_tuningShiftAccuracy
-    num_gens=20
+    num_gens=40
     population_size=32
 
     if plot==True:

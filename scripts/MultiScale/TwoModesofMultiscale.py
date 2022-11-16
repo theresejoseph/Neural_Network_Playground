@@ -100,42 +100,35 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
     delta = [(input/scales[0]), (input/scales[1]), (input/scales[2]), (input/scales[3]), (input/scales[4])]
     split_output=np.zeros((len(scales)))
     
-    '''updating selected network'''
+
+    net=attractorNetwork(N,num_links,excite, wrap_mag,wrap_inhi)
     cs_idx=scale_selection(input,scales)
     wraparound=np.zeros(len(scales))
-    # wraparound[cs_idx]=decodedPosAfterupdate(net,prev_weights[cs_idx][:],delta[cs_idx])
     wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
-    # wraparound[cs_idx]=(np.argmax(prev_weights[cs_idx][:]) + delta[cs_idx])//N
-    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N), delta[cs_idx], wraparound[cs_idx], cs_idx)
-    
 
+    '''Update selected scale'''
     for iter in range(iterations):
         prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
 
-    '''wrap around network update'''
-    net=attractorNetwork(N,num_links,excite, wrap_mag,wrap_inhi)
-    for n in range(cs_idx+1,len(scales)):
-        # wraparound[n]=(np.argmax(prev_weights[cs_idx][:]) + delta[cs_idx])//N
-        wraparound[n]=(can.activityDecoding(prev_weights[n][:],4,N) + (wraparound[n-1]*scales[n-1]))//(N-1)
-
-    print(can.activityDecoding(prev_weights[4][:],4,N), wraparound[4],can.activityDecoding(prev_weights[3][:],4,N), wraparound[3])
-
-    for j in range(4):
+    '''Update the 100 scale based on wraparound in any of the previous scales'''
+    if (cs_idx != 4) and wraparound[cs_idx]!=0:
+        update_amount=(wraparound[cs_idx]*scales[cs_idx]*N)/scales[4]
+        wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
         for iter in range(wrap_iterations):
-            prev_weights[-2][:]= net.update_weights_dynamics(prev_weights[-2][:],(wraparound[j]*scales[j]*N)/scales[-2])
-            # print(wraparound[n], (wraparound[n]*scales[n]*N)/scales[-1])
+            prev_weights[-2][:]= net.update_weights_dynamics(prev_weights[-2][:],update_amount)
             prev_weights[-2][prev_weights[-2][:]<0]=0
 
-    for iter in range(wrap_iterations):
-        prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[4]*scales[4]*N)/scales[-1])
-        # print(wraparound[n], (wraparound[n]*scales[n]*N)/scales[-1])
-        prev_weights[-1][prev_weights[-1][:]<0]=0
+    '''Update the 10000 scale based on wraparound in the 100 scale'''
+    if wraparound[4] !=0:
+        for iter in range(wrap_iterations):
+            prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[4]*scales[4]*N)/scales[-1])
+            prev_weights[-1][prev_weights[-1][:]<0]=0
 
-    # can.activityDecoding(prev_weights[n][:],4,N)
-
+    '''Decode position'''
     split_output=np.array([can.activityDecoding(prev_weights[m][:],4,N) for m in range(len(scales))])
     decoded_translation=np.sum(((split_output))*scales)
+    speeds.append(decoded_translation-decodedPos[-1])
     integratedPos.append(integratedPos[-1]+input)
     decodedPos.append(decoded_translation)   
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
@@ -301,10 +294,11 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
         plt.show()
 
 def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=True):
-    global prev_weights
+    global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*5
     integratedPos=[0]
     decodedPos=[0]
+    speeds=[0]
 
     prev_weights=[np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)]
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
@@ -317,21 +311,31 @@ def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=Tru
     
     if visualise==True:
         '''initlising network and animate figures'''
-        fig = plt.figure(figsize=(6, 6))
-        fig_cols=2
-        fig_rows=1
-        ax10 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=1,colspan=1)
-        ax11 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1), rowspan=1,colspan=1)
+        # fig = plt.figure(figsize=(6, 6))
+        # fig_cols=2
+        # fig_rows=2
+        # ax10 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=1,colspan=1)
+        # ax11 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1), rowspan=1,colspan=1)
 
-        ax10.set_title('Path Integrated Position')
-        ax10.plot(integratedPos)
-        ax10.set_xlabel('Time [secs]'), ax10.set_ylabel('Position [m]')
-        ax11.set_title('Network Decoded Position')
-        ax11.set_xlabel('Time [secs]'), ax10.set_ylabel('Position [m]')
-        ax11.plot(decodedPos, c='purple')
+        fig, axs = plt.subplots(2,2, figsize=(8, 5))
+        fig.subplots_adjust(hspace=0.95)
+        fig.suptitle("CAN with varying Input Speeds", fontsize=14, y=0.98)
+        axs=axs.flatten()
+
+        axs[0].set_title('Path Integrated Position')
+        axs[0].plot(integratedPos)
+        axs[0].set_xlabel('Time [secs]'), axs[0].set_ylabel('Position [m]')
+        axs[1].set_title('Network Decoded Position')
+        axs[1].set_xlabel('Time [secs]'),
+        axs[1].plot(decodedPos, c='purple')
+
+        axs[2].set_title('Input Velocities')
+        axs[2].plot(velocities), axs[2].set_ylabel('Position [m]')
+        axs[3].set_title('CAN velocities')
+        axs[3].plot(speeds, c='purple')
         plt.show()
     elif visualise==False: 
-        return integratedPos, decodedPos
+        return integratedPos, decodedPos, speeds
     elif fitness==True:
         return np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))
 
@@ -409,7 +413,7 @@ def testing_and_animate_CAN(animate=True):
         plt.show()
 
 def testAllcities():
-    city_names=saveOrLoadNp(f'./data/train_extra/city_names',None,'load')
+    city_names=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/city_names',None,'load')
     fig, axs = plt.subplots(5,5)
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.92, top=0.9, hspace=0.5, wspace=0.4)
     fig.suptitle("Integrated vs Decoded Position for all Cities", fontsize=18, y=0.95)
@@ -417,12 +421,14 @@ def testAllcities():
     axs[-1].axis('off'), axs[-2].axis('off')
     for dataset_num in range(23):
         print(dataset_num)
-        speeds=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{dataset_num}',None,'load')
-        integrate,decode=MultiResolutionFeedthrough1D(speeds,scales,visualise=False)
-        axs[dataset_num].plot(integrate)
-        axs[dataset_num].plot(decode)
+        speeds=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{dataset_num}',None,'load')
+        integrate,decode,CANspeeds=MultiResolutionFeedthrough1D(speeds,scales,visualise=False)
+        axs[dataset_num].plot(speeds, linewidth=2,label ='GT')
+        axs[dataset_num].plot(CANspeeds,'--', linewidth=1.5,label='decoded')
+        axs[dataset_num].legend()
         axs[dataset_num].set_title(city_names[dataset_num])
-        ax[dataset_num].axis('equal')
+        # axs[dataset_num].set_ylim([0,11000])
+        # axs[dataset_num].set_xlim([0,1600])
     plt.show()
 
 # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02 #og
@@ -432,8 +438,9 @@ def testAllcities():
 
 # velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
 
-velocities=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{22}',None,'load')
-velocities=np.concatenate([np.array([100]*80),np.array([16]*200)])
+velocities=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{1}',None,'load')
+# velocities=np.concatenate([np.array([16]*200),np.array([100]*80)])
+# velocities=np.concatenate([np.random.uniform(0,0.9,50), np.random.uniform(1,10,50), np.random.uniform(30,100.1,21)])
 
 # N,num_links,excite,activity_mag,inhibit_scale=100,1,3,0.0721745813*100,2.96673372e-02 #hierarchy
 # N,num_links,excite,activity_mag,inhibit_scale=100, 4,7,2.33652075e-01,3.15397654e-02
@@ -447,19 +454,21 @@ N=100
 num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations,wrap_mag,wrap_inhi=2,3,1.2878113,0.08947041,3,2,2.21454636,0.08230016
 num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations,wrap_mag,wrap_inhi=4,6,1.44615670e+00,5.44855219e-02,2,7,2.42691166e+00,4.45296033e-02
 num_links,excite,activity_mag,inhibit_scale,iterations=1,6,2.92694865,0.09309933,2
-# num_links,excite,activity_mag,inhibit_scale,iterations=5,2,0.6791916,0.05619186,7 
-
-
+num_links,excite,activity_mag,inhibit_scale,iterations=7,1,1.15234255,0.09776188,4
+num_links,excite,activity_mag,inhibit_scale,iterations=1,6,2.29804683,0.14980466,2
+num_links,excite,activity_mag,inhibit_scale,iterations=7,10,2.13954369,0.12387683,2 # best rn
+# num_links,excite,activity_mag,inhibit_scale,iterations=6,9,2.17651734,0.12845625,2
+num_links,excite,activity_mag,inhibit_scale,iterations=3,1,2.70241295,0.15825576,2
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
 
-GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
+# GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
 # MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
 # MultiResolution1D(velocities,scale)
 # testing_and_animate_CAN(animate=True)
-# testAllcities()
+testAllcities()
 
 #  inputs=np.concatenate([np.linspace(0,1,25), np.array([4]*5),  np.array([16]*1)])
