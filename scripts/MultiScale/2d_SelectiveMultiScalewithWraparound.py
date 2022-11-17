@@ -1,13 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import math
-import os
-import pandas as pd
+
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
-from matplotlib.colors import ListedColormap
-from matplotlib.artist import Artist
-from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
 import time 
 from os import listdir
@@ -15,24 +10,35 @@ import sys
 sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 import CAN as can
-import pykitti
-import json 
 from DataHandling import saveOrLoadNp      
 
 
+def scale_selection(input,scales):
+    swap_val=1
+    if input<=scales[0]*swap_val:
+        scale_idx=0
+    elif input>scales[0]*swap_val and input<=scales[1]*swap_val:
+        scale_idx=1
+    elif input>scales[1]*swap_val and input<=scales[2]*swap_val:
+        scale_idx=2
+    elif input>scales[2]*swap_val and input<=scales[3]*swap_val:
+        scale_idx=3
+    elif input>scales[3]*swap_val:
+        scale_idx=4
+    return scale_idx
 
-def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_iterations, wrap_mag, wrap_inhi):
-    # wrap_mag=2.851745813
-    # wrap_inhi=2.96673372e-02/2
+def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N1, N2, iterations,wrap_iterations):
+    x_delta = [(x_input/scales[0]), (x_input/scales[1]), (x_input/scales[2]), (x_input/scales[3]), (x_input/scales[4])]
+    y_delta = [(y_input/scales[0]), (y_input/scales[1]), (y_input/scales[2]), (y_input/scales[3]), (y_input/scales[4])]
+    x_split_output=np.zeros((len(scales)))
+    y_split_output=np.zeros((len(scales)))
     
-    delta = [(input/scales[0]), (input/scales[1]), (input/scales[2]), (input/scales[3]), (input/scales[4])]
-    split_output=np.zeros((len(scales)))
-    
-
-    net=attractorNetwork(N,num_links,excite, wrap_mag,wrap_inhi)
-    cs_idx=scale_selection(input,scales)
-    wraparound=np.zeros(len(scales))
-    wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
+    sx_idx=scale_selection(x_input,scales)
+    sy_idx=scale_selection(y_input,scales)
+    wraparoundX=np.zeros(len(scales))
+    wraparoundY=np.zeros(len(scales))
+    wraparoundX[sx_idx]=(can.activityDecoding(prev_weights[sx_idx][:][:],4,N) + x_delta[sx_idx])//(N1-1)
+    wraparoundY[sy_idx]=(can.activityDecoding(prev_weights[sy_idx][:][:],4,N) + y_delta[sy_idx])//(N2-1)
 
     '''Update selected scale'''
     for iter in range(iterations):
@@ -61,6 +67,7 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
     decodedPos.append(decoded_translation)   
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
+
 def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
@@ -75,8 +82,8 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
         prev_weights[n][net.activation(0)]=net.full_weights(num_links)
 
     '''initlising network and animate figures'''
-    ncols=7
-    fig, axs = plt.subplots(ncols,1, figsize=(10, 10))
+    nrows=7
+    fig, axs = plt.subplots(1,nrows, figsize=(10, 10))
     fig.subplots_adjust(hspace=0.9)
     fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     axs.ravel()
@@ -87,11 +94,11 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
 
         hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
-        for k in range(ncols-1):
+        for k in range(nrows-1):
             axs[k].clear()
             axs[k].set_title(f"Resolution ({scale[k]}m per Neuron)",fontsize=10)
        
-            axs[k].bar(np.arange(N),prev_weights[k][:],color=colors[k])
+            axs[k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
             axs[k].spines[['top', 'left', 'right']].set_visible(False)
 
            
@@ -135,12 +142,6 @@ def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=Tru
     
     if visualise==True:
         '''initlising network and animate figures'''
-        # fig = plt.figure(figsize=(6, 6))
-        # fig_cols=2
-        # fig_rows=2
-        # ax10 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 0), rowspan=1,colspan=1)
-        # ax11 = plt.subplot2grid(shape=(fig_rows, fig_cols), loc=(0, 1), rowspan=1,colspan=1)
-
         fig, axs = plt.subplots(2,2, figsize=(8, 5))
         fig.subplots_adjust(hspace=0.95)
         fig.suptitle("CAN with varying Input Speeds", fontsize=14, y=0.98)

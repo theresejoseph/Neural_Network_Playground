@@ -14,7 +14,7 @@ from scipy import signal
 import time 
 from os import listdir
 import sys
-sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
+sys.path.append('./scripts')
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
 import CAN as can
 import pykitti
@@ -106,6 +106,8 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
     wraparound=np.zeros(len(scales))
     wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
 
+    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N),cs_idx,wraparound[cs_idx],wraparound[4])
+
     '''Update selected scale'''
     for iter in range(iterations):
         prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[cs_idx])
@@ -113,7 +115,7 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
     if (cs_idx != 4) and wraparound[cs_idx]!=0:
-        update_amount=(wraparound[cs_idx]*scales[cs_idx]*N)/scales[4]
+        update_amount=(wraparound[cs_idx]*scales[cs_idx]*N)/scales[4]  
         wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
         for iter in range(wrap_iterations):
             prev_weights[-2][:]= net.update_weights_dynamics(prev_weights[-2][:],update_amount)
@@ -124,6 +126,7 @@ def hierarchicalNetwork(integratedPos,decodedPos,net,input,N, iterations,wrap_it
         for iter in range(wrap_iterations):
             prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[4]*scales[4]*N)/scales[-1])
             prev_weights[-1][prev_weights[-1][:]<0]=0
+        print(can.activityDecoding(prev_weights[5][:],4,N))
 
     '''Decode position'''
     split_output=np.array([can.activityDecoding(prev_weights[m][:],4,N) for m in range(len(scales))])
@@ -204,7 +207,6 @@ def GIF_MultiResolution1D(velocities,scale, visualise=False):
         ani.save(f, writer=writergif)
     else: 
         plt.show()
-
 def MultiResolution1D(velocities,scale, visualise=False):
     global prev_weights, num_links, excite, curr_parameter
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02
@@ -237,7 +239,6 @@ def MultiResolution1D(velocities,scale, visualise=False):
     plt.show()
 
 
-
 def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
@@ -254,7 +255,7 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
 
     '''initlising network and animate figures'''
     ncols=7
-    fig, axs = plt.subplots(ncols,1, figsize=(10, 10))
+    fig, axs = plt.subplots(ncols,1, figsize=(10, 7))
     fig.subplots_adjust(hspace=0.9)
     fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     axs.ravel()
@@ -262,6 +263,7 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     def animate(i):
         global prev_weights
         axs[-1].clear()
+        print(i)
 
         hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
@@ -270,7 +272,8 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
             axs[k].set_title(f"Resolution ({scale[k]}m per Neuron)",fontsize=10)
        
             axs[k].bar(np.arange(N),prev_weights[k][:],color=colors[k])
-            axs[k].spines[['top', 'left', 'right']].set_visible(False)
+            axs[k].axis('off')
+            # axs[k].spines[['top', 'left', 'right']].set_visible(False)
 
            
 
@@ -280,21 +283,21 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
         axs[cs_idx].axis('on')
         axs[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        axs[-1].scatter(integratedPos[-1],0.75,color=color_list[cs_idx])
-        axs[-1].scatter(decodedPos[-1],0.25,color='g')
-        axs[-1].set_xbound([0,40000])
+        axs[-1].scatter(decodedPos[-1],0.75,color=color_list[cs_idx])
+        axs[-1].scatter(integratedPos[-1],0.25,color='k')
+        axs[-1].set_title(f'Integrated Position: {round(integratedPos[-1],3)}, Decoded Position: {round(decodedPos[-1],3)}', fontsize=11)
+        axs[-1].set_xbound([0,15000])
         axs[-1].set_ybound([0,1])
         axs[-1].get_yaxis().set_visible(False)
         axs[-1].spines[['top', 'left', 'right']].set_visible(False)
 
     ani = FuncAnimation(fig, animate, interval=1,frames=len(velocities),repeat=False)
     if visualise==True:
-        f = r"./results/Hierarchical_ScaleSelection_Multiscale_Citiscape.gif" 
-        writergif = animation.PillowWriter(fps=10) 
+        f = r"./results/GIFs/Hierarchical_ScaleSelection_Multiscale_Citiscape_allScales.gif" 
+        writergif = animation.PillowWriter(fps=40) 
         ani.save(f, writer=writergif)
     else: 
         plt.show()
-
 def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=True):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*5
@@ -414,8 +417,9 @@ def testing_and_animate_CAN(animate=True):
 
         plt.show()
 
+
 def testAllcities():
-    city_names=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/city_names',None,'load')
+    city_names=saveOrLoadNp(f'./data/train_extra/city_names',None,'load')
     fig, axs = plt.subplots(5,5)
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.92, top=0.9, hspace=0.5, wspace=0.4)
     fig.suptitle("Integrated vs Decoded Position for all Cities", fontsize=18, y=0.95)
@@ -423,7 +427,7 @@ def testAllcities():
     axs[-1].axis('off'), axs[-2].axis('off')
     for dataset_num in range(23):
         print(dataset_num)
-        speeds=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{dataset_num}',None,'load')
+        speeds=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{dataset_num}',None,'load')
         integrate,decode,CANspeeds=MultiResolutionFeedthrough1D(speeds,scales,visualise=False)
         axs[dataset_num].plot(speeds, linewidth=2,label ='GT')
         axs[dataset_num].plot(CANspeeds,'--', linewidth=1.5,label='decoded')
@@ -440,9 +444,11 @@ def testAllcities():
 
 # velocities=np.concatenate([np.array([scale[0]]*10), np.array([scale[1]]*10), np.array([scale[2]]*10), np.array([scale[3]]*10), np.array([scale[4]]*5), np.array([scale[3]]*10),  np.array([scale[2]]*10),  np.array([scale[1]]*10),  np.array([scale[0]]*10)])
 
-velocities=saveOrLoadNp(f'/home/therese/Documents/Neural_Network_Playground/data/train_extra/citiscape_speed_{1}',None,'load')
+np.random.seed(10)
+velocities=saveOrLoadNp(f'./data/train_extra/citiscape_speed_{1}',None,'load')
 velocities=np.concatenate([np.array([16]*200),np.array([100]*80)])
-# velocities=np.concatenate([np.random.uniform(0,0.9,50), np.random.uniform(1,10,50), np.random.uniform(30,100.1,21)])
+velocities=np.concatenate([np.random.uniform(0,0.9,100), np.random.uniform(1,10,100), np.random.uniform(30,100,100)])
+velocities=np.concatenate([np.random.uniform(0,0.25,220), np.random.uniform(0.25,1,220), np.random.uniform(1,4,220), np.random.uniform(4,16,220), np.random.uniform(16,100,220)])
 
 # N,num_links,excite,activity_mag,inhibit_scale=100,1,3,0.0721745813*100,2.96673372e-02 #hierarchy
 # N,num_links,excite,activity_mag,inhibit_scale=100, 4,7,2.33652075e-01,3.15397654e-02
@@ -464,8 +470,8 @@ num_links,excite,activity_mag,inhibit_scale,iterations=7,10,2.13954369,0.1238768
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
 
-GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
-# MultiResolutionFeedthrough1D(velocities,scales)
+# GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
+MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
