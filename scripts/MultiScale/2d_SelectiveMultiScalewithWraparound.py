@@ -27,7 +27,7 @@ def scale_selection(input,scales):
         scale_idx=4
     return scale_idx
 
-def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N1, N2, iterations,wrap_iterations):
+def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, iterations,wrap_iterations):
     x_delta = [(x_input/scales[0]), (x_input/scales[1]), (x_input/scales[2]), (x_input/scales[3]), (x_input/scales[4])]
     y_delta = [(y_input/scales[0]), (y_input/scales[1]), (y_input/scales[2]), (y_input/scales[3]), (y_input/scales[4])]
     x_split_output=np.zeros((len(scales)))
@@ -37,27 +37,37 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N1, N2, 
     sy_idx=scale_selection(y_input,scales)
     wraparoundX=np.zeros(len(scales))
     wraparoundY=np.zeros(len(scales))
-    wraparoundX[sx_idx]=(can.activityDecoding(prev_weights[sx_idx][:][:],4,N) + x_delta[sx_idx])//(N1-1)
-    wraparoundY[sy_idx]=(can.activityDecoding(prev_weights[sy_idx][:][:],4,N) + y_delta[sy_idx])//(N2-1)
+    wraparoundX[sx_idx]=(can.activityDecoding(prev_weights[sx_idx][:][:],4,N) + x_delta[sx_idx])//(N-1)
+    wraparoundY[sy_idx]=(can.activityDecoding(prev_weights[sy_idx][:][:],4,N) + y_delta[sy_idx])//(N-1)
 
     '''Update selected scale'''
     for iter in range(iterations):
-        prev_weights[cs_idx][:]= net.update_weights_dynamics(prev_weights[cs_idx][:],delta[cs_idx])
-        prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
+        prev_weights[sx_idx][:][:]= net.update_weights_dynamics(prev_weights[sx_idx][:][:],0,x_delta[sx_idx])
+        prev_weights[sx_idx][:][prev_weights[sx_idx][:]<0]=0
+
+        prev_weights[sy_idx][:][:]= net.update_weights_dynamics(prev_weights[sy_idx][:][:],y_delta[sy_idx],0)
+        prev_weights[sy_idx][:][prev_weights[sy_idx][:]<0]=0
+
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
-    if (cs_idx != 4) and wraparound[cs_idx]!=0:
-        update_amount=(wraparound[cs_idx]*scales[cs_idx]*N)/scales[4]
-        wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
+    if (sx_idx != 4) and wraparoundX[sx_idx]!=0:
+        update_amountX=(wraparoundX[sx_idx]*scales[sx_idx]*N)/scales[4]
+        wraparoundX[4]=(can.activityDecoding(prev_weights[4][:][:],4,N) + update_amountX)//(N-1)
+        
+        update_amountY=(wraparoundY[sy_idx]*scales[sy_idx]*N)/scales[4]
+        wraparoundY[4]=(can.activityDecoding(prev_weights[4][:][:],4,N) + update_amountY)//(N-1)
+
         for iter in range(wrap_iterations):
-            prev_weights[-2][:]= net.update_weights_dynamics(prev_weights[-2][:],update_amount)
-            prev_weights[-2][prev_weights[-2][:]<0]=0
+            prev_weights[-2][:][:]= net.update_weights_dynamics(prev_weights[-2][:][:],update_amountY, update_amountX)
+            prev_weights[-2][prev_weights[-2][:][:]<0]=0
+
 
     '''Update the 10000 scale based on wraparound in the 100 scale'''
-    if wraparound[4] !=0:
+    if wraparoundX[4] !=0:
         for iter in range(wrap_iterations):
-            prev_weights[-1][:]= net.update_weights_dynamics(prev_weights[-1][:],(wraparound[4]*scales[4]*N)/scales[-1])
-            prev_weights[-1][prev_weights[-1][:]<0]=0
+            prev_weights[-1][:][:]= net.update_weights_dynamics(prev_weights[-1][:][:],(wraparoundY[4]*scales[4]*N)/scales[-1],(wraparoundX[4]*scales[4]*N)/scales[-1])
+            prev_weights[-1][prev_weights[-1][:][:]<0]=0
+
 
     '''Decode position'''
     split_output=np.array([can.activityDecoding(prev_weights[m][:],4,N) for m in range(len(scales))])
@@ -68,7 +78,7 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N1, N2, 
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
 
-def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
+def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
 
@@ -76,7 +86,7 @@ def GIF_MultiResolutionFeedthrough1D(velocities,scale, visualise=False):
     decodedPos=[0]
     speeds=[0]
 
-    prev_weights=[np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)]
+    prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
         prev_weights[n][net.activation(0)]=net.full_weights(num_links)
@@ -168,4 +178,8 @@ scales=[0.25,1,4,16,100,10000]
 N=100  
 num_links,excite,activity_mag,inhibit_scale,iterations=7,10,2.13954369,0.12387683,2 # best rn
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
- 
+
+
+prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+plt.imshow(prev_weights[0][:][:])
+plt.show()
