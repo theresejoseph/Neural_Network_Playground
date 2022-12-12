@@ -4,7 +4,9 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.widgets as wig
+import sys
 
+sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
 from CAN import attractorNetwork2D
 
 N1,N2,excite_radius,activity_mag,inhibit_scale=  50, 50, 1, 1, 0.01

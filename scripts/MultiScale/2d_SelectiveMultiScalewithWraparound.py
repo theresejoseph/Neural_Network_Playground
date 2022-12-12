@@ -86,8 +86,8 @@ def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
     decodedPos=[0]
     speeds=[0]
 
-    prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
-    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    net=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
         prev_weights[n][net.activation(0)]=net.full_weights(num_links)
 
@@ -102,7 +102,7 @@ def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
         global prev_weights
         axs[-1].clear()
 
-        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
+        hierarchicalNetwork2D(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
         for k in range(nrows-1):
             axs[k].clear()
