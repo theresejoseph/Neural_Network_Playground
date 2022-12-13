@@ -1,16 +1,37 @@
+# import matplotlib.pyplot as plt
+# import numpy as np
+
+# from matplotlib.animation import FuncAnimation
+# import matplotlib.animation as animation
+# from scipy import signal
+# import time 
+# from os import listdir
+# import sys
+# sys.path.append('./scripts')
+# from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
+# import CAN as can
+# from DataHandling import saveOrLoadNp    
+# 
 import matplotlib.pyplot as plt
 import numpy as np
-
+import math
+import os
+import pandas as pd
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
+from matplotlib.colors import ListedColormap
+from matplotlib.artist import Artist
+from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
 import time 
 from os import listdir
 import sys
-sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
-from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
+sys.path.append('./scripts')
+from CAN import attractorNetwork2D
 import CAN as can
-from DataHandling import saveOrLoadNp      
+import pykitti
+import json 
+from DataHandling import saveOrLoadNp  
 
 
 def scale_selection(input,scales):
@@ -37,8 +58,8 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
     sy_idx=scale_selection(y_input,scales)
     wraparoundX=np.zeros(len(scales))
     wraparoundY=np.zeros(len(scales))
-    wraparoundX[sx_idx]=(can.activityDecoding(prev_weights[sx_idx][:][:],4,N) + x_delta[sx_idx])//(N-1)
-    wraparoundY[sy_idx]=(can.activityDecoding(prev_weights[sy_idx][:][:],4,N) + y_delta[sy_idx])//(N-1)
+    wraparoundX[sx_idx]=(np.argmax(np.max(prev_weights[sx_idx], axis=0)) + x_delta[sx_idx])//(N-1)
+    wraparoundY[sy_idx]=(np.argmax(np.max(prev_weights[sy_idx], axis=1)) + y_delta[sy_idx])//(N-1)
 
     '''Update selected scale'''
     for iter in range(iterations):
@@ -50,16 +71,18 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
 
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
+    update_amountX, update_amountY = 0,0
     if (sx_idx != 4) and wraparoundX[sx_idx]!=0:
         update_amountX=(wraparoundX[sx_idx]*scales[sx_idx]*N)/scales[4]
-        wraparoundX[4]=(can.activityDecoding(prev_weights[4][:][:],4,N) + update_amountX)//(N-1)
-        
-        update_amountY=(wraparoundY[sy_idx]*scales[sy_idx]*N)/scales[4]
-        wraparoundY[4]=(can.activityDecoding(prev_weights[4][:][:],4,N) + update_amountY)//(N-1)
+        wraparoundX[4]=(np.argmax(np.max(prev_weights[4], axis=0)) + update_amountX)//(N-1)
 
-        for iter in range(wrap_iterations):
-            prev_weights[-2][:][:]= net.update_weights_dynamics(prev_weights[-2][:][:],update_amountY, update_amountX)
-            prev_weights[-2][prev_weights[-2][:][:]<0]=0
+    if (sy_idx != 4) and wraparoundY[sy_idx]!=0:    
+        update_amountY=(wraparoundY[sy_idx]*scales[sy_idx]*N)/scales[4]
+        wraparoundY[4]=(np.argmax(np.max(prev_weights[4], axis=1)) + update_amountY)//(N-1)
+
+    for iter in range(wrap_iterations):
+        prev_weights[-2][:][:]= net.update_weights_dynamics(prev_weights[-2][:][:],update_amountY, update_amountX)
+        prev_weights[-2][prev_weights[-2][:][:]<0]=0
 
 
     '''Update the 10000 scale based on wraparound in the 100 scale'''
@@ -68,32 +91,37 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
             prev_weights[-1][:][:]= net.update_weights_dynamics(prev_weights[-1][:][:],(wraparoundY[4]*scales[4]*N)/scales[-1],(wraparoundX[4]*scales[4]*N)/scales[-1])
             prev_weights[-1][prev_weights[-1][:][:]<0]=0
 
-
+    print(update_amountY, wraparoundY)
+    
     '''Decode position'''
-    split_output=np.array([can.activityDecoding(prev_weights[m][:],4,N) for m in range(len(scales))])
-    decoded_translation=np.sum(((split_output))*scales)
-    speeds.append(decoded_translation-decodedPos[-1])
-    integratedPos.append(integratedPos[-1]+input)
-    decodedPos.append(decoded_translation)   
+    x_split_output=np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
+    x_decoded_translation=np.sum(((x_split_output))*scales)
+
+    y_split_output=np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))])
+    y_decoded_translation=np.sum(((y_split_output))*scales)
+
+    speeds.append([x_decoded_translation-decodedPos[-1][0], y_decoded_translation-decodedPos[-1][1]])
+    integratedPos.append([integratedPos[-1][0]+x_input,integratedPos[-1][1]+y_input ])
+    decodedPos.append([x_decoded_translation, y_decoded_translation])   
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
 
-def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
+def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
 
-    integratedPos=[0]
-    decodedPos=[0]
-    speeds=[0]
+    integratedPos=[[0,0]]
+    decodedPos=[[0,0]]
+    speeds=[[0,0]]
 
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     net=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
-        prev_weights[n][net.activation(0)]=net.full_weights(num_links)
+        prev_weights[n]=net.excitations(0,0)
 
     '''initlising network and animate figures'''
     nrows=7
-    fig, axs = plt.subplots(1,nrows, figsize=(10, 10))
+    fig, axs = plt.subplots(1,nrows, figsize=(12, 2))
     fig.subplots_adjust(hspace=0.9)
     fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     axs.ravel()
@@ -101,12 +129,11 @@ def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
     def animate(i):
         global prev_weights
         axs[-1].clear()
-
-        hierarchicalNetwork2D(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
+        hierarchicalNetwork2D(integratedPos,decodedPos,net,x_velocities[i],velocities[i],N,iterations,wrap_iterations)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
         for k in range(nrows-1):
             axs[k].clear()
-            axs[k].set_title(f"Resolution ({scale[k]}m per Neuron)",fontsize=10)
+            axs[k].set_title(f"Scale {scale[k]}m",fontsize=10)
        
             axs[k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
             axs[k].spines[['top', 'left', 'right']].set_visible(False)
@@ -119,12 +146,12 @@ def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
         axs[cs_idx].axis('on')
         axs[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        axs[-1].scatter(integratedPos[-1],0.75,color=color_list[cs_idx])
-        axs[-1].scatter(decodedPos[-1],0.25,color='g')
-        axs[-1].set_xbound([0,40000])
-        axs[-1].set_ybound([0,1])
-        axs[-1].get_yaxis().set_visible(False)
-        axs[-1].spines[['top', 'left', 'right']].set_visible(False)
+        axs[-1].scatter(integratedPos[-1][0],integratedPos[-1][1],color=color_list[cs_idx])
+        axs[-1].scatter(decodedPos[-1][0],decodedPos[-1][1],color='g')
+        axs[-1].set_xbound([0,2000])
+        axs[-1].set_ybound([0,2000])
+        # axs[-1].get_yaxis().set_visible(False)
+        axs[-1].spines[['top', 'right']].set_visible(False)
 
     ani = FuncAnimation(fig, animate, interval=1,frames=len(velocities),repeat=False)
     if visualise==True:
@@ -134,21 +161,21 @@ def GIF_MultiResolutionFeedthrough2D(velocities,scale, visualise=False):
     else: 
         plt.show()
 
-def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=True):
+def MultiResolutionFeedthrough2D(velocities,scales, fitness=False, visualise=True):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*5
-    integratedPos=[0]
-    decodedPos=[0]
-    speeds=[0]
+    integratedPos=[[0,0]]
+    decodedPos=[[0,0]]
+    speeds=[[0,0]]
 
-    prev_weights=[np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)]
-    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     for n in range(len(prev_weights)):
-        prev_weights[n][net.activation(0)]=net.full_weights(num_links)
+        prev_weights[n]=network.excitations(0,0)
     
 
     for i in range(len(velocities)):
-        hierarchicalNetwork(integratedPos,decodedPos,net,velocities[i],N,iterations,wrap_iterations, wrap_mag, wrap_inhi)
+        hierarchicalNetwork2D(integratedPos,decodedPos,network,velocities[i],0,N,iterations,wrap_iterations)
     
     if visualise==True:
         '''initlising network and animate figures'''
@@ -174,12 +201,18 @@ def MultiResolutionFeedthrough1D(velocities,scales, fitness=False, visualise=Tru
     elif fitness==True:
         return np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))
 
+
+
+velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
 scales=[0.25,1,4,16,100,10000]
-N=100  
-num_links,excite,activity_mag,inhibit_scale,iterations=7,10,2.13954369,0.12387683,2 # best rn
+N=40
+num_links,excite,activity_mag,inhibit_scale,iterations=1,1,1,0.0005,1 
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
+GIF_MultiResolutionFeedthrough2D(velocities,scales)
+# MultiResolutionFeedthrough2D(velocities,scales)
 
-prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
-plt.imshow(prev_weights[0][:][:])
-plt.show()
+# prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+# plt.imshow(prev_weights[0][:][:])
+# plt.show()
+

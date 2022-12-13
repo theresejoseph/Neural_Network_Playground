@@ -312,18 +312,30 @@ class attractorNetwork2D:
         shifted_col[non_zero_weights[0],(non_zero_weights[1]+mysign(frac_col))%self.N2]=full_shift[non_zero_weights]
         shifted_row[(non_zero_weights[0]+mysign(frac_row))%self.N1, non_zero_weights[1]]=full_shift[non_zero_weights]
         
-        shifted_rowThencol, shifted_colThenrow=np.zeros((self.N1,self.N2)), np.zeros((self.N1,self.N2))
-        non_zero_col, non_zero_row=np.nonzero(shifted_col), np.nonzero(shifted_row)
-        shifted_colThenrow[(non_zero_col[0]+ mysign(frac_row))%self.N1, non_zero_col[1]]=shifted_col[non_zero_col]
-        shifted_rowThencol[non_zero_row[0], (non_zero_row[1]+ mysign(frac_col))%self.N2]=shifted_row[non_zero_row]
+        if frac_row != 0 and frac_col !=0:
+            shifted_rowThencol, shifted_colThenrow=np.zeros((self.N1,self.N2)), np.zeros((self.N1,self.N2))
+            non_zero_col, non_zero_row=np.nonzero(shifted_col), np.nonzero(shifted_row)
+            shifted_colThenrow[(non_zero_col[0]+ mysign(frac_row))%self.N1, non_zero_col[1]]=shifted_col[non_zero_col]
+            shifted_rowThencol[non_zero_row[0], (non_zero_row[1]+ mysign(frac_col))%self.N2]=shifted_row[non_zero_row]
 
-        col=full_shift*inv_frac_col + shifted_col*abs(frac_col)
-        colRow=col*inv_frac_row + shifted_colThenrow*abs(frac_row)
+            col=full_shift*inv_frac_col + shifted_col*abs(frac_col)
+            colRow=col*inv_frac_row + shifted_colThenrow*abs(frac_row)
 
-        row=full_shift*inv_frac_row + shifted_row*abs(frac_row)
-        rowCol=row*inv_frac_col + shifted_rowThencol*abs(frac_col)
+            row=full_shift*inv_frac_row + shifted_row*abs(frac_row)
+            rowCol=row*inv_frac_col + shifted_rowThencol*abs(frac_col)
 
-        return (rowCol + colRow)/2
+            print(frac_row, frac_col)
+
+            return (rowCol + colRow)/2
+        
+        elif frac_row == 0 and frac_col !=0:
+            return shifted_col
+        
+        elif frac_row != 0 and frac_col ==0:
+            return shifted_row
+        
+        else:
+            return full_shift
         
     def update_weights_dynamics(self,prev_weights, delta_row, delta_col,moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights

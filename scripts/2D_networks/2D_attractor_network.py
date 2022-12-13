@@ -4,13 +4,13 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.widgets as wig
-import sys
 
-sys.path.append('/home/therese/Documents/Neural_Network_Playground/scripts')
+import sys
+sys.path.append('./scripts')
 from CAN import attractorNetwork2D
 
-N1,N2,excite_radius,activity_mag,inhibit_scale=  50, 50, 1, 1, 0.01
-net=attractorNetwork2D(N1,N2,excite_radius,activity_mag,inhibit_scale)
+N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  50, 50,2, 1, 1, 0.01
+net=attractorNetwork2D(N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
 prev_weights=net.excitations(0,0)
 
 #simulation
@@ -45,7 +45,7 @@ def plotting_CAN_dynamics():
         global prev_weights
         ax0.clear()
         '''distributed weights with excitations and inhibitions'''
-        net=attractorNetwork2D( N1,N2,int(excite.val),activity_mag,inhibit_scale.val)
+        net=attractorNetwork2D( N1,N2,num_links,int(excite.val),activity_mag,inhibit_scale.val)
         prev_weights= net.update_weights_dynamics(prev_weights,delta1.val,delta2.val)
         prev_weights[prev_weights<0]=0
 
@@ -56,7 +56,7 @@ def plotting_CAN_dynamics():
     def update(val):
         global prev_weights
         '''distributed weights with excitations and inhibitions'''
-        net=attractorNetwork2D(N1,N2,int(excite.val),activity_mag,inhibit_scale.val)
+        net=attractorNetwork2D(N1,N2,num_links,int(excite.val),activity_mag,inhibit_scale.val)
         prev_weights= net.update_weights_dynamics(prev_weights,delta1.val,delta2.val)
         prev_weights[prev_weights<0]=0
 
@@ -69,7 +69,7 @@ def plotting_CAN_dynamics():
         (xn,yn),(xN,yN) = reset.label.clipbox.get_points()
         if xn < event.x < xN and yn < event.y < yN:
             delta=[0,0]
-            net=attractorNetwork2D(N1,N2,int(excite.val),activity_mag,inhibit_scale.val)
+            net=attractorNetwork2D(N1,N2,num_links,int(excite.val),activity_mag,inhibit_scale.val)
             prev_weights=net.excitations(0,0)
             prev_weights= net.update_weights_dynamics(prev_weights,delta[0],delta[1])
             prev_weights[prev_weights<0]=0
@@ -89,7 +89,7 @@ def plotting_CAN_dynamics():
 def fixedShift_visulaisation():
     N1,N2,excite_radius,activity_mag,inhibit_scale=  60, 60, 2, 1, 0.005
     delta_row, delta_col = 1,1
-    net=attractorNetwork2D( N1,N2,excite_radius,activity_mag,inhibit_scale)
+    net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
     prev_weights=net.excitations(30,30)
 
     fig = plt.figure(figsize=(13, 4))
