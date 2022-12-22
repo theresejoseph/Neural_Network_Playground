@@ -91,7 +91,6 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
             prev_weights[-1][:][:]= net.update_weights_dynamics(prev_weights[-1][:][:],(wraparoundY[4]*scales[4]*N)/scales[-1],(wraparoundX[4]*scales[4]*N)/scales[-1])
             prev_weights[-1][prev_weights[-1][:][:]<0]=0
 
-    print(update_amountY, wraparoundY)
     
     '''Decode position'''
     x_split_output=np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
@@ -106,7 +105,7 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
 
-def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
+def GIF_MultiResolutionFeedthrough2D(x_velocities, y_velocities, scale, visualise=False):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
 
@@ -129,7 +128,7 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
     def animate(i):
         global prev_weights
         axs[-1].clear()
-        hierarchicalNetwork2D(integratedPos,decodedPos,net,x_velocities[i],velocities[i],N,iterations,wrap_iterations)
+        hierarchicalNetwork2D(integratedPos,decodedPos,net,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
         for k in range(nrows-1):
             axs[k].clear()
@@ -141,7 +140,7 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
            
 
         # cs_idx=np.argmin(abs(scale-velocities[i]))
-        cs_idx=scale_selection(velocities[i],scales)
+        cs_idx=scale_selection(x_velocities[i],scales)
         color_list=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1)]
         axs[cs_idx].axis('on')
         axs[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
@@ -153,7 +152,7 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
         # axs[-1].get_yaxis().set_visible(False)
         axs[-1].spines[['top', 'right']].set_visible(False)
 
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(velocities),repeat=False)
+    ani = FuncAnimation(fig, animate, interval=1,frames=len(x_velocities),repeat=False)
     if visualise==True:
         f = r"./results/Hierarchical_ScaleSelection_Multiscale_Citiscape.gif" 
         writergif = animation.PillowWriter(fps=10) 
@@ -161,7 +160,7 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities,scale, visualise=False):
     else: 
         plt.show()
 
-def MultiResolutionFeedthrough2D(velocities,scales, fitness=False, visualise=True):
+def MultiResolutionFeedthrough2D(x_velocities,y_velocities, scales, fitness=False, visualise=True):
     global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*5
     integratedPos=[[0,0]]
@@ -174,10 +173,18 @@ def MultiResolutionFeedthrough2D(velocities,scales, fitness=False, visualise=Tru
         prev_weights[n]=network.excitations(0,0)
     
 
-    for i in range(len(velocities)):
-        hierarchicalNetwork2D(integratedPos,decodedPos,network,velocities[i],0,N,iterations,wrap_iterations)
+    for i in range(len(x_velocities)):
+        hierarchicalNetwork2D(integratedPos,decodedPos,network,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
     
     if visualise==True:
+        integratedPos_x=[val[0] for val in integratedPos]
+        decodedPos_x=[val[0] for val in decodedPos]
+        speeds_x=[val[0] for val in speeds]
+
+        integratedPos_y=[val[1] for val in integratedPos]
+        decodedPos_y=[val[1] for val in decodedPos]
+        speeds_y=[val[1] for val in speeds]
+
         '''initlising network and animate figures'''
         fig, axs = plt.subplots(2,2, figsize=(8, 5))
         fig.subplots_adjust(hspace=0.95)
@@ -185,16 +192,16 @@ def MultiResolutionFeedthrough2D(velocities,scales, fitness=False, visualise=Tru
         axs=axs.flatten()
 
         axs[0].set_title('Path Integrated Position')
-        axs[0].plot(integratedPos)
+        axs[0].plot(integratedPos_x,integratedPos_y )
         axs[0].set_xlabel('Time [secs]'), axs[0].set_ylabel('Position [m]')
         axs[1].set_title('Network Decoded Position')
         axs[1].set_xlabel('Time [secs]'),
-        axs[1].plot(decodedPos, c='purple')
+        axs[1].plot(decodedPos_x,decodedPos_y, c='purple')
 
         axs[2].set_title('Input Velocities')
-        axs[2].plot(velocities), axs[2].set_ylabel('Position [m]')
+        axs[2].plot(x_velocities, y_velocities, '.'), axs[2].set_ylabel('Position [m]')
         axs[3].set_title('CAN velocities')
-        axs[3].plot(speeds, c='purple')
+        axs[3].plot(speeds_x, speeds_y, '.' , c='purple')
         plt.show()
     elif visualise==False: 
         return integratedPos, decodedPos, speeds
@@ -202,15 +209,17 @@ def MultiResolutionFeedthrough2D(velocities,scales, fitness=False, visualise=Tru
         return np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))
 
 
+outfile='./results/testEnvPathVelocities.npy'
+vel_x,vel_y=np.load(outfile)
 
-velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
+# velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
 scales=[0.25,1,4,16,100,10000]
-N=40
+N=100
 num_links,excite,activity_mag,inhibit_scale,iterations=1,1,1,0.0005,1 
 wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
-GIF_MultiResolutionFeedthrough2D(velocities,scales)
-# MultiResolutionFeedthrough2D(velocities,scales)
+# GIF_MultiResolutionFeedthrough2D(vel_x,vel_y,scales)
+MultiResolutionFeedthrough2D(vel_x, vel_y,scales)
 
 # prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
 # plt.imshow(prev_weights[0][:][:])
