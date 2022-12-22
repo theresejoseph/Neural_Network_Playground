@@ -6,6 +6,7 @@ sys.path.append('./scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 import CAN as can
 from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
+from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D
 from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
@@ -237,6 +238,46 @@ def CAN_tuningShiftAccuracywithWraparound(genome):
     
     return (np.sum(abs(np.array(decodedPos)-np.array(integratedPos))))*-1
 
+def MultiResolutionFeedthrough2D(genome):
+    N=100
+    scales=[0.25,1,4,16,100,10000]
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4]) #int
+    wrap_iterations= int(genome[5]) #int
+    # wrap_mag=genome[6] #uni
+    # wrap_inhi=genome[7] #uni
+
+    outfile='./results/testEnvPathVelocities.npy'
+    x_velocities,y_velocities=np.load(outfile)
+
+    integratedPos_x=[0]
+    decodedPos_x=[0]
+    speeds_x=[0]
+
+    integratedPos_y=[0]
+    decodedPos_y=[0]
+    speeds_y=[0]
+
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    for n in range(len(prev_weights)):
+        prev_weights[n]=network.excitations(0,0)
+    
+
+    for i in range(len(x_velocities)):
+        hierarchicalNetwork2D(prev_weights,speeds_x,integratedPos_x,decodedPos_x,speeds_y,integratedPos_y,decodedPos_y,network,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
+    
+
+
+    x_fitness=np.sum(abs(np.array(integratedPos_x)-np.array(decodedPos_x)))*-1
+    y_fitness=np.sum(abs(np.array(integratedPos_y)-np.array(decodedPos_y)))*-1
+    print(x_fitness+y_fitness)
+    return x_fitness+y_fitness
+
+
 
 
 '''Implementation'''
@@ -260,7 +301,9 @@ class GeneticAlgorithm:
         population=[]
         for i in range(numRandGenomes):
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
+            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')]
+            
             population.append(genome)
         return population 
 
@@ -326,7 +369,7 @@ class GeneticAlgorithm:
             order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
 
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
-            stop_val=5
+            stop_val=3
             if i>=stop_val and all(element == current_fitnesses[i] for element in current_fitnesses[i-stop_val:i]):
                 break
             print(fitnesses)
@@ -336,15 +379,20 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/20_gens_20pop_wraparound.npy'
+    filename=f'./results/GA_MultiScale/2D_SelectiveMultiresoutionWraparound.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
+    # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.03), np.random.normal(0,0.03), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0.05,3],[0,0.2],[1,10]]
-    fitnessFunc=CAN_tuningShiftAccuracy
-    num_gens=40
-    population_size=32
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.03), np.random.normal(0,0.03), int(np.random.normal(0,1))])
+    # ranges = [[1,10],[1,10],[0.05,3],[0,0.2],[1,10]]
+    # fitnessFunc=CAN_tuningShiftAccuracy
+
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0.1,1],[0,0.1],[1,10],[1,10]]
+    fitnessFunc=MultiResolutionFeedthrough2D
+    num_gens=20
+    population_size=8
 
     if plot==True:
         with open(filename, 'rb') as f:

@@ -48,7 +48,7 @@ def scale_selection(input,scales):
         scale_idx=4
     return scale_idx
 
-def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, iterations,wrap_iterations):
+def hierarchicalNetwork2D(prev_weights, speeds_x,integratedPos_x,decodedPos_x,speeds_y,integratedPos_y,decodedPos_y,net,x_input,y_input, N, iterations,wrap_iterations):
     x_delta = [(x_input/scales[0]), (x_input/scales[1]), (x_input/scales[2]), (x_input/scales[3]), (x_input/scales[4])]
     y_delta = [(y_input/scales[0]), (y_input/scales[1]), (y_input/scales[2]), (y_input/scales[3]), (y_input/scales[4])]
     x_split_output=np.zeros((len(scales)))
@@ -99,19 +99,27 @@ def hierarchicalNetwork2D(integratedPos,decodedPos,net,x_input,y_input, N, itera
     y_split_output=np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))])
     y_decoded_translation=np.sum(((y_split_output))*scales)
 
-    speeds.append([x_decoded_translation-decodedPos[-1][0], y_decoded_translation-decodedPos[-1][1]])
-    integratedPos.append([integratedPos[-1][0]+x_input,integratedPos[-1][1]+y_input ])
-    decodedPos.append([x_decoded_translation, y_decoded_translation])   
+    #store velocities and positions 
+    speeds_x.append(x_decoded_translation-decodedPos_y[-1])
+    speeds_y.append(y_decoded_translation-decodedPos_y[-1])
+
+    integratedPos_x.append(integratedPos_x[-1]+x_input)
+    integratedPos_y.append(integratedPos_y[-1]+y_input )
+    
+    decodedPos_x.append(x_decoded_translation)  
+    decodedPos_y.append( y_decoded_translation) 
     # print(f"translation {input} integrated decoded {round(integratedPos[-1],3)}  {str(decoded_translation )} ")
 
 
 def GIF_MultiResolutionFeedthrough2D(x_velocities, y_velocities, scale, visualise=False):
-    global prev_weights, speeds
-    # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*2
+    global prev_weights
+    integratedPos_x=[0]
+    decodedPos_x=[0]
+    speeds_x=[0]
 
-    integratedPos=[[0,0]]
-    decodedPos=[[0,0]]
-    speeds=[[0,0]]
+    integratedPos_y=[0]
+    decodedPos_y=[0]
+    speeds_y=[0]
 
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     net=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
@@ -127,8 +135,8 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities, y_velocities, scale, visualis
 
     def animate(i):
         global prev_weights
-        axs[-1].clear()
-        hierarchicalNetwork2D(integratedPos,decodedPos,net,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
+        # axs[-1].clear()
+        hierarchicalNetwork2D(prev_weights,speeds_x,integratedPos_x,decodedPos_x,speeds_y,integratedPos_y,decodedPos_y,net,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
         colors=[(0.9,0.4,0.5,0.4),(0.8,0.3,0.5,0.6),(0.8,0.1,0.3,0.8),(0.8,0,0,0.9),(0.7,0,0.1,1),'r']
         for k in range(nrows-1):
             axs[k].clear()
@@ -145,10 +153,10 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities, y_velocities, scale, visualis
         axs[cs_idx].axis('on')
         axs[cs_idx].tick_params(axis='both', which='both', bottom=False, top=False, left= False, labelbottom=False, labelleft=False)
 
-        axs[-1].scatter(integratedPos[-1][0],integratedPos[-1][1],color=color_list[cs_idx])
-        axs[-1].scatter(decodedPos[-1][0],decodedPos[-1][1],color='g')
-        axs[-1].set_xbound([0,2000])
-        axs[-1].set_ybound([0,2000])
+        axs[-1].scatter(integratedPos_x[-1],integratedPos_y[-1],color=color_list[cs_idx])
+        axs[-1].scatter(decodedPos_x[-1],decodedPos_y[-1],color='k')
+        # axs[-1].set_xbound([0,2000])
+        # axs[-1].set_ybound([0,2000])
         # axs[-1].get_yaxis().set_visible(False)
         axs[-1].spines[['top', 'right']].set_visible(False)
 
@@ -161,11 +169,15 @@ def GIF_MultiResolutionFeedthrough2D(x_velocities, y_velocities, scale, visualis
         plt.show()
 
 def MultiResolutionFeedthrough2D(x_velocities,y_velocities, scales, fitness=False, visualise=True):
-    global prev_weights, speeds
     # num_links,excite,activity_mag,inhibit_scale=1,3,0.0721745813*5,2.96673372e-02*5
-    integratedPos=[[0,0]]
-    decodedPos=[[0,0]]
-    speeds=[[0,0]]
+    integratedPos_x=[0]
+    decodedPos_x=[0]
+    speeds_x=[0]
+
+    integratedPos_y=[0]
+    decodedPos_y=[0]
+    speeds_y=[0]
+
 
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
@@ -174,16 +186,16 @@ def MultiResolutionFeedthrough2D(x_velocities,y_velocities, scales, fitness=Fals
     
 
     for i in range(len(x_velocities)):
-        hierarchicalNetwork2D(integratedPos,decodedPos,network,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
+        hierarchicalNetwork2D(prev_weights,speeds_x,integratedPos_x,decodedPos_x,speeds_y,integratedPos_y,decodedPos_y,network,x_velocities[i],y_velocities[i],N,iterations,wrap_iterations)
     
     if visualise==True:
-        integratedPos_x=[val[0] for val in integratedPos]
-        decodedPos_x=[val[0] for val in decodedPos]
-        speeds_x=[val[0] for val in speeds]
+        # integratedPos_x=[val[0] for val in integratedPos]
+        # decodedPos_x=[val[0] for val in decodedPos]
+        # speeds_x=[val[0] for val in speeds]
 
-        integratedPos_y=[val[1] for val in integratedPos]
-        decodedPos_y=[val[1] for val in decodedPos]
-        speeds_y=[val[1] for val in speeds]
+        # integratedPos_y=[val[1] for val in integratedPos]
+        # decodedPos_y=[val[1] for val in decodedPos]
+        # speeds_y=[val[1] for val in speeds]
 
         '''initlising network and animate figures'''
         fig, axs = plt.subplots(2,2, figsize=(8, 5))
@@ -215,11 +227,12 @@ vel_x,vel_y=np.load(outfile)
 # velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
 scales=[0.25,1,4,16,100,10000]
 N=100
-num_links,excite,activity_mag,inhibit_scale,iterations=1,1,1,0.0005,1 
-wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
+# num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations=1,1,1,0.0005,1, 1
+num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations=8,1,0.27758052,0.08663314,3,6
 
-# GIF_MultiResolutionFeedthrough2D(vel_x,vel_y,scales)
-MultiResolutionFeedthrough2D(vel_x, vel_y,scales)
+
+GIF_MultiResolutionFeedthrough2D(vel_x,vel_y,scales)
+# MultiResolutionFeedthrough2D(vel_x, vel_y,scales)
 
 # prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
 # plt.imshow(prev_weights[0][:][:])

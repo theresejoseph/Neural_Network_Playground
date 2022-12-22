@@ -471,7 +471,7 @@ wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 
 
 # GIF_MultiResolutionFeedthrough1D(velocities,scales, visualise=False)
-MultiResolutionFeedthrough1D(velocities,scales)
+# MultiResolutionFeedthrough1D(velocities,scales)
 
 # scale=[0.1,1,10,100,1000]
 # GIF_MultiResolution1D(velocities,scale, visualise=True)
