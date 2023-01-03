@@ -258,7 +258,7 @@ def attractorGridcell():
         axs.clear()
         global prev_weights
         
-        prev_weights=network.update_weights_dynamics(prev_weights, 359, 1)
+        prev_weights=network.update_weights_dynamics(prev_weights, 135, 1)
         # y=np.argmax(np.max(prev_weights, axis=1))
         # x=np.argmax(np.max(prev_weights, axis=0))
         # print(np.argmax(np.max(prev_weights, axis=0)), np.argmax(np.max(prev_weights, axis=1)))
