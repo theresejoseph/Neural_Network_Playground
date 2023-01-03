@@ -277,7 +277,29 @@ def MultiResolutionFeedthrough2D(genome):
     print(x_fitness+y_fitness)
     return x_fitness+y_fitness
 
+# head direction 
+def headDirection(genome):
+    N=360
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
 
+
+    theta_weights=np.zeros(N)
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    theta_weights[net.activation(0)]=net.full_weights(num_links)
+
+    output=[]
+    for i in range(1,360):
+        for j in range(iterations):
+            theta_weights=net.update_weights_dynamics(theta_weights,1)
+            theta_weights[theta_weights<0]=0
+    
+        output.append(can.activityDecoding(theta_weights,10,N))
+    
+    return (np.sum(abs(np.arange(1,360)-np.array(output))))*-1
 
 
 '''Implementation'''
@@ -302,8 +324,8 @@ class GeneticAlgorithm:
         for i in range(numRandGenomes):
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')]
-            
+            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #head direction 
             population.append(genome)
         return population 
 
@@ -312,7 +334,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.6)
+        mutate_indexs=np.argwhere(mutate_prob<=0.5)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -369,7 +391,7 @@ class GeneticAlgorithm:
             order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
 
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
-            stop_val=3
+            stop_val=5
             if i>=stop_val and all(element == current_fitnesses[i] for element in current_fitnesses[i-stop_val:i]):
                 break
             print(fitnesses)
@@ -379,7 +401,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/2D_SelectiveMultiresoutionWraparound.npy'
+    filename=f'./results/GA_MultiScale/tuningHD.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -388,11 +410,15 @@ def runGA1D(plot=False):
     # ranges = [[1,10],[1,10],[0.05,3],[0,0.2],[1,10]]
     # fitnessFunc=CAN_tuningShiftAccuracy
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0.1,1],[0,0.1],[1,10],[1,10]]
-    fitnessFunc=MultiResolutionFeedthrough2D
-    num_gens=20
-    population_size=8
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    # ranges = [[1,10],[1,10],[0.1,1],[0,0.1],[1,10],[1,10]]
+    # fitnessFunc=MultiResolutionFeedthrough2D
+
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
+    ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
+    fitnessFunc=headDirection
+    num_gens=40
+    population_size=80
 
     if plot==True:
         with open(filename, 'rb') as f:
@@ -405,8 +431,8 @@ def runGA1D(plot=False):
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount).implimentGA()
 
 
-runGA1D(plot=False)
-runGA1D(plot=True)
+# runGA1D(plot=False)
+# runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
 

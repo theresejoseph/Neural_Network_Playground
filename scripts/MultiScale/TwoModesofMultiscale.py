@@ -480,3 +480,4 @@ wrap_iterations,wrap_mag,wrap_inhi=iterations,activity_mag,inhibit_scale
 # testAllcities()
 
 #  inputs=np.concatenate([np.linspace(0,1,25), np.array([4]*5),  np.array([16]*1)])
+

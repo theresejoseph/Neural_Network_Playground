@@ -324,7 +324,7 @@ class attractorNetwork2D:
             row=full_shift*inv_frac_row + shifted_row*abs(frac_row)
             rowCol=row*inv_frac_col + shifted_rowThencol*abs(frac_col)
 
-            print(frac_row, frac_col)
+            #print(frac_row, frac_col)
 
             return (rowCol + colRow)/2
         
@@ -337,9 +337,11 @@ class attractorNetwork2D:
         else:
             return full_shift
         
-    def update_weights_dynamics(self,prev_weights, delta_row, delta_col,moreResults=None):
+    def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
-
+        delta_row=np.round(speed*np.sin(np.deg2rad(direction)),6)
+        delta_col=np.round(speed*np.cos(np.deg2rad(direction)),6)
+        print(delta_col, delta_row)
         '''copied and shifted activity'''
         full_shift=np.zeros((self.N1,self.N2))
         full_shift[(non_zero_rows + int(np.floor(delta_row)))%self.N1, (non_zero_cols+ int(np.floor(delta_col)))%self.N2]=prev_weights[non_zero_rows, non_zero_cols]
@@ -374,6 +376,9 @@ class attractorNetwork2D:
             return prev_weights/np.linalg.norm(prev_weights),copy_shift,excited,inhibit_array
         else:
             return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
+        
+    def shiftedCell(self, placeWeights, direction, speed):
+        pass
 
 '''Tester Functions'''
 def visulaiseFractionalWeights():
