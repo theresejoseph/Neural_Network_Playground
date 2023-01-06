@@ -335,32 +335,73 @@ class attractorNetwork2D:
         else:
             return full_shift
     
-    def fractional_shift(self, prev_weights,delta_row,delta_col):
+    def fractional_shift(self, M,delta_row,delta_col):
         M_row, M_col = np.zeros((self.N1, self.N2)), np.zeros((self.N1, self.N2))
         
         mysign=lambda x: 1 if x > 0 else -1
         whole_shift_row, whole_shift_col = np.floor(delta_row), np.floor(delta_col)
         frac_row, frac_col=delta_row%1,delta_col%1
         inv_frac_row, inv_frac_col=[1-(delta_row%1),1-(delta_col%1)]
+
         for i in range(self.N1):
             for j in range(self.N2):
                 # M_row[int((i+whole_shift_row)%self.N1),j]=inv_frac_row*prev_weights[int((i+whole_shift_row)%self.N1),j] + frac_row*prev_weights[int((i+whole_shift_row+mysign(frac_row))%self.N1), j]
                 # M_col[i,int((j+whole_shift_col)%self.N2)]=inv_frac_col*prev_weights[i,int((j+whole_shift_col)%self.N2)] + frac_col*prev_weights[i,int((j+whole_shift_col+mysign(frac_col))%self.N2)]
-          
-                M_row[i,j]=(1-inv_frac_row)*prev_weights[i,j] + frac_row*prev_weights[int((i-mysign(delta_row))%self.N1), j]
-                M_col[i,j]=(1-inv_frac_col)*prev_weights[i,j] + frac_col*prev_weights[i,int((j-mysign(delta_col))%self.N2)]
+                if frac_row == 0.0:
+                    M_row=M
+                elif delta_row>0:
+                    M_row[i,j]=(1-frac_row)*M[i,j] + frac_row*M[int((i-1)%self.N1), j]
+                else:
+                    M_row[i,j]=(frac_row)*M[i,j] + (1-frac_row)*M[int((i+1)%self.N1), j]
 
-        return M_row +M_col
+                if frac_col == 0.0:
+                    M_col=M
+                elif delta_col>0:    
+                    M_col[i,j]=(1-frac_col)*M[i,j] + frac_col*M[i,int((j-1)%self.N2)]
+                else:
+                    M_col[i,j]=(frac_col)*M[i,j] + (1-frac_col)*M[i,int((j+1)%self.N2)]
+        return (M_row+M_col) /np.linalg.norm((M_row+M_col))
+
+    def gpt_shift(self, M, delta_row, delta_col):
+
+        s,t= delta_row%1,delta_col%1
+        # Determine the number of rows and columns in the matrix
+        n, m = M.shape
+        # Create an empty output matrix
+        N = np.empty((n, m))
+
+        # Shift the values in the matrix using linear interpolation and modulo arithmetic
+        for i in range(n):
+            for j in range(m):
+                # Determine the integer shifts that surround the fractional shift
+                if delta_row>0:
+                    i1 = int((i + s) % n)
+                else:
+                    i1 = int((i + s + n) % n)
+                if delta_col>0:
+                    j1 = int((j + t) % m)
+                else:
+                    j1 = int((j + t + m) % m)
+
+                i2 = int((i1 + 1) % n)
+                j2 = int((j1 + 1) % m)
+
+                # Interpolate the value at the fractional shift using linear interpolation
+                N[i][j] = (1-(i+s-i1))*(1-(j+t-j1))*M[i1][j1] + (i+s-i1)*(1-(j+t-j1))*M[i2][j1] + (1-(i+s-i1))*(j+t-j1)*M[i1][j2] + (i+s-i1)*(j+t-j1)*M[i2][j2]
+        return N
 
         
     def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
+ 
         delta_row=np.round(speed*np.sin(np.deg2rad(direction)),6)
         delta_col=np.round(speed*np.cos(np.deg2rad(direction)),6)
-        print(delta_col, delta_row)
+        
+        func = lambda x: int(math.ceil(x)) if x < 0 else int(math.floor(x))
+        # print(func(delta_row), func(delta_col))
         '''copied and shifted activity'''
         full_shift=np.zeros((self.N1,self.N2))
-        shifted_row_ids, shifted_col_ids=(non_zero_rows + int(np.floor(delta_row)))%self.N1, (non_zero_cols+ int(np.floor(delta_col)))%self.N2
+        shifted_row_ids, shifted_col_ids=(non_zero_rows +func(delta_row))%self.N1, (non_zero_cols+ func(delta_col))%self.N2
         full_shift[shifted_row_ids, shifted_col_ids]=prev_weights[non_zero_rows, non_zero_cols]
         copy_shift=self.fractional_shift(full_shift,delta_row,delta_col)*self.activity_mag
 
@@ -506,11 +547,11 @@ def visulaise2DFractions(prev_weights, another_prev_weights):
 # visulaiseFractionalWeights()
 # visulaiseDeconstructed2DAttractor()
 
-N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 1, 0.0005
-net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
-prev_weights=net.neuron_activation(50,50)
-another_prev_weights=net.neuron_activation(50,50)
-visulaise2DFractions(prev_weights, another_prev_weights)
+# N1,N2,num_links,excite_radius,activity_mag,inhibit_scale=  100, 100, 1, 1, 1, 0.0005
+# net=attractorNetwork2D( N1,N2,num_links,excite_radius,activity_mag,inhibit_scale)
+# prev_weights=net.neuron_activation(50,50)
+# another_prev_weights=net.neuron_activation(50,50)
+# visulaise2DFractions(prev_weights, another_prev_weights)
 
 def activityDecoding(prev_weights,radius,N):
     '''Isolating activity at a radius around the peak to decode position'''

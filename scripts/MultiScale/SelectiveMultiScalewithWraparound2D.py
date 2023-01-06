@@ -14,7 +14,7 @@ import time
 from os import listdir
 import sys
 sys.path.append('./scripts')
-from CAN import attractorNetwork2D, attractorNetwork
+from CAN import attractorNetwork2D, attractorNetwork, activityDecodingAngle, activityDecoding
 import CAN as can
 import pykitti
 import json 
@@ -213,10 +213,9 @@ vel_x,vel_y=np.load(outfile)
 
 # velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
 scales=[0.25,1,4,16,100,10000]
-N=100
 # num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations=1,1,1,0.0005,1, 1
 # num_links,excite,activity_mag,inhibit_scale,iterations,wrap_iterations=8,1,0.27758052,0.08663314,3,6
-num_links,excite,activity_mag,inhibit_scale=1,1,1,0.0005
+
 
 # GIF_MultiResolutionFeedthrough2D(vel_x,vel_y,scales)
 # MultiResolutionFeedthrough2D(vel_x, vel_y,scales)
@@ -228,48 +227,78 @@ theta_weights=np.zeros(360)
 theata_called_iters=0
 
 def headDirection(theta_weights, angVel):
+    global theata_called_iters
     N=360
     num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    
     if theata_called_iters==0:
         theta_weights[net.activation(0)]=net.full_weights(num_links)
         theata_called_iters+=1
 
+
     for j in range(iterations):
         theta_weights=net.update_weights_dynamics(theta_weights,angVel)
         theta_weights[theta_weights<0]=0
-        
-    print(np.argmax(theta_weights, 17, N))
+    
+    print(np.argmax(theta_weights))
     
     return theta_weights
 
 
 def attractorGridcell():
-    global prev_weights
+    global prev_weights,x, y
+    N=100
+    num_links,excite,activity_mag,inhibit_scale=1,1,1,0.0005
     prev_weights=np.zeros((N,N))
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=network.excitations(50,50)
-    
-    dirs=np.arange(0,360,5)
-    speeds=[0.5]*len(dirs)
+    x,y=50,50
+    dirs=np.arange(0,90)
+    speeds=np.linspace(0.1,1.1, 90)
 
     fig, axs = plt.subplots(1,1,figsize=(5, 5))
     def animate(i):
         axs.clear()
-        global prev_weights
+        global prev_weights, x, y
         
-        prev_weights=network.update_weights_dynamics(prev_weights, 135, 1)
-        # y=np.argmax(np.max(prev_weights, axis=1))
-        # x=np.argmax(np.max(prev_weights, axis=0))
-        # print(np.argmax(np.max(prev_weights, axis=0)), np.argmax(np.max(prev_weights, axis=1)))
+        prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
 
+        print( np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)))
+        x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
+        print(round(x),round(y))
+        print(' ')
         axs.imshow(prev_weights)
         axs.invert_yaxis()
     
-
     ani = FuncAnimation(fig, animate, interval=1,frames=len(speeds),repeat=False)
     plt.show()
 
+def attractorGridcell_fitness():
+
+    N=100
+    num_links,excite,activity_mag,inhibit_scale=1,1,1,0.0005
+    prev_weights=np.zeros((N,N))
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=network.excitations(50,50)
+    x,y=50,50
+    dirs=np.arange(0,90)
+    speeds=np.linspace(0.1,1.1,90)
+
+
+    for i in range(len(speeds)):
+
+        prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+
+        print( np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)))
+        x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
+        print(round(x),round(y))
+        print(' ')
+
     
-attractorGridcell()
-# x=headDirection()
+
+    
+# attractorGridcell()
+attractorGridcell_fitness()
+# for i in range(1,360):
+#     theta_weights = headDirection(theta_weights, 1)
