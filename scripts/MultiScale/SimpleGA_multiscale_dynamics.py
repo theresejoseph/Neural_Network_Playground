@@ -301,6 +301,46 @@ def headDirection(genome):
     
     return (np.sum(abs(np.arange(1,360)-np.array(output))))*-1
 
+#grid cell 
+def attractorGridcell_fitness(genome):
+    N=100
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
+
+    prev_weights=np.zeros((N,N))
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=network.excitations(50,50)
+    x,y=50,50
+    dirs=np.arange(0,90)
+    speeds=np.linspace(0.1,1.1,90)
+    x_integ, y_integ=[50],[50]
+    x_grid, y_grid=[50], [50]
+
+    
+    for i in range(len(speeds)):
+        for j in range(iterations): 
+            prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+
+        
+        #grid cell output 
+        x_grid.append(np.argmax(np.max(prev_weights, axis=1)))
+        y_grid.append(np.argmax(np.max(prev_weights, axis=0)))
+
+        #integrated output
+        x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
+        x_integ.append(round(x))
+        y_integ.append(round(y))
+
+
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+
+    return (x_error+y_error)*-1
+
 
 '''Implementation'''
 class GeneticAlgorithm:
@@ -325,7 +365,7 @@ class GeneticAlgorithm:
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #head direction 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #head direction and grid cell 
             population.append(genome)
         return population 
 
@@ -334,7 +374,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.5)
+        mutate_indexs=np.argwhere(mutate_prob<=0.7)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -396,12 +436,12 @@ class GeneticAlgorithm:
                 break
             print(fitnesses)
 
-        with open(self.filename, 'wb') as f:
-            np.save(f, np.array(order_population))
+            with open(self.filename, 'wb') as f:
+                np.save(f, np.array(order_population))
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/tuningHD.npy'
+    filename=f'./results/GA_MultiScale/tuningGrid.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -414,11 +454,15 @@ def runGA1D(plot=False):
     # ranges = [[1,10],[1,10],[0.1,1],[0,0.1],[1,10],[1,10]]
     # fitnessFunc=MultiResolutionFeedthrough2D
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
-    ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
-    fitnessFunc=headDirection
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
+    # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
+    # fitnessFunc=headDirection
+
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,4]]
+    fitnessFunc=attractorGridcell_fitness
     num_gens=40
-    population_size=80
+    population_size=32
 
     if plot==True:
         with open(filename, 'rb') as f:
@@ -431,8 +475,8 @@ def runGA1D(plot=False):
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount).implimentGA()
 
 
-# runGA1D(plot=False)
-# runGA1D(plot=True)
+runGA1D(plot=False)
+runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
 

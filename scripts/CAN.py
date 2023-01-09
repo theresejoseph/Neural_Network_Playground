@@ -361,35 +361,7 @@ class attractorNetwork2D:
                 else:
                     M_col[i,j]=(frac_col)*M[i,j] + (1-frac_col)*M[i,int((j+1)%self.N2)]
         return (M_row+M_col) /np.linalg.norm((M_row+M_col))
-
-    def gpt_shift(self, M, delta_row, delta_col):
-
-        s,t= delta_row%1,delta_col%1
-        # Determine the number of rows and columns in the matrix
-        n, m = M.shape
-        # Create an empty output matrix
-        N = np.empty((n, m))
-
-        # Shift the values in the matrix using linear interpolation and modulo arithmetic
-        for i in range(n):
-            for j in range(m):
-                # Determine the integer shifts that surround the fractional shift
-                if delta_row>0:
-                    i1 = int((i + s) % n)
-                else:
-                    i1 = int((i + s + n) % n)
-                if delta_col>0:
-                    j1 = int((j + t) % m)
-                else:
-                    j1 = int((j + t + m) % m)
-
-                i2 = int((i1 + 1) % n)
-                j2 = int((j1 + 1) % m)
-
-                # Interpolate the value at the fractional shift using linear interpolation
-                N[i][j] = (1-(i+s-i1))*(1-(j+t-j1))*M[i1][j1] + (i+s-i1)*(1-(j+t-j1))*M[i2][j1] + (1-(i+s-i1))*(j+t-j1)*M[i1][j2] + (i+s-i1)*(j+t-j1)*M[i2][j2]
-        return N
-
+ 
         
     def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights

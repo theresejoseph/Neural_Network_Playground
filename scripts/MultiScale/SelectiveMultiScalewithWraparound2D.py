@@ -275,29 +275,38 @@ def attractorGridcell():
     plt.show()
 
 def attractorGridcell_fitness():
-
     N=100
-    num_links,excite,activity_mag,inhibit_scale=1,1,1,0.0005
+    num_links,excite,activity_mag,inhibit_scale, iterations=7,2,1.96188442, 0.0420970698, 2
+    num_links,excite,activity_mag,inhibit_scale, iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2
     prev_weights=np.zeros((N,N))
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=network.excitations(50,50)
     x,y=50,50
     dirs=np.arange(0,90)
     speeds=np.linspace(0.1,1.1,90)
-
+    x_integ, y_integ=[50],[50]
+    x_grid, y_grid=[50], [50]
 
     for i in range(len(speeds)):
+        for j in range(iterations):
+            prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+            prev_weights[prev_weights<0]=0
 
-        prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+        x_grid.append(np.argmax(np.max(prev_weights, axis=1)))
+        y_grid.append(np.argmax(np.max(prev_weights, axis=0)))
 
-        print( np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)))
         x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
-        print(round(x),round(y))
-        print(' ')
+        x_integ.append(round(x))
+        y_integ.append(round(y))
 
-    
 
-    
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+    print(x_integ, y_integ)
+    print(x_grid, y_grid)
+
+    return (x_error+y_error)
+
 # attractorGridcell()
 attractorGridcell_fitness()
 # for i in range(1,360):
