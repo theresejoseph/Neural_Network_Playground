@@ -39,16 +39,33 @@ def processMap(map_path, scale_percent):
     return img, imgColor, imgdia, binMap
 
 
-map_path = '../../results/scribbles_approx400x400pxl.png'
-img, imgColor, imgdia, binMap=processMap(map_path,100)
-s=(26,16)
-g=(113,245)
+map_path = '../../results/TestingMaps/berlin_5kmrad_0.2Line_100pdi.png'
+img=np.array(Image.open(map_path).convert("L"))
+
+pxlPerMeter= img.shape[0]/5000
+
+img[img<255]= 0 
+img[img==255]=1
+
 plt.imshow(img)
 plt.show()
 
-dx = DistanceTransformPlanner(binMap, goal=g, distance="euclidean")
-dx.plan()
-path = dx.query(start=s)
+free_spaces=[]
+for i in range(img.shape[0]):
+    for j in range(img.shape[1]):
+        if img[i][j]==0:
+            free_spaces.append((j,i))
 
-outfile='../../results/testEnvPath1.npy'
-np.save(outfile,path)
+num_locations=20
+locations=random.choices(free_spaces, k=num_locations)
+print(locations)
+
+path=[]
+for i in range(len(locations)-1):
+    dx = DistanceTransformPlanner(img, goal=locations[i+1], distance="euclidean")
+    dx.plan()
+    path.extend(dx.query(start=locations[i]))
+    print(f"done {i+1} paths")
+
+    outfile='../../results/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
+    np.save(outfile,path)
