@@ -308,6 +308,6 @@ def attractorGridcell_fitness():
     return (x_error+y_error)
 
 # attractorGridcell()
-attractorGridcell_fitness()
+# attractorGridcell_fitness()
 # for i in range(1,360):
 #     theta_weights = headDirection(theta_weights, 1)
