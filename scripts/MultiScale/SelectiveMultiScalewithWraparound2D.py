@@ -208,8 +208,8 @@ def MultiResolutionFeedthrough2D(x_velocities,y_velocities, scales, fitness=Fals
         return np.sum(abs(np.array(integratedPos)-np.array(decodedPos)))
 
 
-outfile='./results/testEnvPathVelocities.npy'
-vel_x,vel_y=np.load(outfile)
+# outfile='./results/testEnvPathVelocities.npy'
+# vel_x,vel_y=np.load(outfile)
 
 # velocities=np.concatenate([np.random.uniform(0,0.25,20), np.random.uniform(0.25,1,20), np.random.uniform(1,4,20), np.random.uniform(4,16,20), np.random.uniform(16,100,20)])
 scales=[0.25,1,4,16,100,10000]
@@ -223,8 +223,7 @@ scales=[0.25,1,4,16,100,10000]
 # prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
 # plt.imshow(prev_weights[0][:][:])
 # plt.show()
-theta_weights=np.zeros(360)
-theata_called_iters=0
+
 
 def headDirection(theta_weights, angVel):
     global theata_called_iters
@@ -241,10 +240,8 @@ def headDirection(theta_weights, angVel):
         theta_weights=net.update_weights_dynamics(theta_weights,angVel)
         theta_weights[theta_weights<0]=0
     
-    print(np.argmax(theta_weights))
     
     return theta_weights
-
 
 def attractorGridcell():
     global prev_weights,x, y
@@ -311,3 +308,116 @@ def attractorGridcell_fitness():
 # attractorGridcell_fitness()
 # for i in range(1,360):
 #     theta_weights = headDirection(theta_weights, 1)
+purePursuitFile='./results/vehiclePosisitionsPurePursuit.npy'
+vel_purePursuitFile='./results/vehicleVelocitiesPurePursuit.npy'
+vel,angVel=zip(*np.load(vel_purePursuitFile))
+
+kinemVelFile='./results/testEnvPathVelocities.npy'
+kinemAngVelFile='./results/testEnvPathAngVelocities.npy'
+vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
+
+
+def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations):
+    delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
+
+    cs_idx=scale_selection(vel,scales)
+    wrap_rows=np.zeros((len(scales)))
+    wrap_cols=np.zeros((len(scales)))
+    # wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
+
+    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N),cs_idx,wraparound[cs_idx],wraparound[4])
+
+    '''Update selected scale'''
+    for iter in range(iterations):
+        prev_weights[cs_idx][:], wrap_rows[cs_idx], wrap_cols[cs_idx]= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
+        prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
+
+    '''Update the 100 scale based on wraparound in any of the previous scales'''
+    if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ):
+        del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
+        direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
+        distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
+        print(direction_100)
+        # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
+        for iter in range(wrap_iterations):
+            prev_weights[-2][:], wrap_rows[-2], wrap_cols[-2]= net.update_weights_dynamics(prev_weights[-2][:],direction_100, distance_100)
+            prev_weights[-2][prev_weights[-2][:]<0]=0
+
+    '''Update the 10000 scale based on wraparound in the 100 scale'''
+    if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
+        del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
+        direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
+        distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
+        for iter in range(wrap_iterations):
+            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
+            prev_weights[-1][prev_weights[-1][:]<0]=0
+    print(f"wrap_rows {wrap_rows}, wrap_cols {wrap_cols}")
+       
+    return prev_weights
+ 
+
+def headDirectionAndPlace():
+    global theata_called_iters,theta_weights, prev_weights, q
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+
+    N=100
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 5
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    for n in range(len(prev_weights)):
+        prev_weights[n]=network.excitations(0,0)
+
+    x_grid, y_grid=[0], [0]
+    x_integ, y_integ=[0],[0]
+    q=[0,0,0]
+
+    for i in range(100):
+    # nrows=6
+    # fig, axs = plt.subplots(1,nrows, figsize=(12, 2))
+    # fig.subplots_adjust(hspace=0.9)
+    # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
+    # axs.ravel()
+    # def animate(i):
+    #     global theta_weights, prev_weights, q
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]))
+        direction=np.argmax(theta_weights)
+
+        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations)
+
+        x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1))-0 for m in range(len(scales))])*scales)
+        y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0))-0 for m in range(len(scales))])*scales)
+
+        x_grid.append(x_multiscale_grid)
+        y_grid.append(y_multiscale_grid)
+
+        q[0],q[1]=q[0]+vel[i]*np.sin(q[2]), q[1]+vel[i]*np.cos(q[2])
+        q[2]+=angVel[i]
+
+        x_integ.append(round(q[0]))
+        y_integ.append(round(q[1]))
+
+        print(x_integ[-1], y_integ[-1])
+        print(x_grid[-1], y_grid[-1])
+        print('')
+
+    #     for k in range(nrows):
+    #         axs[k].clear()
+    #         axs[k].set_title(f"Scale {scales[k]}m",fontsize=10)
+       
+    #         axs[k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
+    #         axs[k].spines[['top', 'left', 'right']].set_visible(False)
+    #         axs[k].invert_yaxis()
+    # ani = FuncAnimation(fig, animate, interval=1,frames=100,repeat=False)
+    # plt.show()
+
+    # f = "/Users/theresejoseph/Documents/Neural_Network_Playground/results/GIFs/BerlinPathMultiscaleAttractorCentered.gif" 
+    # writergif = animation.PillowWriter(fps=25) 
+    # ani.save(f, writer=writergif)
+
+
+    plt.plot(x_integ, y_integ, 'g.')
+    plt.plot(x_grid, y_grid, 'b.')
+    plt.show()
+
+headDirectionAndPlace()

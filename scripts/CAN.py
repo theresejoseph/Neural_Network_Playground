@@ -365,7 +365,8 @@ class attractorNetwork2D:
         
     def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
- 
+        max_col,max_row=np.argmax(np.max(prev_weights, axis=1)),np.argmax(np.max(prev_weights, axis=0))
+        
         delta_row=np.round(speed*np.sin(np.deg2rad(direction)),6)
         delta_col=np.round(speed*np.cos(np.deg2rad(direction)),6)
         
@@ -376,6 +377,21 @@ class attractorNetwork2D:
         shifted_row_ids, shifted_col_ids=(non_zero_rows +func(delta_row))%self.N1, (non_zero_cols+ func(delta_col))%self.N2
         full_shift[shifted_row_ids, shifted_col_ids]=prev_weights[non_zero_rows, non_zero_cols]
         copy_shift=self.fractional_shift(full_shift,delta_row,delta_col)*self.activity_mag
+
+        '''wrap around'''
+        if max_col+delta_col < 0: #left 
+            wrap_cols=-1
+        elif max_col+delta_col > self.N2-1: #right 
+            wrap_cols=1
+        else:
+            wrap_cols=0
+        # print(f"change in rows {max_row+delta_row} change in cols {max_col+delta_col}")
+        if max_row+delta_row < 0: #up 
+            wrap_rows=-1
+        elif max_row+delta_row > self.N1-1:# down 
+            wrap_rows=1
+        else:
+            wrap_rows=0
 
         '''excitation'''
         copyPaste=copy_shift
@@ -405,7 +421,7 @@ class attractorNetwork2D:
         if moreResults==True:
             return prev_weights/np.linalg.norm(prev_weights),copy_shift,excited,inhibit_array
         else:
-            return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
+            return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan], wrap_rows, wrap_cols
         
     def shiftedCell(self, placeWeights, direction, speed):
         pass
