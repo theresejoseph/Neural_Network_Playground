@@ -317,7 +317,7 @@ kinemAngVelFile='./results/testEnvPathAngVelocities.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 
 
-def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations):
+def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter):
     delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
 
     cs_idx=scale_selection(vel,scales)
@@ -329,7 +329,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
 
     '''Update selected scale'''
     for iter in range(iterations):
-        prev_weights[cs_idx][:], wrap_rows[cs_idx], wrap_cols[cs_idx]= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
+        prev_weights[cs_idx][:], wrap_rows[cs_idx], wrap_cols[cs_idx]= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
@@ -337,10 +337,10 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
         direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
-        print(direction_100)
+        # print(direction_100)
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
         for iter in range(wrap_iterations):
-            prev_weights[-2][:], wrap_rows[-2], wrap_cols[-2]= net.update_weights_dynamics(prev_weights[-2][:],direction_100, distance_100)
+            prev_weights[-2][:], wrap_rows[-2], wrap_cols[-2]= net.update_weights_dynamics(prev_weights[-2][:],direction_100, distance_100,4, wrap_counter)
             prev_weights[-2][prev_weights[-2][:]<0]=0
 
     '''Update the 10000 scale based on wraparound in the 100 scale'''
@@ -349,44 +349,51 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
         distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
         for iter in range(wrap_iterations):
-            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
+            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
             prev_weights[-1][prev_weights[-1][:]<0]=0
-    print(f"wrap_rows {wrap_rows}, wrap_cols {wrap_cols}")
+    
+    if np.any(wrap_cols!=0):
+        print(f"wrap_cols {wrap_cols}")
+    if np.any(wrap_rows!=0):
+        print(f"wrap_rows {wrap_rows}")
+
        
     return prev_weights
  
 
 def headDirectionAndPlace():
-    global theata_called_iters,theta_weights, prev_weights, q
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
     theta_weights=np.zeros(360)
     theata_called_iters=0
 
+    start_x, start_y= 50, 50
     N=100
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 5
+    wrap_counter=[0,0,0,0,0,0]
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     for n in range(len(prev_weights)):
-        prev_weights[n]=network.excitations(0,0)
+        prev_weights[n]=network.excitations(start_x,start_y)
 
-    x_grid, y_grid=[0], [0]
-    x_integ, y_integ=[0],[0]
+    x_grid, y_grid=[start_x], [start_y]
+    x_integ, y_integ=[start_x],[start_y]
     q=[0,0,0]
 
-    for i in range(100):
+    for i in range(300):
     # nrows=6
     # fig, axs = plt.subplots(1,nrows, figsize=(12, 2))
     # fig.subplots_adjust(hspace=0.9)
     # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     # axs.ravel()
     # def animate(i):
-    #     global theta_weights, prev_weights, q
+    #     global theta_weights, prev_weights, q, wrap_counter
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]))
         direction=np.argmax(theta_weights)
 
-        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations)
+        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
 
-        x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1))-0 for m in range(len(scales))])*scales)
-        y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0))-0 for m in range(len(scales))])*scales)
+        x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1))-start_x for m in range(len(scales))])*scales)
+        y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0))-start_y for m in range(len(scales))])*scales)
 
         x_grid.append(x_multiscale_grid)
         y_grid.append(y_multiscale_grid)
@@ -408,7 +415,7 @@ def headDirectionAndPlace():
     #         axs[k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
     #         axs[k].spines[['top', 'left', 'right']].set_visible(False)
     #         axs[k].invert_yaxis()
-    # ani = FuncAnimation(fig, animate, interval=1,frames=100,repeat=False)
+    # ani = FuncAnimation(fig, animate, interval=1,frames=500,repeat=False)
     # plt.show()
 
     # f = "/Users/theresejoseph/Documents/Neural_Network_Playground/results/GIFs/BerlinPathMultiscaleAttractorCentered.gif" 
