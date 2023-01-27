@@ -369,7 +369,7 @@ def headDirectionAndPlace():
     start_x, start_y= 50, 50
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 1, 1
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     for n in range(len(prev_weights)):
@@ -386,7 +386,7 @@ def headDirectionAndPlace():
     # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     # axs.ravel()
     # def animate(i):
-    #     global theta_weights, prev_weights, q, wrap_counter
+        # global theta_weights, prev_weights, q, wrap_counter
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]))
         direction=np.argmax(theta_weights)
 
@@ -400,6 +400,7 @@ def headDirectionAndPlace():
 
         q[0],q[1]=q[0]+vel[i]*np.sin(q[2]), q[1]+vel[i]*np.cos(q[2])
         q[2]+=angVel[i]
+        
 
         x_integ.append(round(q[0]))
         y_integ.append(round(q[1]))
@@ -427,4 +428,4 @@ def headDirectionAndPlace():
     plt.plot(x_grid, y_grid, 'b.')
     plt.show()
 
-headDirectionAndPlace()
+# headDirectionAndPlace()

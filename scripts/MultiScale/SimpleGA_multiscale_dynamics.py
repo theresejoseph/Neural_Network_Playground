@@ -322,7 +322,7 @@ def attractorGridcell_fitness(genome):
     
     for i in range(len(speeds)):
         for j in range(iterations): 
-            prev_weights=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+            prev_weights,wrap_cols, wrap_rows=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i], current_scale=0, wrap_counter=[0,0,0,0,0,0])
 
         
         #grid cell output 
@@ -459,10 +459,10 @@ def runGA1D(plot=False):
     # fitnessFunc=headDirection
 
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,4]]
+    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,1]]
     fitnessFunc=attractorGridcell_fitness
     num_gens=40
-    population_size=32
+    population_size=20
 
     if plot==True:
         with open(filename, 'rb') as f:

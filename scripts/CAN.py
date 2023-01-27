@@ -406,19 +406,19 @@ class attractorNetwork2D:
  
         '''wrap around'''
         max_col,max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
-        if prev_max_col==self.N2 -1 and max_col==0:
+        if prev_max_col==(self.N2 -1) and max_col==0:
             wrap_cols=1
             wrap_counter[current_scale]+=1
-        elif prev_max_col==0 and max_col==self.N2 -1:
+        elif prev_max_col==0 and max_col==(self.N2 -1):
             wrap_cols=-1
             wrap_counter[current_scale]+=1
         else:
             wrap_cols=0 
 
-        if prev_max_row==self.N2 -1 and max_row==0:
+        if prev_max_row==(self.N1 -1) and max_row==0:
             wrap_rows=1
             wrap_counter[current_scale]+=1
-        elif prev_max_row==0 and max_row==self.N2 -1:
+        elif prev_max_row==0 and max_row==(self.N1 -1):
             wrap_rows=-1
             wrap_counter[current_scale]+=1
         else:
@@ -430,7 +430,6 @@ class attractorNetwork2D:
         elif wrap_counter[current_scale]==2 and any(direction == diag for diag in [45, 135, 225, 315]): # identifying diagonals where row and column are crossed together 
             wrap_cols*=0.5
             wrap_rows*=0.5
-
 
 
         if moreResults==True:
