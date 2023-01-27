@@ -13,10 +13,11 @@ from scipy import signal
 import time 
 from os import listdir
 import sys
-sys.path.append('./scripts')
+sys.path.append('../scripts')
+import CAN
 from CAN import attractorNetwork2D, attractorNetwork, activityDecodingAngle, activityDecoding
 import CAN as can
-import pykitti
+# import pykitti
 import json 
 from DataHandling import saveOrLoadNp  
 
@@ -308,12 +309,12 @@ def attractorGridcell_fitness():
 # attractorGridcell_fitness()
 # for i in range(1,360):
 #     theta_weights = headDirection(theta_weights, 1)
-purePursuitFile='./results/vehiclePosisitionsPurePursuit.npy'
-vel_purePursuitFile='./results/vehicleVelocitiesPurePursuit.npy'
-vel,angVel=zip(*np.load(vel_purePursuitFile))
+# purePursuitFile='./results/vehiclePosisitionsPurePursuit.npy'
+# vel_purePursuitFile='./results/vehicleVelocitiesPurePursuit.npy'
+# vel,angVel=zip(*np.load(vel_purePursuitFile))
 
-kinemVelFile='./results/testEnvPathVelocities.npy'
-kinemAngVelFile='./results/testEnvPathAngVelocities.npy'
+kinemVelFile='../results/testEnvPathVelocities.npy'
+kinemAngVelFile='../results/testEnvPathAngVelocities.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 
 
@@ -328,7 +329,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
     # print(can.activityDecoding(prev_weights[cs_idx][:],4,N),cs_idx,wraparound[cs_idx],wraparound[4])
 
     '''Update selected scale'''
-    for iter in range(iterations):
+    for i in range(iterations):
         prev_weights[cs_idx][:], wrap_rows[cs_idx], wrap_cols[cs_idx]= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
 
@@ -339,7 +340,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
         # print(direction_100)
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
-        for iter in range(wrap_iterations):
+        for i in range(wrap_iterations):
             prev_weights[-2][:], wrap_rows[-2], wrap_cols[-2]= net.update_weights_dynamics(prev_weights[-2][:],direction_100, distance_100,4, wrap_counter)
             prev_weights[-2][prev_weights[-2][:]<0]=0
 
@@ -348,7 +349,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
         direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
         distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
-        for iter in range(wrap_iterations):
+        for i in range(wrap_iterations):
             prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
             prev_weights[-1][prev_weights[-1][:]<0]=0
     
@@ -428,4 +429,4 @@ def headDirectionAndPlace():
     plt.plot(x_grid, y_grid, 'b.')
     plt.show()
 
-# headDirectionAndPlace()
+headDirectionAndPlace()

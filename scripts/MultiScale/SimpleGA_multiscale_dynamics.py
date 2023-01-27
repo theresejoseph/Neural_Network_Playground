@@ -6,7 +6,7 @@ sys.path.append('./scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 import CAN as can
 from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
-from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D
+from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D, hierarchicalNetwork2DGrid
 from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
@@ -278,28 +278,28 @@ def MultiResolutionFeedthrough2D(genome):
     return x_fitness+y_fitness
 
 # head direction 
-def headDirection(genome):
-    N=360
-    num_links=int(genome[0]) #int
-    excite=int(genome[1]) #int
-    activity_mag=genome[2] #uni
-    inhibit_scale=genome[3] #uni
-    iterations=int(genome[4])
+# def headDirection(genome):
+#     N=360
+#     num_links=int(genome[0]) #int
+#     excite=int(genome[1]) #int
+#     activity_mag=genome[2] #uni
+#     inhibit_scale=genome[3] #uni
+#     iterations=int(genome[4])
 
 
-    theta_weights=np.zeros(N)
-    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
-    theta_weights[net.activation(0)]=net.full_weights(num_links)
+#     theta_weights=np.zeros(N)
+#     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+#     theta_weights[net.activation(0)]=net.full_weights(num_links)
 
-    output=[]
-    for i in range(1,360):
-        for j in range(iterations):
-            theta_weights=net.update_weights_dynamics(theta_weights,1)
-            theta_weights[theta_weights<0]=0
+#     output=[]
+#     for i in range(1,360):
+#         for j in range(iterations):
+#             theta_weights=net.update_weights_dynamics(theta_weights,1)
+#             theta_weights[theta_weights<0]=0
     
-        output.append(can.activityDecoding(theta_weights,10,N))
+#         output.append(can.activityDecoding(theta_weights,10,N))
     
-    return (np.sum(abs(np.arange(1,360)-np.array(output))))*-1
+#     return (np.sum(abs(np.arange(1,360)-np.array(output))))*-1
 
 #grid cell 
 def attractorGridcell_fitness(genome):
@@ -341,6 +341,80 @@ def attractorGridcell_fitness(genome):
 
     return (x_error+y_error)*-1
 
+#multiscale grid cell 
+def headDirectionAndPlace(genome):
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
+
+    kinemVelFile='./results/testEnvPathVelocities.npy'
+    kinemAngVelFile='./results/testEnvPathAngVelocities.npy'
+    vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
+
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
+    wrap_iterations=iterations
+    
+
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+    start_x, start_y= 50, 50
+    N=100
+    wrap_counter=[0,0,0,0,0,0]
+    scales=[0.25,1,4,16,100,10000]
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    for n in range(len(prev_weights)):
+        prev_weights[n]=network.excitations(start_x,start_y)
+
+    x_grid, y_grid=[start_x], [start_y]
+    x_integ, y_integ=[start_x],[start_y]
+    q=[0,0,0]
+
+    def headDirection(theta_weights, angVel):
+        global theata_called_iters
+        N=360
+        num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
+        net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+        
+        if theata_called_iters==0:
+            theta_weights[net.activation(0)]=net.full_weights(num_links)
+            theata_called_iters+=1
+
+
+        for j in range(iterations):
+            theta_weights=net.update_weights_dynamics(theta_weights,angVel)
+            theta_weights[theta_weights<0]=0
+        
+        return theta_weights
+
+
+    for i in range(200):
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]))
+        direction=np.argmax(theta_weights)
+
+        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
+
+        x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1))-start_x for m in range(len(scales))])*scales)
+        y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0))-start_y for m in range(len(scales))])*scales)
+
+        x_grid.append(x_multiscale_grid)
+        y_grid.append(y_multiscale_grid)
+
+        q[0],q[1]=q[0]+vel[i]*np.sin(q[2]), q[1]+vel[i]*np.cos(q[2])
+        q[2]+=angVel[i]
+        
+
+        x_integ.append(round(q[0]))
+        y_integ.append(round(q[1]))
+
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+
+    return (x_error+y_error)*-1     
+
 
 '''Implementation'''
 class GeneticAlgorithm:
@@ -374,7 +448,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.7)
+        mutate_indexs=np.argwhere(mutate_prob<=0.5)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -460,9 +534,9 @@ def runGA1D(plot=False):
 
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1))])
     ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,1]]
-    fitnessFunc=attractorGridcell_fitness
+    fitnessFunc=headDirectionAndPlace
     num_gens=40
-    population_size=20
+    population_size=32
 
     if plot==True:
         with open(filename, 'rb') as f:

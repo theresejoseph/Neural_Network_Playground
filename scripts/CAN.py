@@ -400,29 +400,55 @@ class attractorNetwork2D:
         inhibit_array=np.tile(inhibit_val,(self.N1,self.N2))
 
         '''update activity'''
+
         prev_weights+=copy_shift+excited-inhibit_val
         prev_weights[prev_weights<0]=0
 
  
         '''wrap around'''
         max_col,max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
-        if prev_max_col==(self.N2 -1) and max_col==0:
-            wrap_cols=1
-            wrap_counter[current_scale]+=1
-        elif prev_max_col==0 and max_col==(self.N2 -1):
-            wrap_cols=-1
-            wrap_counter[current_scale]+=1
+        if prev_max_col!= max_col:
+            if prev_max_col>=(self.N2/2) and max_col<=(self.N2/2):
+                wrap_cols=1
+                wrap_counter[current_scale]+=1
+            elif prev_max_col<=(self.N2/2) and max_col>=(self.N2/2):
+                wrap_cols=-1
+                wrap_counter[current_scale]+=1
         else:
             wrap_cols=0 
 
-        if prev_max_row==(self.N1 -1) and max_row==0:
-            wrap_rows=1
-            wrap_counter[current_scale]+=1
-        elif prev_max_row==0 and max_row==(self.N1 -1):
-            wrap_rows=-1
-            wrap_counter[current_scale]+=1
+        if prev_max_row != max_row:
+            if prev_max_row>=(self.N1/2) and max_row<=(self.N1/2):
+                wrap_rows=1
+                wrap_counter[current_scale]+=1
+            elif prev_max_row<=(self.N1/2) and max_row>=(self.N1/2):
+                wrap_rows=-1
+                wrap_counter[current_scale]+=1
         else:
             wrap_rows=0 
+
+        # actual_delta_col=max_col-prev_max_col
+        # actual_delta_row=max_row-prev_max_row
+
+        # print(prev_max_row,max_row, actual_delta_row)
+
+        # if prev_max_col+actual_delta_col> self.N2-1 :
+        #     wrap_cols=1
+        #     wrap_counter[current_scale]+=1
+        # elif prev_max_col+actual_delta_col <= 0 :
+        #     wrap_cols=-1
+        #     wrap_counter[current_scale]+=1
+        # else:
+        #     wrap_cols=0 
+
+        # if prev_max_row+actual_delta_row> self.N1-1 :
+        #     wrap_rows=1
+        #     wrap_counter[current_scale]+=1
+        # elif prev_max_row+actual_delta_row <= 0 :
+        #     wrap_rows=-1
+        #     wrap_counter[current_scale]+=1
+        # else:
+        #     wrap_rows=0 
         
         if wrap_counter[current_scale]==1 : # identifying first instance of wrap around where the change is only 0.5 
             wrap_cols*=0.5
