@@ -2,18 +2,19 @@ import random
 from cv2 import Algorithm
 import numpy as np
 import sys
-sys.path.append('./scripts')
+sys.path.append('../scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 import CAN as can
-from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
+# from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
 from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D, hierarchicalNetwork2DGrid
-from DataHandling import saveOrLoadNp
+# from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import math
 import multiprocessing
 from multiprocessing import freeze_support
 from functools import partial
+import logging
 
 '''GA Fitness Functions'''
 #1D input velocities comparing movement wihtin undesired scale 
@@ -362,8 +363,8 @@ def headDirection(theta_weights, angVel, init_angle):
 def headDirectionAndPlace(genome):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
 
-    kinemVelFile='./results/testEnvPathVelocities.npy'
-    kinemAngVelFile='./results/testEnvPathAngVelocities.npy'
+    kinemVelFile='../results/testEnvPathVelocities.npy'
+    kinemAngVelFile='../results/testEnvPathAngVelocities.npy'
     vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 
     num_links=int(genome[0]) #int
@@ -397,7 +398,7 @@ def headDirectionAndPlace(genome):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
-        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
+        prev_weights, wrap= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
         decodedXPerScale=[can.activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
         decodedYPerScale=[can.activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
@@ -453,7 +454,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.5)
+        mutate_indexs=np.argwhere(mutate_prob<=0.7)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -467,7 +468,11 @@ class GeneticAlgorithm:
         return g
     
     def process_element(self, i, population):
-        return self.fitnessFunc(population[i])
+        try:
+            return self.fitnessFunc(population[i])
+        except Exception as e:
+            return -10000000000
+
 
     def sortByFitness(self,population,topK):
         # fitness for each genome 
@@ -476,6 +481,7 @@ class GeneticAlgorithm:
 
         with multiprocessing.Pool(processes=16) as pool:
             fitness = pool.map(partial(self.process_element, population=population), range(len(population)))
+        
         fitness=np.array(fitness)
         idxs = np.argsort(fitness)[::-1]
         return fitness[idxs[:topK]],idxs[:topK]
@@ -488,6 +494,7 @@ class GeneticAlgorithm:
 
         fitnesses,indexes=self.sortByFitness(population,num_parents)
         print('Finsihed Checking Fitness of old population, now mutating parents to make a new generation')
+        # '''Keep the fittest genomes as parents'''
         # new_population=[population[idx] for idx in indexes] #parents are added to the new population 
         '''Add 5 random genomes into the population'''
         new_population=self.initlisePopulation(num_parents)
@@ -525,7 +532,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'./results/GA_MultiScale/tuningGrid.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -542,8 +549,8 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,5], [1,5]]
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]
     fitnessFunc=headDirectionAndPlace
     num_gens=20
     population_size=16
@@ -560,7 +567,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    # runGA1D(plot=False)
+    runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

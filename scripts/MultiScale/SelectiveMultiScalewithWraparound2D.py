@@ -312,12 +312,8 @@ def attractorGridcell_fitness():
 # purePursuitFile='./results/vehiclePosisitionsPurePursuit.npy'
 # vel_purePursuitFile='./results/vehicleVelocitiesPurePursuit.npy'
 # vel,angVel=zip(*np.load(vel_purePursuitFile))
-scales=[0.25,1,4,16,100]
-kinemVelFile='/Users/theresejoseph/Documents/Neural_Network_Playground/results/testEnvPathVelocities.npy'
-kinemAngVelFile='/Users/theresejoseph/Documents/Neural_Network_Playground/results/testEnvPathAngVelocities.npy'
-vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
-# vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
-# vel, angVel = [1]*300, [0]*300
+
+
 
 def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter):
     delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
@@ -364,14 +360,70 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         print(f"wrap_cols {wrap_cols}")
     if np.any(wrap_rows!=0):
         print(f"wrap_rows {wrap_rows}")
+    
+    if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
+        wrap=1
+    else:
+        wrap=0
 
        
-    return prev_weights
+    return prev_weights, wrap
  
+
+def TESTINGhierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect):
+    delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
+
+    cs_idx=scale_selection(vel,scales)
+    wrap_rows=np.zeros((len(scales)))
+    wrap_cols=np.zeros((len(scales)))
+
+    '''Update selected scale'''
+    del_x_cs, del_y_cs= delta[cs_idx]*np.cos(np.deg2rad(direction)), delta[cs_idx]*np.sin(np.deg2rad(direction))
+    x_grid_expect[cs_idx]=(x_grid_expect[cs_idx]+(del_x_cs *scales[cs_idx]))%(N*scales[cs_idx])
+    y_grid_expect[cs_idx]=(y_grid_expect[cs_idx]+(del_y_cs *scales[cs_idx]))%(N*scales[cs_idx])
+
+    for i in range(iterations):
+
+        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
+        prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
+        wrap_rows[cs_idx]+=wrap_rows_cs
+        wrap_cols[cs_idx]+=wrap_cols_cs
+
+    '''Update the 100 scale based on wraparound in any of the previous scales'''
+    if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
+        del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
+        direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
+        distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
+        print(f"delta row col {del_rows_100}, {del_cols_100}")
+        print(f"dist, dir {distance_100}, {direction_100}")
+
+        x_grid_expect[4]=(x_grid_expect[4]+(del_cols_100 *scales[4]))%(N*scales[4])
+        y_grid_expect[4]=(y_grid_expect[4]+(del_rows_100 *scales[4]))%(N*scales[4])
+        # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
+        for i in range(wrap_iterations):
+            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100,4,wrap_counter)
+            prev_weights[4][prev_weights[4][:]<0]=0
+            wrap_rows[4]+=wrap_rows_100
+            wrap_cols[4]+=wrap_cols_100
+
+
+    # if np.any(wrap_cols!=0):
+    #     print(f"wrap_cols {wrap_cols}")
+    # if np.any(wrap_rows!=0):
+    #     print(f"wrap_rows {wrap_rows}")
+    
+    if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
+        wrap=1
+    else:
+        wrap=0
+
+       
+    return prev_weights, wrap, x_grid_expect, y_grid_expect
+
 
 def headDirectionAndPlace():
     '''change decoding so that very small fractional shifts can be made in the 100 scale, tune the iterations to get accurate tracking'''
-    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
     theta_weights=np.zeros(360)
     theata_called_iters=0
 
@@ -379,7 +431,7 @@ def headDirectionAndPlace():
     start_x, start_y=1000,1000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 1
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=72,1,9.05078199e-01,7.85317908e-04,4,1
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
@@ -394,34 +446,44 @@ def headDirectionAndPlace():
     prev_weights[4][prev_weights[4][:]<0]=0
 
     x_grid, y_grid=[], []
+    x_grid_expect, y_grid_expect =[0,0,0,0,start_x],[0,0,0,0,start_y]
     x_integ, y_integ=[],[]
     q=[start_x,start_y,0]
+    wrapPos=[]
+    current_i=-1300
     # q=[0,0,0]
 
-    for i in range(len(vel)):
+    for i in range(400):
     # nrows=5
-    # fig, axs = plt.subplots(1,nrows, figsize=(10, 4))
+    # ncols=2
+    # fig, axs = plt.subplots(ncols,nrows, figsize=(10, 4))
     # fig.subplots_adjust(hspace=0.9)
     # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     # axs.ravel()
+    # print(axs)
     # def animate(i):
-    #     global theta_weights, prev_weights, q, wrap_counter
+    #     global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
         
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
-        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
-        # CoM=[tuple(np.array(ndimage.measurements.center_of_mass(prev_weights[m]))*scales[m]) for m in range(len(scales))]
-        # print(CoM)
-        # CoMrow,CoMcol=zip(*CoM)
-        # x_multiscale_grid,y_multiscale_grid=np.sum(CoMrow),np.sum(CoMcol)
+        prev_weights, wrap,x_grid_expect, y_grid_expect= TESTINGhierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect)
+
+        '''1D method for decoding'''
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
-        decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
-        decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
-        print(decodedXPerScale, decodedYPerScale)
+        decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales)-1)]
+        decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales)-1)]
+        # print(decodedXPerScale, decodedYPerScale)
+        decodedXPerScale.append(x_grid_expect[-1])
+        decodedYPerScale.append(y_grid_expect[-1])
         x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
+
+        '''Peak'''
         # x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))])*scales)
         # y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])*scales)
+
+        '''Determining Fractional shift from nearby activity'''
+        
 
         x_grid.append(x_multiscale_grid)
         y_grid.append(y_multiscale_grid)
@@ -431,30 +493,83 @@ def headDirectionAndPlace():
         x_integ.append(round(q[0]))
         y_integ.append(round(q[1]))
 
+        
+        if wrap==1:
+            current_i=i
+            wrapPos.append((x_grid[-2], y_grid[-2]))
+            wrapPos.append((x_grid[-1], y_grid[-1]))
+        if i == current_i+1:
+            wrapPos.append((x_grid[-1], y_grid[-1]))
+
+
         print(x_integ[-1], y_integ[-1])
-        print(x_grid[-1], y_grid[-1])
-        print('')
+        print(x_grid[-1], y_grid[-1])+y_grid_expect[-1]
+    #         axs[0][k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
+    #         axs[0][k].spines[['top', 'left', 'right']].set_visible(False)
+    #         axs[0][k].invert_yaxis()
+    #     for l in range(nrows): 
+    #         axs[1][l].clear()
+    #         # axs[1][l].set_title(f"Scale{l}")
+    #         axs[1][l].text(0,1,f"Decode: {np.round(decodedXPerScale[l],2)},{np.round(decodedYPerScale[l],2)}")
+    #         axs[1][l].text(0,0.5,f"Expect: {np.round(x_grid_expect[l],2)},{np.round(y_grid_expect[l],2)}")
+    #         axs[1][l].axis('off')
+
     
-    outfile='/Users/theresejoseph/Documents/Neural_Network_Playground/results/xGrid_yGrid1.npy'
-    np.save(outfile, [x_grid, y_grid])
+    # ani = FuncAnimation(fig, animate, interval=1,frames=400,repeat=False)
+    # plt.show()
 
-    #     for k in range(nrows):
-    #         axs[k].clear()
-    #         axs[k].set_title(f"Scale {scales[k]}m",fontsize=10)
-       
-    #         axs[k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
-    #         axs[k].spines[['top', 'left', 'right']].set_visible(False)
-    #         axs[k].invert_yaxis()
-    # ani = FuncAnimation(fig, animate, interval=1,frames=200,repeat=False)
-    # # plt.show()
-
-    # f = "/Users/theresejoseph/Documents/Neural_Network_Playground/results/GIFs/BerlinPathMultiscaleAttractor100ScaleGlobal.gif" 
+    # f = "./results/GIFs/BerlinPathMultiscaleAttractor100ScaleTestingWRappingErrors.gif" 
     # writergif = animation.PillowWriter(fps=25) 
     # ani.save(f, writer=writergif)
+
+    outfile='./results/xGrid_yGrid4.npy'
+    np.save(outfile, np.array([x_grid, y_grid]))
+    outfile='./results/wrapPos4.npy'
+    np.save(outfile, np.array(wrapPos))
+
+    wrap_x,wrap_y=zip(*wrapPos)
+    plt.plot(x_integ, y_integ, 'g.')
+    plt.plot(x_grid, y_grid, 'b.')
+    plt.plot(wrap_x, wrap_y,'r*')
+    plt.show()
+
+def shfitingPeak2D(prev_weights, peakRowIdx, peakColIdx, radius):
+    for j in range(peakRowIdx-radius + peakRowIdx+radius):
+            for k in range(peakColIdx-radius + peakColIdx+radius):
+                new_array.append(prev_weights[j,k])
+    return 
+def plotFromSvaedArray():
+    outfile='./results/xGrid_yGrid4.npy'
+    x_grid,y_grid = np.load(outfile)
+
+    outfile='./results/wrapPos4.npy'
+    wrapPos=np.load(outfile)
+    wrap_x,wrap_y=zip(*wrapPos)
+
+    x_integ, y_integ=[],[]
+    start_x, start_y=1000,1000
+    q=[start_x,start_y,0]
+    for i in range(len(x_grid)): 
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        q[2]+=angVel[i]
+        x_integ.append(round(q[0]))
+        y_integ.append(round(q[1]))
 
 
     plt.plot(x_integ, y_integ, 'g.')
     plt.plot(x_grid, y_grid, 'b.')
+    plt.plot(wrap_x, wrap_y,'r*')
+    plt.axis('equal')
+    plt.title('Test Environment 2D space')
+    plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
     plt.show()
 
-headDirectionAndPlace()
+scales=[0.25,1,4,16,100]
+kinemVelFile='./results/testEnvPathVelocities2.npy'
+kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
+vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
+print(len(vel))
+# vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
+# vel, angVel = [1]*300, [0]*300
+# headDirectionAndPlace()
+plotFromSvaedArray()
