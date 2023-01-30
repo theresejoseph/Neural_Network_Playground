@@ -434,6 +434,9 @@ def headDirectionAndPlace():
         print(x_integ[-1], y_integ[-1])
         print(x_grid[-1], y_grid[-1])
         print('')
+    
+    outfile='/Users/theresejoseph/Documents/Neural_Network_Playground/results/xGrid_yGrid1.npy'
+    np.save(outfile, [x_grid, y_grid])
 
     #     for k in range(nrows):
     #         axs[k].clear()
