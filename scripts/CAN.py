@@ -362,7 +362,48 @@ class attractorNetwork2D:
                     M_col[i,j]=(frac_col)*M[i,j] + (1-frac_col)*M[i,int((j+1)%self.N2)]
         return (M_row+M_col) /np.linalg.norm((M_row+M_col))
  
+    def update_weights_dynamics_row_col(self,prev_weights, delta_row, delta_col):
+        non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
+        prev_max_col,prev_max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
+
+        func = lambda x: int(math.ceil(x)) if x < 0 else int(math.floor(x))
+
+        '''copied and shifted activity'''
+        full_shift=np.zeros((self.N1,self.N2))
+        shifted_row_ids, shifted_col_ids=(non_zero_rows +func(delta_row))%self.N1, (non_zero_cols+ func(delta_col))%self.N2
+        full_shift[shifted_row_ids, shifted_col_ids]=prev_weights[non_zero_rows, non_zero_cols]
+        copy_shift=self.fractional_shift(full_shift,delta_row,delta_col)*self.activity_mag
+
+
+        '''excitation'''
+        copyPaste=copy_shift
+        non_zero_copyPaste=np.nonzero(copyPaste)  
+        # print(len(non_zero_copyPaste[0]))
+        excited=np.zeros((self.N1,self.N2))
+        # t=time.time()
+        for row, col in zip(non_zero_copyPaste[0], non_zero_copyPaste[1]):
+            excited+=self.excitations(row,col,copyPaste[row,col])
+        # print(time.time()-t)
         
+        # excited=np.sum(excited_array, axis=0)
+        # print(np.shape(excited_array), np.shape(excited))
+        '''inhibitions'''
+        inhibit_val=0
+        shift_excite=copy_shift+prev_weights+excited
+        non_zero_inhibit=np.nonzero(shift_excite) 
+        for row, col in zip(non_zero_inhibit[0], non_zero_inhibit[1]):
+            inhibit_val+=shift_excite[row,col]*self.inhibit_scale
+        inhibit_array=np.tile(inhibit_val,(self.N1,self.N2))
+
+        '''update activity'''
+
+        prev_weights+=copy_shift+excited-inhibit_val
+        prev_weights[prev_weights<0]=0
+
+
+        
+        return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
+    
     def update_weights_dynamics(self,prev_weights, direction, speed, current_scale, wrap_counter, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
         prev_max_col,prev_max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
@@ -407,23 +448,22 @@ class attractorNetwork2D:
  
         '''wrap around'''
         max_col,max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
-        if prev_max_col!= max_col:
-            if prev_max_col>=(self.N2/2) and max_col<=(self.N2/2):
-                wrap_cols=1
-                wrap_counter[current_scale]+=1
-            elif prev_max_col<=(self.N2/2) and max_col>=(self.N2/2):
-                wrap_cols=-1
-                wrap_counter[current_scale]+=1
+        # print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
+        if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
+            wrap_cols=1
+            wrap_counter[current_scale]+=1
+        elif prev_max_col<max_col and (direction>=90 and direction<=270): #left
+            wrap_cols=-1
+            wrap_counter[current_scale]+=1
         else:
             wrap_cols=0 
 
-        if prev_max_row != max_row:
-            if prev_max_row>=(self.N1/2) and max_row<=(self.N1/2):
-                wrap_rows=1
-                wrap_counter[current_scale]+=1
-            elif prev_max_row<=(self.N1/2) and max_row>=(self.N1/2):
-                wrap_rows=-1
-                wrap_counter[current_scale]+=1
+        if prev_max_row>max_row and (direction>=0 and direction<=180): #up 
+            wrap_rows=1
+            wrap_counter[current_scale]+=1
+        elif prev_max_row<max_row and (direction>=180 and direction<=360): #down 
+            wrap_rows=-1
+            wrap_counter[current_scale]+=1
         else:
             wrap_rows=0 
 
@@ -450,12 +490,12 @@ class attractorNetwork2D:
         # else:
         #     wrap_rows=0 
         
-        if wrap_counter[current_scale]==1 : # identifying first instance of wrap around where the change is only 0.5 
-            wrap_cols*=0.5
-            wrap_rows*=0.5
-        elif wrap_counter[current_scale]==2 and any(direction == diag for diag in [45, 135, 225, 315]): # identifying diagonals where row and column are crossed together 
-            wrap_cols*=0.5
-            wrap_rows*=0.5
+        # if wrap_counter[current_scale]==1 : # identifying first instance of wrap around where the change is only 0.5 
+        #     wrap_cols*=0.5
+        #     wrap_rows*=0.5
+        # elif wrap_counter[current_scale]==2 and any(direction == diag for diag in [45, 135, 225, 315]): # identifying diagonals where row and column are crossed together 
+        #     wrap_cols*=0.5
+        #     wrap_rows*=0.5
 
 
         if moreResults==True:

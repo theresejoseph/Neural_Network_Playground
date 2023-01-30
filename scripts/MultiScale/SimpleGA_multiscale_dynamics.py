@@ -11,6 +11,9 @@ from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import math
+import multiprocessing
+from multiprocessing import freeze_support
+from functools import partial
 
 '''GA Fitness Functions'''
 #1D input velocities comparing movement wihtin undesired scale 
@@ -342,6 +345,20 @@ def attractorGridcell_fitness(genome):
     return (x_error+y_error)*-1
 
 #multiscale grid cell 
+def headDirection(theta_weights, angVel, init_angle):
+    global theata_called_iters
+    N=360
+    num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
+    net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
+    
+    if theata_called_iters==0:
+        theta_weights[net.activation(init_angle)]=net.full_weights(num_links)
+        theata_called_iters+=1
+    for j in range(iterations):
+        theta_weights=net.update_weights_dynamics(theta_weights,angVel)
+        theta_weights[theta_weights<0]=0
+    return theta_weights
+
 def headDirectionAndPlace(genome):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
 
@@ -354,60 +371,46 @@ def headDirectionAndPlace(genome):
     activity_mag=genome[2] #uni
     inhibit_scale=genome[3] #uni
     iterations=int(genome[4])
-    wrap_iterations=iterations
+    wrap_iterations=int(genome[5])
     
-
+    scales=[0.25,1,4,16,100,10000]
     theta_weights=np.zeros(360)
     theata_called_iters=0
-    start_x, start_y= 50, 50
+    start_x, start_y=1000,1000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    scales=[0.25,1,4,16,100,10000]
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     for n in range(len(prev_weights)):
-        prev_weights[n]=network.excitations(start_x,start_y)
-
-    x_grid, y_grid=[start_x], [start_y]
-    x_integ, y_integ=[start_x],[start_y]
-    q=[0,0,0]
-
-    def headDirection(theta_weights, angVel):
-        global theata_called_iters
-        N=360
-        num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
-        net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
-        
-        if theata_called_iters==0:
-            theta_weights[net.activation(0)]=net.full_weights(num_links)
-            theata_called_iters+=1
+        prev_weights[n]=network.excitations(0,0)
+        prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
 
 
-        for j in range(iterations):
-            theta_weights=net.update_weights_dynamics(theta_weights,angVel)
-            theta_weights[theta_weights<0]=0
-        
-        return theta_weights
+    prev_weights[-2][:]= network.update_weights_dynamics_row_col(prev_weights[-2][:], start_y/100, start_x/100)
+    prev_weights[-2][prev_weights[-2][:]<0]=0
 
+    x_grid, y_grid=[], []
+    x_integ, y_integ=[],[]
+    q=[start_x,start_y,0]
 
     for i in range(200):
-        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]))
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
         prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
-
-        x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1))-start_x for m in range(len(scales))])*scales)
-        y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0))-start_y for m in range(len(scales))])*scales)
+        maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
+        decodedXPerScale=[can.activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
+        decodedYPerScale=[can.activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
+        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
 
         x_grid.append(x_multiscale_grid)
         y_grid.append(y_multiscale_grid)
 
-        q[0],q[1]=q[0]+vel[i]*np.sin(q[2]), q[1]+vel[i]*np.cos(q[2])
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
         q[2]+=angVel[i]
-        
-
         x_integ.append(round(q[0]))
         y_integ.append(round(q[1]))
+
 
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
     y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
@@ -417,6 +420,8 @@ def headDirectionAndPlace(genome):
 
 
 '''Implementation'''
+
+
 class GeneticAlgorithm:
     def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges,mutate_amount):
         self.num_gens=num_gens
@@ -439,7 +444,7 @@ class GeneticAlgorithm:
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #head direction and grid cell 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #head direction and grid cell 
             population.append(genome)
         return population 
 
@@ -460,14 +465,19 @@ class GeneticAlgorithm:
         while([self.ranges[i][0] <= g[i] <= self.ranges[i][1] for i in range(len(genome))]!=[True]*len(genome)):
             g=self.mutate(genome)
         return g
+    
+    def process_element(self, i, population):
+        return self.fitnessFunc(population[i])
 
     def sortByFitness(self,population,topK):
         # fitness for each genome 
         # sort genomes by fitness
         fitness=np.zeros(len(population))
-        for i in range (len(population)):
-            fitness[i]=self.fitnessFunc(population[i])
-        idxs=np.argsort(fitness)[::-1]
+
+        with multiprocessing.Pool(processes=16) as pool:
+            fitness = pool.map(partial(self.process_element, population=population), range(len(population)))
+        fitness=np.array(fitness)
+        idxs = np.argsort(fitness)[::-1]
         return fitness[idxs[:topK]],idxs[:topK]
     
     def selection(self,population):
@@ -532,11 +542,11 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,1]]
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.0001), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0,1],[0,0.001],[1,5], [1,5]]
     fitnessFunc=headDirectionAndPlace
-    num_gens=40
-    population_size=32
+    num_gens=20
+    population_size=16
 
     if plot==True:
         with open(filename, 'rb') as f:
@@ -548,9 +558,10 @@ def runGA1D(plot=False):
     else:
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount).implimentGA()
 
-
-runGA1D(plot=False)
-runGA1D(plot=True)
+if __name__ == '__main__':
+    freeze_support()
+    # runGA1D(plot=False)
+    runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
 
