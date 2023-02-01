@@ -283,11 +283,11 @@ def selfMotion_Landmark(radius,inc,iters):
 
     '''animation for driving in a circle'''
     ani = anim.FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
-    # plt.show()
+    plt.show()
 
-    f = r"/home/therese/Documents/Neural_Network_Playground/results/animation.gif" 
-    writergif = anim.PillowWriter(fps=10) 
-    ani.save(f, writer=writergif)
+    # f = r"/home/therese/Documents/Neural_Network_Playground/results/animation.gif" 
+    # writergif = anim.PillowWriter(fps=10) 
+    # ani.save(f, writer=writergif)
 
 def landmark_learning(radius,inc,iters):
     # Landmarks position and angle -> every inc degrees with radius of 1.8m

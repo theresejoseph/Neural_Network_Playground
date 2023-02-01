@@ -6,7 +6,7 @@ sys.path.append('../scripts')
 from CAN import attractorNetworkScaling,attractorNetwork2D, attractorNetwork
 import CAN as can
 # from TwoModesofMultiscale import scale_selection, hierarchicalNetwork
-from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D, hierarchicalNetwork2DGrid
+# from SelectiveMultiScalewithWraparound2D import  hierarchicalNetwork2D, hierarchicalNetwork2DGrid
 # from DataHandling import saveOrLoadNp
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
@@ -346,6 +346,20 @@ def attractorGridcell_fitness(genome):
     return (x_error+y_error)*-1
 
 #multiscale grid cell 
+def scale_selection(input,scales):
+    swap_val=1
+    if input<=scales[0]*swap_val:
+        scale_idx=0
+    elif input>scales[0]*swap_val and input<=scales[1]*swap_val:
+        scale_idx=1
+    elif input>scales[1]*swap_val and input<=scales[2]*swap_val:
+        scale_idx=2
+    elif input>scales[2]*swap_val and input<=scales[3]*swap_val:
+        scale_idx=3
+    elif input>scales[3]*swap_val:
+        scale_idx=4
+    return scale_idx
+
 def headDirection(theta_weights, angVel, init_angle):
     global theata_called_iters
     N=360
@@ -359,6 +373,60 @@ def headDirection(theta_weights, angVel, init_angle):
         theta_weights=net.update_weights_dynamics(theta_weights,angVel)
         theta_weights[theta_weights<0]=0
     return theta_weights
+
+def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, scales):
+    delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
+
+    cs_idx=scale_selection(vel,scales)
+    wrap_rows=np.zeros((len(scales)))
+    wrap_cols=np.zeros((len(scales)))
+    # print(delta[cs_idx], direction)
+    # wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
+
+    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N),cs_idx,wraparound[cs_idx],wraparound[4])
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,7.47157578e-01 ,3.62745653e-04, 2, 1
+    # wrap_net=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+
+    '''Update selected scale'''
+    for i in range(iterations):
+        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
+        prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
+        wrap_rows[cs_idx]+=wrap_rows_cs
+        wrap_cols[cs_idx]+=wrap_cols_cs
+
+    '''Update the 100 scale based on wraparound in any of the previous scales'''
+    if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
+        del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
+        direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
+        distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
+        # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
+        for i in range(wrap_iterations):
+            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100,4,wrap_counter)
+            prev_weights[4][prev_weights[4][:]<0]=0
+            wrap_rows[4]+=wrap_rows_100
+            wrap_cols[4]+=wrap_cols_100
+
+    # '''Update the 10000 scale based on wraparound in the 100 scale'''
+    # if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
+    #     del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
+    #     direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
+    #     distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
+    #     for i in range(wrap_iterations):
+    #         prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
+    #         prev_weights[-1][prev_weights[-1][:]<0]=0
+    
+    if np.any(wrap_cols!=0):
+        print(f"wrap_cols {wrap_cols}")
+    if np.any(wrap_rows!=0):
+        print(f"wrap_rows {wrap_rows}")
+    
+    if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
+        wrap=1
+    else:
+        wrap=0
+
+       
+    return prev_weights, wrap
 
 def headDirectionAndPlace(genome):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
@@ -394,11 +462,11 @@ def headDirectionAndPlace(genome):
     x_integ, y_integ=[],[]
     q=[start_x,start_y,0]
 
-    for i in range(200):
+    for i in range(1000):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
-        prev_weights, wrap= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter)
+        prev_weights, wrap= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, scales)
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
         decodedXPerScale=[can.activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
         decodedYPerScale=[can.activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
@@ -421,8 +489,6 @@ def headDirectionAndPlace(genome):
 
 
 '''Implementation'''
-
-
 class GeneticAlgorithm:
     def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges,mutate_amount):
         self.num_gens=num_gens
@@ -494,10 +560,10 @@ class GeneticAlgorithm:
 
         fitnesses,indexes=self.sortByFitness(population,num_parents)
         print('Finsihed Checking Fitness of old population, now mutating parents to make a new generation')
-        # '''Keep the fittest genomes as parents'''
-        # new_population=[population[idx] for idx in indexes] #parents are added to the new population 
-        '''Add 5 random genomes into the population'''
-        new_population=self.initlisePopulation(num_parents)
+        '''Keep the fittest genomes as parents'''
+        new_population=[population[idx] for idx in indexes] #parents are added to the new population 
+        # '''Add 5 random genomes into the population'''
+        # new_population=self.initlisePopulation(num_parents)
 
         '''Make 15 Children from the fittest parents'''
         for i in range(num_parents):
@@ -532,7 +598,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid3.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -552,7 +618,7 @@ def runGA1D(plot=False):
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
     ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]
     fitnessFunc=headDirectionAndPlace
-    num_gens=20
+    num_gens=40
     population_size=16
 
     if plot==True:

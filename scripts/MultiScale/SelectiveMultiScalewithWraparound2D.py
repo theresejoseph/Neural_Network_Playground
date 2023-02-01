@@ -433,6 +433,7 @@ def headDirectionAndPlace():
     wrap_counter=[0,0,0,0,0,0]
     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=72,1,9.05078199e-01,7.85317908e-04,4,1
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=6,1,3.89338335e-01,1.60376324e-04, 3,3 
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
     for n in range(len(prev_weights)):
@@ -453,29 +454,30 @@ def headDirectionAndPlace():
     current_i=-1300
     # q=[0,0,0]
 
-    for i in range(400):
-    # nrows=5
+    for i in range(5000):
+    # nrows=6
     # ncols=2
-    # fig, axs = plt.subplots(ncols,nrows, figsize=(10, 4))
+    # fig, axs = plt.subplots(ncols,nrows, figsize=(12, 4))
     # fig.subplots_adjust(hspace=0.9)
     # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
     # axs.ravel()
     # print(axs)
     # def animate(i):
-    #     global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
-        
+        # global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
+        N_dir=360
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
+        hD_x,hD_y=(theta_weights*np.cos(np.deg2rad(np.arange(N_dir)*360/N)))[::3], (theta_weights*np.sin(np.deg2rad(np.arange(N_dir)*360/N)))[::3]
 
         prev_weights, wrap,x_grid_expect, y_grid_expect= TESTINGhierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect)
 
         '''1D method for decoding'''
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
-        decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales)-1)]
-        decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales)-1)]
+        decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
+        decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
         # print(decodedXPerScale, decodedYPerScale)
-        decodedXPerScale.append(x_grid_expect[-1])
-        decodedYPerScale.append(y_grid_expect[-1])
+        # decodedXPerScale.append(x_grid_expect[-1])
+        # decodedYPerScale.append(y_grid_expect[-1])
         x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
 
         '''Peak'''
@@ -503,16 +505,27 @@ def headDirectionAndPlace():
 
 
         print(x_integ[-1], y_integ[-1])
-        print(x_grid[-1], y_grid[-1])+y_grid_expect[-1]
-    #         axs[0][k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
-    #         axs[0][k].spines[['top', 'left', 'right']].set_visible(False)
-    #         axs[0][k].invert_yaxis()
-    #     for l in range(nrows): 
-    #         axs[1][l].clear()
-    #         # axs[1][l].set_title(f"Scale{l}")
-    #         axs[1][l].text(0,1,f"Decode: {np.round(decodedXPerScale[l],2)},{np.round(decodedYPerScale[l],2)}")
-    #         axs[1][l].text(0,0.5,f"Expect: {np.round(x_grid_expect[l],2)},{np.round(y_grid_expect[l],2)}")
-    #         axs[1][l].axis('off')
+        print(x_grid[-1], y_grid[-1])
+        
+        # for k in range(nrows-1):
+        #     axs[0][k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
+        #     axs[0][k].spines[['top', 'left', 'right']].set_visible(False)
+        #     axs[0][k].invert_yaxis()
+
+        # axs[0][nrows-1].clear()
+        # axs[1][nrows-1].axis('off')
+        # axs[0][nrows-1].set_xlim([-0.2*12,0.2*12])
+        # axs[0][nrows-1].set_ylim([-0.2*12,0.2*12])
+
+        # for j in range(len(hD_x)):
+        #     axs[0][nrows-1].arrow(0,0,hD_x[j]*10,hD_y[j]*10, color='m')
+
+        # for l in range(nrows-1): 
+        #     axs[1][l].clear()
+        #     # axs[1][l].set_title(f"Scale{l}")
+        #     axs[1][l].text(0,1,f"Decode: {np.round(decodedXPerScale[l],2)},{np.round(decodedYPerScale[l],2)}")
+        #     axs[1][l].text(0,0.5,f"Expect: {np.round(x_grid_expect[l],2)},{np.round(y_grid_expect[l],2)}")
+        #     axs[1][l].axis('off')
 
     
     # ani = FuncAnimation(fig, animate, interval=1,frames=400,repeat=False)
@@ -522,9 +535,9 @@ def headDirectionAndPlace():
     # writergif = animation.PillowWriter(fps=25) 
     # ani.save(f, writer=writergif)
 
-    outfile='./results/xGrid_yGrid4.npy'
+    outfile='./results/xGrid_yGrid5.npy'
     np.save(outfile, np.array([x_grid, y_grid]))
-    outfile='./results/wrapPos4.npy'
+    outfile='./results/wrapPos5.npy'
     np.save(outfile, np.array(wrapPos))
 
     wrap_x,wrap_y=zip(*wrapPos)
@@ -535,9 +548,10 @@ def headDirectionAndPlace():
 
 def shfitingPeak2D(prev_weights, peakRowIdx, peakColIdx, radius):
     for j in range(peakRowIdx-radius + peakRowIdx+radius):
-            for k in range(peakColIdx-radius + peakColIdx+radius):
-                new_array.append(prev_weights[j,k])
+        for k in range(peakColIdx-radius + peakColIdx+radius):
+            new_array.append(prev_weights[j,k])
     return 
+
 def plotFromSvaedArray():
     outfile='./results/xGrid_yGrid4.npy'
     x_grid,y_grid = np.load(outfile)
@@ -558,7 +572,7 @@ def plotFromSvaedArray():
 
     plt.plot(x_integ, y_integ, 'g.')
     plt.plot(x_grid, y_grid, 'b.')
-    plt.plot(wrap_x, wrap_y,'r*')
+    # plt.plot(wrap_x, wrap_y,'r*')
     plt.axis('equal')
     plt.title('Test Environment 2D space')
     plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
@@ -568,7 +582,7 @@ scales=[0.25,1,4,16,100]
 kinemVelFile='./results/testEnvPathVelocities2.npy'
 kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
-print(len(vel))
+# print(len(vel))
 # vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
 # vel, angVel = [1]*300, [0]*300
 # headDirectionAndPlace()
