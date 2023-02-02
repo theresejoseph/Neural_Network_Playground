@@ -404,7 +404,7 @@ class attractorNetwork2D:
         
         return prev_weights/np.linalg.norm(prev_weights) if np.sum(prev_weights) > 0 else [np.nan]
     
-    def update_weights_dynamics(self,prev_weights, direction, speed, current_scale, wrap_counter, moreResults=None):
+    def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
         prev_max_col,prev_max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
 
@@ -451,19 +451,15 @@ class attractorNetwork2D:
         # print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
         if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
             wrap_cols=1
-            wrap_counter[current_scale]+=1
         elif prev_max_col<max_col and (direction>=90 and direction<=270): #left
             wrap_cols=-1
-            wrap_counter[current_scale]+=1
         else:
             wrap_cols=0 
 
         if prev_max_row>max_row and (direction>=0 and direction<=180): #up 
             wrap_rows=1
-            wrap_counter[current_scale]+=1
         elif prev_max_row<max_row and (direction>=180 and direction<=360): #down 
             wrap_rows=-1
-            wrap_counter[current_scale]+=1
         else:
             wrap_rows=0 
 

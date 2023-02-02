@@ -389,7 +389,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
 
     '''Update selected scale'''
     for i in range(iterations):
-        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
+        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
         wrap_rows[cs_idx]+=wrap_rows_cs
         wrap_cols[cs_idx]+=wrap_cols_cs
@@ -401,7 +401,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
         for i in range(wrap_iterations):
-            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100,4,wrap_counter)
+            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100)
             prev_weights[4][prev_weights[4][:]<0]=0
             wrap_rows[4]+=wrap_rows_100
             wrap_cols[4]+=wrap_cols_100
@@ -415,18 +415,18 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
     #         prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
     #         prev_weights[-1][prev_weights[-1][:]<0]=0
     
-    if np.any(wrap_cols!=0):
-        print(f"wrap_cols {wrap_cols}")
-    if np.any(wrap_rows!=0):
-        print(f"wrap_rows {wrap_rows}")
+    # if np.any(wrap_cols!=0):
+    #     print(f"wrap_cols {wrap_cols}")
+    # if np.any(wrap_rows!=0):
+    #     print(f"wrap_rows {wrap_rows}")
     
-    if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
-        wrap=1
-    else:
-        wrap=0
+    # if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
+    #     wrap=1
+    # else:
+    #     wrap=0
 
        
-    return prev_weights, wrap
+    return prev_weights
 
 def headDirectionAndPlace(genome):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
@@ -466,7 +466,8 @@ def headDirectionAndPlace(genome):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
-        prev_weights, wrap= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, scales)
+        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, scales)
+        
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
         decodedXPerScale=[can.activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
         decodedYPerScale=[can.activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
@@ -535,6 +536,7 @@ class GeneticAlgorithm:
     
     def process_element(self, i, population):
         try:
+            print(i)
             return self.fitnessFunc(population[i])
         except Exception as e:
             return -10000000000
@@ -545,7 +547,7 @@ class GeneticAlgorithm:
         # sort genomes by fitness
         fitness=np.zeros(len(population))
 
-        with multiprocessing.Pool(processes=16) as pool:
+        with multiprocessing.Pool(processes=14) as pool:
             fitness = pool.map(partial(self.process_element, population=population), range(len(population)))
         
         fitness=np.array(fitness)
@@ -561,7 +563,8 @@ class GeneticAlgorithm:
         fitnesses,indexes=self.sortByFitness(population,num_parents)
         print('Finsihed Checking Fitness of old population, now mutating parents to make a new generation')
         '''Keep the fittest genomes as parents'''
-        new_population=[population[idx] for idx in indexes] #parents are added to the new population 
+        new_population=[population[indexes[0]]] #parents are added to the new population 
+        new_population+=self.initlisePopulation(num_parents-1)
         # '''Add 5 random genomes into the population'''
         # new_population=self.initlisePopulation(num_parents)
 
@@ -619,7 +622,7 @@ def runGA1D(plot=False):
     ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]
     fitnessFunc=headDirectionAndPlace
     num_gens=40
-    population_size=16
+    population_size=32
 
     if plot==True:
         with open(filename, 'rb') as f:

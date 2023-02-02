@@ -24,7 +24,7 @@ from DataHandling import saveOrLoadNp
 
 
 def scale_selection(input,scales):
-    swap_val=1
+    swap_val=5
     if input<=scales[0]*swap_val:
         scale_idx=0
     elif input>scales[0]*swap_val and input<=scales[1]*swap_val:
@@ -370,7 +370,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
     return prev_weights, wrap
  
 
-def TESTINGhierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect):
+def TESTINGhierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect, scales):
     delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
 
     cs_idx=scale_selection(vel,scales)
@@ -383,34 +383,64 @@ def TESTINGhierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterat
     y_grid_expect[cs_idx]=(y_grid_expect[cs_idx]+(del_y_cs *scales[cs_idx]))%(N*scales[cs_idx])
 
     for i in range(iterations):
-
-        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx], cs_idx, wrap_counter)
+        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
         wrap_rows[cs_idx]+=wrap_rows_cs
         wrap_cols[cs_idx]+=wrap_cols_cs
+    if np.any(wrap_cols!=0):
+        print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
+    if np.any(wrap_rows!=0):
+        print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    
 
-    '''Update the 100 scale based on wraparound in any of the previous scales'''
-    if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
-        del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
-        direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
-        distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
-        print(f"delta row col {del_rows_100}, {del_cols_100}")
-        print(f"dist, dir {distance_100}, {direction_100}")
+    '''Update the larger scale based on wraparound in smaller scales'''
+    def feedthrough_update(wrap_scale, update_scale, prev_weights, wrap_rows, wrap_cols):
+        if cs_idx!=wrap_scale and (wrap_rows[wrap_scale]!=0 or wrap_cols[wrap_scale]!=0 ): 
+            del_rows, del_cols=(wrap_rows[wrap_scale]*scales[wrap_scale]*N)/scales[update_scale], (wrap_cols[wrap_scale]*scales[wrap_scale]*N)/scales[update_scale]  
+            direction=np.rad2deg(math.atan2(del_rows, del_cols))
+            distance=math.sqrt(del_cols**2 + del_rows**2)
+   
+            x_grid_expect[update_scale]=(x_grid_expect[update_scale]+(del_cols *scales[update_scale]))%(N*scales[update_scale])
+            y_grid_expect[update_scale]=(y_grid_expect[update_scale]+(del_rows *scales[update_scale]))%(N*scales[update_scale])
 
-        x_grid_expect[4]=(x_grid_expect[4]+(del_cols_100 *scales[4]))%(N*scales[4])
-        y_grid_expect[4]=(y_grid_expect[4]+(del_rows_100 *scales[4]))%(N*scales[4])
-        # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
-        for i in range(wrap_iterations):
-            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100,4,wrap_counter)
-            prev_weights[4][prev_weights[4][:]<0]=0
-            wrap_rows[4]+=wrap_rows_100
-            wrap_cols[4]+=wrap_cols_100
+            for i in range(wrap_iterations):
+                prev_weights[update_scale][:], wrap_rows_update, wrap_cols_update= net.update_weights_dynamics(prev_weights[update_scale][:],direction, distance)
+                prev_weights[update_scale][prev_weights[update_scale][:]<0]=0
+                wrap_rows[update_scale]+=wrap_rows_update
+                wrap_cols[update_scale]+=wrap_cols_update
+            if np.any(wrap_cols!=0):
+                print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
+            if np.any(wrap_rows!=0):
+                print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    
+
+    feedthrough_update(0, 2, prev_weights, wrap_rows, wrap_cols) # scale 0.1 wrap into scale 10
+    feedthrough_update(1, 3, prev_weights, wrap_rows, wrap_cols) # scale 1 wrap into scale 100
+    feedthrough_update(2, 4, prev_weights, wrap_rows, wrap_cols) # scale 10 wrap into scale 1000
+    feedthrough_update(3, 5, prev_weights, wrap_rows, wrap_cols) # scale 100 wrap into scale 10000
 
 
-    # if np.any(wrap_cols!=0):
-    #     print(f"wrap_cols {wrap_cols}")
-    # if np.any(wrap_rows!=0):
-    #     print(f"wrap_rows {wrap_rows}")
+    # if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
+    #     del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
+    #     direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
+    #     distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
+    #     print(f"delta row col {del_rows_100}, {del_cols_100}")
+    #     print(f"dist, dir {distance_100}, {direction_100}")
+
+    #     x_grid_expect[4]=(x_grid_expect[4]+(del_cols_100 *scales[4]))%(N*scales[4])
+    #     y_grid_expect[4]=(y_grid_expect[4]+(del_rows_100 *scales[4]))%(N*scales[4])
+    #     # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
+    #     for i in range(wrap_iterations):
+    #         prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100,4,wrap_counter)
+    #         prev_weights[4][prev_weights[4][:]<0]=0
+    #         wrap_rows[4]+=wrap_rows_100
+    #         wrap_cols[4]+=wrap_cols_100
+
+
+    if np.any(wrap_cols!=0):
+        print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
+    if np.any(wrap_rows!=0):
+        print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
     
     if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
         wrap=1
@@ -423,7 +453,9 @@ def TESTINGhierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterat
 
 def headDirectionAndPlace():
     '''change decoding so that very small fractional shifts can be made in the 100 scale, tune the iterations to get accurate tracking'''
-    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
+    scales=[0.01,1,10,100,1000, 10000]
+
     theta_weights=np.zeros(360)
     theata_called_iters=0
 
@@ -431,11 +463,12 @@ def headDirectionAndPlace():
     start_x, start_y=1000,1000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #best at small scale
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=72,1,9.05078199e-01,7.85317908e-04,4,1
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=6,1,3.89338335e-01,1.60376324e-04, 3,3 
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=6,1,3.89338335e-01,1.60376324e-04, 3,3 3 #improved at larger scale 
+
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
-    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
         prev_weights[n]=network.excitations(0,0)
         prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
@@ -443,25 +476,26 @@ def headDirectionAndPlace():
     # direction_100=np.rad2deg(math.atan2(start_y/100, start_x/100))
     # distance_100=math.sqrt((start_x/100)**2 + (start_y/100)**2)
     # for i in range(1):
-    prev_weights[4][:]= network.update_weights_dynamics_row_col(prev_weights[4][:], start_y/100, start_x/100)
-    prev_weights[4][prev_weights[4][:]<0]=0
+    start_mag, start_angle= math.sqrt(start_x**2 + start_y**2), np.rad2deg(math.atan2(start_y, start_x))
+    start_idx=scale_selection(start_mag,scales)
+    print(start_angle, start_mag)
+
+    # prev_weights[start_idx][:], wrap_rows_start, wrap_cols_start= network.update_weights_dynamics(prev_weights[start_idx][:], start_angle, start_mag/scales[start_idx])
+    # prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
+
+    prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:], start_y/scales[start_idx], start_x/scales[start_idx])
+    prev_weights[start_idx][prev_weights[-2][:]<0]=0
 
     x_grid, y_grid=[], []
-    x_grid_expect, y_grid_expect =[0,0,0,0,start_x],[0,0,0,0,start_y]
+    x_grid_expect, y_grid_expect =[0,0,0,0,0,0],[0,0,0,0,0,0]
+    x_grid_expect[start_idx], y_grid_expect[start_idx] = start_x,start_y
     x_integ, y_integ=[],[]
     q=[start_x,start_y,0]
     wrapPos=[]
-    current_i=-1300
+    current_i=-1
     # q=[0,0,0]
-
-    for i in range(5000):
-    # nrows=6
-    # ncols=2
-    # fig, axs = plt.subplots(ncols,nrows, figsize=(12, 4))
-    # fig.subplots_adjust(hspace=0.9)
-    # fig.suptitle("Multiscale CAN", fontsize=14, y=0.98)
-    # axs.ravel()
-    # print(axs)
+    
+    for i in range(200):    
     # def animate(i):
         # global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
         N_dir=360
@@ -469,13 +503,13 @@ def headDirectionAndPlace():
         direction=np.argmax(theta_weights)
         hD_x,hD_y=(theta_weights*np.cos(np.deg2rad(np.arange(N_dir)*360/N)))[::3], (theta_weights*np.sin(np.deg2rad(np.arange(N_dir)*360/N)))[::3]
 
-        prev_weights, wrap,x_grid_expect, y_grid_expect= TESTINGhierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect)
+        prev_weights, wrap,x_grid_expect, y_grid_expect= TESTINGhierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, x_grid_expect, y_grid_expect, scales)
 
         '''1D method for decoding'''
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
         decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
         decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
-        # print(decodedXPerScale, decodedYPerScale)
+        print(decodedXPerScale, decodedYPerScale)
         # decodedXPerScale.append(x_grid_expect[-1])
         # decodedYPerScale.append(y_grid_expect[-1])
         x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
@@ -484,7 +518,11 @@ def headDirectionAndPlace():
         # x_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))])*scales)
         # y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])*scales)
 
-        '''Determining Fractional shift from nearby activity'''
+        '''Determining Fractional shift from CoM of nearby activity'''
+        maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
+        radius=5
+        CM =[shfitingPeak2D(prev_weights[m], maxYPerScale[m], maxXPerScale[m], radius, N) for m in range(len(scales))]
+        # print(CM)
         
 
         x_grid.append(x_multiscale_grid)
@@ -506,6 +544,7 @@ def headDirectionAndPlace():
 
         print(x_integ[-1], y_integ[-1])
         print(x_grid[-1], y_grid[-1])
+        print('')
         
         # for k in range(nrows-1):
         #     axs[0][k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
@@ -546,11 +585,20 @@ def headDirectionAndPlace():
     plt.plot(wrap_x, wrap_y,'r*')
     plt.show()
 
-def shfitingPeak2D(prev_weights, peakRowIdx, peakColIdx, radius):
-    for j in range(peakRowIdx-radius + peakRowIdx+radius):
-        for k in range(peakColIdx-radius + peakColIdx+radius):
-            new_array.append(prev_weights[j,k])
-    return 
+def shfitingPeak2D(prev_weights, peakRowIdx, peakColIdx, radius, N):
+    diam=(radius*2)+1
+    new_array=np.zeros((diam,diam))
+    rows=np.arange(peakRowIdx-radius, peakRowIdx+radius+1)
+    cols=np.arange(peakColIdx-radius, peakColIdx+radius+1)
+
+    for j in range(diam):
+        for k in range(diam):
+            new_array[j,k]=(prev_weights[rows[j]%N,cols[k]%N])
+
+    x,y=ndimage.center_of_mass(new_array)
+    CM=(x+peakColIdx-radius, y+peakRowIdx-radius)
+
+    return CM
 
 def plotFromSvaedArray():
     outfile='./results/xGrid_yGrid4.npy'
@@ -578,12 +626,12 @@ def plotFromSvaedArray():
     plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
     plt.show()
 
-scales=[0.25,1,4,16,100]
+
 kinemVelFile='./results/testEnvPathVelocities2.npy'
 kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 # print(len(vel))
 # vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
 # vel, angVel = [1]*300, [0]*300
-# headDirectionAndPlace()
-plotFromSvaedArray()
+headDirectionAndPlace()
+# plotFromSvaedArray()
