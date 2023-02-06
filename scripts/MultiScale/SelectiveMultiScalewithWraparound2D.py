@@ -474,6 +474,7 @@ def headDirectionAndPlace():
     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,4 #with decimals 200 iters fitness -395
 
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=2,1,2.78397605e-01,1.02700797e-04,5,2
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
@@ -663,8 +664,8 @@ def plotFromSavedArray():
 kinemVelFile='./results/testEnvPathVelocities2.npy'
 kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
-vel=np.linspace(0,300,len(angVel))
-print(np.shape(vel))
+# vel=np.linspace(0,300,len(angVel))
+# print(np.shape(vel))
 # print(len(vel))
 # vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
 # vel, angVel = [1]*300, [0]*300
