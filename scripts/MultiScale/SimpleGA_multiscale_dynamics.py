@@ -462,7 +462,7 @@ def headDirectionAndPlace(genome):
     x_integ, y_integ=[],[]
     q=[start_x,start_y,0]
 
-    for i in range(200):
+    for i in range(1000):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
@@ -478,8 +478,8 @@ def headDirectionAndPlace(genome):
 
         q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
         q[2]+=angVel[i]
-        x_integ.append(round(q[0],4))
-        y_integ.append(round(q[1],4))
+        x_integ.append(q[0])
+        y_integ.append(q[1])
 
 
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
@@ -601,7 +601,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid5.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid6.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -621,8 +621,8 @@ def runGA1D(plot=False):
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
     ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]
     fitnessFunc=headDirectionAndPlace
-    num_gens=20
-    population_size=16
+    num_gens=40
+    population_size=28
 
     if plot==True:
         with open(filename, 'rb') as f:

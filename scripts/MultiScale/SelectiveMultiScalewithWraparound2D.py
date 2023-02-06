@@ -337,7 +337,7 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         wrap_cols[cs_idx]+=wrap_cols_cs
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
-    if (cs_idx != 4) and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
+    if (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 ): 
         del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
         direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
@@ -348,19 +348,21 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
             wrap_rows[4]+=wrap_rows_100
             wrap_cols[4]+=wrap_cols_100
 
-    # '''Update the 10000 scale based on wraparound in the 100 scale'''
-    # if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
-    #     del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
-    #     direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
-    #     distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
-    #     for i in range(wrap_iterations):
-    #         prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
-    #         prev_weights[-1][prev_weights[-1][:]<0]=0
+    '''Update the 10000 scale based on wraparound in the 100 scale'''
+    if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
+        del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
+        direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
+        distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
+        for i in range(wrap_iterations):
+            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
+            prev_weights[-1][prev_weights[-1][:]<0]=0
+        
     
     if np.any(wrap_cols!=0):
-        print(f"wrap_cols {wrap_cols}")
+        print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
     if np.any(wrap_rows!=0):
-        print(f"wrap_rows {wrap_rows}")
+        print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    
     
     if np.any(wrap_cols!=0) or np.any(wrap_rows!=0):
         wrap=1
@@ -462,14 +464,15 @@ def headDirectionAndPlace():
     theata_called_iters=0
 
     # start_x, start_y= 290, 547
-    start_x, start_y=1000,1000
+    start_x, start_y=10000,10000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #best at small scale
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #best at small scale
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=72,1,9.05078199e-01,7.85317908e-04,4,1
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=6,1,3.89338335e-01,1.60376324e-04, 3,3  #improved at larger scale 
 
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,4
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,4 #with decimals 200 iters fitness -395
 
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
@@ -481,14 +484,14 @@ def headDirectionAndPlace():
     # distance_100=math.sqrt((start_x/100)**2 + (start_y/100)**2)
     # for i in range(1):
     start_mag, start_angle= math.sqrt(start_x**2 + start_y**2), np.rad2deg(math.atan2(start_y, start_x))
-    start_idx=4#scale_selection(start_mag,scales)
+    start_idx=5#scale_selection(start_mag,scales)
     print(start_angle, start_mag)
 
     # prev_weights[start_idx][:], wrap_rows_start, wrap_cols_start= network.update_weights_dynamics(prev_weights[start_idx][:], start_angle, start_mag/scales[start_idx])
     # prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
-
-    prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:], start_y/scales[start_idx], start_x/scales[start_idx])
-    prev_weights[start_idx][prev_weights[-2][:]<0]=0
+    for i in range(wrap_iterations):
+        prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:], start_y/scales[start_idx], start_x/scales[start_idx])
+        prev_weights[start_idx][prev_weights[-2][:]<0]=0
 
     x_grid, y_grid=[], []
     x_grid_expect, y_grid_expect =[0,0,0,0,0,0],[0,0,0,0,0,0]
@@ -501,12 +504,15 @@ def headDirectionAndPlace():
     current_i=-1
     # q=[0,0,0]
     
-    for i in range(5000):    
+    for i in range(200):   
+    # fig, axs = plt.subplots(1,1,figsize=(5, 5)) 
     # def animate(i):
-        # global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
-        # error=10
-        # if i==20:
+    #     global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
+
+        # error=0.01
+        # if i%20 ==0:
         #     vel[i]+=error
+
         N_dir=360
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
@@ -529,43 +535,42 @@ def headDirectionAndPlace():
         # y_multiscale_grid=np.sum(np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])*scales)
 
         '''Determining Fractional shift from CoM of nearby activity'''
-        maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
-        radius=5
-        CM =[shfitingPeak2D(prev_weights[m], maxYPerScale[m], maxXPerScale[m], radius, N) for m in range(len(scales))]
-        # print(CM)
+        # maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
+        # radius=5
+        # CM =[shfitingPeak2D(prev_weights[m], maxYPerScale[m], maxXPerScale[m], radius, N) for m in range(len(scales))]
+        # # print(CM)
         
 
         x_grid.append(x_multiscale_grid)
         y_grid.append(y_multiscale_grid)
 
-        q_e[0],q_e[1]=q_e[0]+vel[i]*np.cos(q_e[2]), q_e[1]+vel[i]*np.sin(q_e[2])
-        q_e[2]+=angVel[i]
-        x_integ_error.append(round(q_e[0],4))
-        y_integ_error.append(round(q_e[1],4))
+        # q_e[0],q_e[1]=q_e[0]+vel[i]*np.cos(q_e[2]), q_e[1]+vel[i]*np.sin(q_e[2])
+        # q_e[2]+=angVel[i]
+        # x_integ_error.append(round(q_e[0],4))
+        # y_integ_error.append(round(q_e[1],4))
 
-        # if i==20:
+        # if i%20 ==0:
         #     vel[i]-=error
 
         q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
         q[2]+=angVel[i]
-        x_integ.append(round(q[0],4))
-        y_integ.append(round(q[1],4))
+        x_integ.append(q[0])
+        y_integ.append(q[1])
 
         
 
         
-        if wrap==1:
-            current_i=i
-            wrapPos.append((x_grid[-2], y_grid[-2]))
-            wrapPos.append((x_grid[-1], y_grid[-1]))
-        if i == current_i+1:
-            wrapPos.append((x_grid[-1], y_grid[-1]))
-
+        # if wrap==1:
+        #     wrapPos.append((x_grid[-1], y_grid[-1]))
+   
 
         print(x_integ[-1], y_integ[-1])
         print(x_grid[-1], y_grid[-1])
         print('')
-        
+
+        plt.plot(x_integ[-1], y_integ[-1], 'g.')
+        plt.plot(x_grid[-1], y_grid[-1], 'b.')
+            
         # for k in range(nrows-1):
         #     axs[0][k].imshow(prev_weights[k][:][:])#(np.arange(N),prev_weights[k][:],color=colors[k])
         #     axs[0][k].spines[['top', 'left', 'right']].set_visible(False)
@@ -594,21 +599,21 @@ def headDirectionAndPlace():
     # writergif = animation.PillowWriter(fps=25) 
     # ani.save(f, writer=writergif)
 
-    outfile='./results/xGrid_yGrid6.npy'
-    np.save(outfile, np.array([x_grid, y_grid]))
-    outfile='./results/wrapPos6.npy'
-    np.save(outfile, np.array(wrapPos))
+    # outfile='./results/xGrid_yGrid7.npy'
+    # np.save(outfile, np.array([x_grid, y_grid]))
+    # outfile='./results/wrapPos7.npy'
+    # np.save(outfile, np.array(wrapPos))
 
-    wrap_x,wrap_y=zip(*wrapPos)
+    # # wrap_x,wrap_y=zip(*wrapPos)
     plt.plot(x_integ, y_integ, 'g.')
-    # plt.plot(x_integ_error, y_integ_error, 'm.')
+    # plt.plot(x_integ_error, y_integ_error, 'm--')
     plt.plot(x_grid, y_grid, 'b.')
-    plt.plot(wrap_x, wrap_y,'r*')
+    # plt.plot(wrap_x, wrap_y,'r*')
 
     plt.axis('equal')
     plt.title('Test Environment 2D space')
     # plt.legend(('Path Integration', 'Path Integration with Error','Multiscale Grid Decoding (err inc)', 'Instances of Wraparound'))
-    plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
+    plt.legend(('Path Integration', 'Multiscale Grid Decoding'))
     plt.show()
 
 
@@ -655,17 +660,16 @@ def plotFromSavedArray():
     plt.show()
 
 
-
-
-
 kinemVelFile='./results/testEnvPathVelocities2.npy'
 kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
+vel=np.linspace(0,300,len(angVel))
+print(np.shape(vel))
 # print(len(vel))
 # vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
 # vel, angVel = [1]*300, [0]*300
-# headDirecxtionAndPlace()
-plotFromSavedArray()
+headDirectionAndPlace()
+# plotFromSavedArray()
 
 
 '''========================================================================================================================'''
