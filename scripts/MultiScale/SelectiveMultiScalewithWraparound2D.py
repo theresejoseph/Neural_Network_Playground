@@ -598,6 +598,11 @@ def headDirectionAndPlace():
     # outfile='./results/wrapPos7.npy'
     # np.save(outfile, np.array(wrapPos))
 
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+    print((x_error+y_error)*-1)
+
     # # wrap_x,wrap_y=zip(*wrapPos)
     plt.plot(x_integ, y_integ, 'g.')
     # plt.plot(x_integ_error, y_integ_error, 'm--')
