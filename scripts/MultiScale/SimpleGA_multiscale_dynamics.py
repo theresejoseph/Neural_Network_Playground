@@ -431,9 +431,13 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
 def headDirectionAndPlace(genome):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
 
+    scales=[0.25,1,4,16,100,10000]
+    test_length=500
     kinemVelFile='../results/testEnvPathVelocities.npy'
     kinemAngVelFile='../results/testEnvPathAngVelocities.npy'
     vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
+    vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
+
 
     num_links=int(genome[0]) #int
     excite=int(genome[1]) #int
@@ -442,27 +446,28 @@ def headDirectionAndPlace(genome):
     iterations=int(genome[4])
     wrap_iterations=int(genome[5])
     
-    scales=[0.25,1,4,16,100,10000]
+    
     theta_weights=np.zeros(360)
     theata_called_iters=0
-    start_x, start_y=1000,1000
+    start_x, start_y=500000,500000
     N=100
     wrap_counter=[0,0,0,0,0,0]
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
-    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
+    prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
         prev_weights[n]=network.excitations(0,0)
         prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
 
-
-    prev_weights[-2][:]= network.update_weights_dynamics_row_col(prev_weights[-2][:], start_y/100, start_x/100)
-    prev_weights[-2][prev_weights[-2][:]<0]=0
+    start_idx=5
+    prev_weights[start_idx]=network.excitations(50,50)
+    prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:],0,0)
+    prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
 
     x_grid, y_grid=[], []
     x_integ, y_integ=[],[]
     q=[start_x,start_y,0]
 
-    for i in range(1000):
+    for i in range(test_length):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
@@ -535,6 +540,7 @@ class GeneticAlgorithm:
         return g
     
     def process_element(self, i, population):
+        # return self.fitnessFunc(population[i])
         try:
             print(i)
             return self.fitnessFunc(population[i])
@@ -590,6 +596,7 @@ class GeneticAlgorithm:
             fitnesses,indexes=self.sortByFitness(population,self.population_size)
             order_population[i,:,:] = np.hstack((np.array(population[indexes]), fitnesses[:,None]))
 
+            '''Stop the GA if fitness hasnt improved for <stop_val> generations'''
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
             stop_val=5
             if i>=stop_val and all(element == current_fitnesses[i] for element in current_fitnesses[i-stop_val:i]):
@@ -601,7 +608,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid6.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid7.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -636,7 +643,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    # runGA1D(plot=False)
+    runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

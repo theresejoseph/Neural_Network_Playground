@@ -464,35 +464,28 @@ def headDirectionAndPlace():
     theata_called_iters=0
 
     # start_x, start_y= 290, 547
-    start_x, start_y=10000,10000
+    start_x, start_y=500000,500000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #best at small scale
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #good only at small scale
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=72,1,9.05078199e-01,7.85317908e-04,4,1
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=6,1,3.89338335e-01,1.60376324e-04, 3,3  #improved at larger scale 
 
     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,4 #with decimals 200 iters fitness -395
 
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=2,1,2.78397605e-01,1.02700797e-04,5,2
+   
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
         prev_weights[n]=network.excitations(0,0)
         prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
 
-    # direction_100=np.rad2deg(math.atan2(start_y/100, start_x/100))
-    # distance_100=math.sqrt((start_x/100)**2 + (start_y/100)**2)
-    # for i in range(1):
-    start_mag, start_angle= math.sqrt(start_x**2 + start_y**2), np.rad2deg(math.atan2(start_y, start_x))
     start_idx=5#scale_selection(start_mag,scales)
-    print(start_angle, start_mag)
-
-    # prev_weights[start_idx][:], wrap_rows_start, wrap_cols_start= network.update_weights_dynamics(prev_weights[start_idx][:], start_angle, start_mag/scales[start_idx])
-    # prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
-    for i in range(wrap_iterations):
-        prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:], start_y/scales[start_idx], start_x/scales[start_idx])
-        prev_weights[start_idx][prev_weights[-2][:]<0]=0
+   
+    prev_weights[start_idx]=network.excitations(50,50)
+    prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:],0,0)
+    prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
 
     x_grid, y_grid=[], []
     x_grid_expect, y_grid_expect =[0,0,0,0,0,0],[0,0,0,0,0,0]
@@ -505,7 +498,7 @@ def headDirectionAndPlace():
     current_i=-1
     # q=[0,0,0]
     
-    for i in range(200):   
+    for i in range(test_length):   
     # fig, axs = plt.subplots(1,1,figsize=(5, 5)) 
     # def animate(i):
     #     global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
@@ -660,13 +653,28 @@ def plotFromSavedArray():
     plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
     plt.show()
 
+# particle_pos=particle_filter( vel[1:test_length], angVel[1:test_length])
+# particle_x,particle_y=zip(*particle_pos)
+# x_integ, y_integ=pathIntegration(vel[1:test_length],angVel[1:test_length])
+# ekf_pos=EKF_main(vel[1:test_length], angVel[1:test_length])
+# ekf_x,ekf_y=zip(*ekf_pos)
 
+
+# plt.plot(x_integ, y_integ,'g.-')
+# plt.plot(ekf_x,ekf_y, 'm-.')
+# # plt.plot(particle_x,particle_y,'b.-')
+# plt.axis('equal')
+# plt.legend(('Path Integration', 'EKF', 'Particle Filter'))
+# plt.show()
+
+test_length=500
 kinemVelFile='./results/testEnvPathVelocities2.npy'
 kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
-# vel=np.linspace(0,300,len(angVel))
-# print(np.shape(vel))
-# print(len(vel))
+scales=[0.25,1,4,16,100,10000]
+vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
+print(np.shape(vel))
+
 # vel, angVel = [1]*300, [np.deg2rad(45)]+[0]*299
 # vel, angVel = [1]*300, [0]*300
 headDirectionAndPlace()
@@ -710,8 +718,10 @@ def EKF_main(speed, angVel):
     # measurement = np.array([[0], [0]])
 
     ekf_pos=[]
+    error=1.1
     q=[0,0,0]
     for i in range(len(speed)):
+        speed[i]*=error
         q[0],q[1]=q[0]+speed[i]*np.cos(q[2]), q[1]+speed[i]*np.sin(q[2])
         q[2]+=angVel[i]
         control_input = np.array([[speed[i]], [0], [0], [angVel[i]]])
@@ -765,17 +775,17 @@ def pathIntegration(speed, angVel):
 
     return x_integ, y_integ
 
-
-# particle_pos=particle_filter( vel[1:100], angVel[1:100])
+# test_length=1000
+# particle_pos=particle_filter( vel[1:test_length], angVel[1:test_length])
 # particle_x,particle_y=zip(*particle_pos)
-# x_integ, y_integ=pathIntegration(vel[1:100],angVel[1:100])
-# ekf_pos=EKF_main(vel[1:100], angVel[1:100])
+# x_integ, y_integ=pathIntegration(vel[1:test_length],angVel[1:test_length])
+# ekf_pos=EKF_main(vel[1:test_length], angVel[1:test_length])
 # ekf_x,ekf_y=zip(*ekf_pos)
 
 
 # plt.plot(x_integ, y_integ,'g.-')
 # plt.plot(ekf_x,ekf_y, 'm-.')
-# plt.plot(particle_x,particle_y,'b.-')
+# # plt.plot(particle_x,particle_y,'b.-')
 # plt.axis('equal')
 # plt.legend(('Path Integration', 'EKF', 'Particle Filter'))
 # plt.show()
