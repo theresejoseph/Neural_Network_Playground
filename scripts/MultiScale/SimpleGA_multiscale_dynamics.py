@@ -380,16 +380,11 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
     cs_idx=scale_selection(vel,scales)
     wrap_rows=np.zeros((len(scales)))
     wrap_cols=np.zeros((len(scales)))
-    # print(delta[cs_idx], direction)
-    # wraparound[cs_idx]=(can.activityDecoding(prev_weights[cs_idx][:],4,N) + delta[cs_idx])//(N-1)
 
-    # print(can.activityDecoding(prev_weights[cs_idx][:],4,N),cs_idx,wraparound[cs_idx],wraparound[4])
-    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,7.47157578e-01 ,3.62745653e-04, 2, 1
-    # wrap_net=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
 
     '''Update selected scale'''
-    for i in range(iterations):
-        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
+    for i in range(iterations[cs_idx]):
+        prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net[cs_idx].update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
         wrap_rows[cs_idx]+=wrap_rows_cs
         wrap_cols[cs_idx]+=wrap_cols_cs
@@ -400,20 +395,20 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
-        for i in range(wrap_iterations):
-            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100)
+        for i in range(wrap_iterations[4]):
+            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net[4].update_weights_dynamics(prev_weights[4][:],direction_100, distance_100)
             prev_weights[4][prev_weights[4][:]<0]=0
             wrap_rows[4]+=wrap_rows_100
             wrap_cols[4]+=wrap_cols_100
 
-    # '''Update the 10000 scale based on wraparound in the 100 scale'''
-    # if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
-    #     del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
-    #     direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
-    #     distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
-    #     for i in range(wrap_iterations):
-    #         prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000,5, wrap_counter)
-    #         prev_weights[-1][prev_weights[-1][:]<0]=0
+    '''Update the 10000 scale based on wraparound in the 100 scale'''
+    if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
+        del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
+        direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
+        distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
+        for i in range(wrap_iterations[-1]):
+            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net[-1].update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
+            prev_weights[-1][prev_weights[-1][:]<0]=0
     
     # if np.any(wrap_cols!=0):
     #     print(f"wrap_cols {wrap_cols}")
@@ -433,34 +428,44 @@ def headDirectionAndPlace(genome):
 
     scales=[0.25,1,4,16,100,10000]
     test_length=500
-    kinemVelFile='../results/testEnvPathVelocities.npy'
-    kinemAngVelFile='../results/testEnvPathAngVelocities.npy'
+    kinemVelFile='../results/TestEnvironmentFiles/TraverseInfo/testEnvPathVelocities.npy'
+    kinemAngVelFile='../results/TestEnvironmentFiles/TraverseInfo/testEnvPathAngVelocities.npy'
     vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
     vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
 
 
-    num_links=int(genome[0]) #int
-    excite=int(genome[1]) #int
-    activity_mag=genome[2] #uni
-    inhibit_scale=genome[3] #uni
-    iterations=int(genome[4])
-    wrap_iterations=int(genome[5])
+    # num_links=int(genome[0]) #int
+    # excite=int(genome[1]) #int
+    # activity_mag=genome[2] #uni
+    # inhibit_scale=genome[3] #uni
+    # iterations=int(genome[4])
+    # wrap_iterations=int(genome[5])
     
+
     
     theta_weights=np.zeros(360)
     theata_called_iters=0
     start_x, start_y=500000,500000
     N=100
     wrap_counter=[0,0,0,0,0,0]
-    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+
+    networks=[]
+    iterations=[]
+    wrap_iterations=[]
+    for i in range(0, 36, 6):
+        networks.append(attractorNetwork2D(N,N,genome[i],genome[i+1], genome[i+2],genome[i+3]))
+        iterations.append(genome[i+4])
+        wrap_iterations.append(genome[i+5])
+
+    # network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
-        prev_weights[n]=network.excitations(0,0)
-        prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
+        prev_weights[n]=networks[0].excitations(0,0)
+        prev_weights[n]=networks[0].update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
 
     start_idx=5
-    prev_weights[start_idx]=network.excitations(50,50)
-    prev_weights[start_idx][:]= network.update_weights_dynamics_row_col(prev_weights[start_idx][:],0,0)
+    prev_weights[start_idx]=networks[start_idx].excitations(50,50)
+    prev_weights[start_idx][:]= networks[start_idx].update_weights_dynamics_row_col(prev_weights[start_idx][:],0,0)
     prev_weights[start_idx][prev_weights[start_idx][:]<0]=0
 
     x_grid, y_grid=[], []
@@ -471,20 +476,20 @@ def headDirectionAndPlace(genome):
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
 
-        prev_weights= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, scales)
+        prev_weights= hierarchicalNetwork2DGrid(prev_weights, networks, N, vel[i], direction, iterations,wrap_iterations, wrap_counter, scales)
         
         maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
         decodedXPerScale=[can.activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
         decodedYPerScale=[can.activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
         x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
 
-        x_grid.append(x_multiscale_grid)
-        y_grid.append(y_multiscale_grid)
+        x_grid.append(x_multiscale_grid-start_x)
+        y_grid.append(y_multiscale_grid-start_y)
 
         q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
         q[2]+=angVel[i]
-        x_integ.append(q[0])
-        y_integ.append(q[1])
+        x_integ.append(q[0]-start_x)
+        y_integ.append(q[1]-start_y)
 
 
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
@@ -517,7 +522,7 @@ class GeneticAlgorithm:
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #head direction and grid cell 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')]*6 #head direction and grid cell 
             population.append(genome)
         return population 
 
@@ -541,11 +546,13 @@ class GeneticAlgorithm:
     
     def process_element(self, i, population):
         # return self.fitnessFunc(population[i])
-        try:
-            print(i)
-            return self.fitnessFunc(population[i])
-        except Exception as e:
-            return -10000000000
+        # try:
+        print(i)    
+        fit=self.fitnessFunc(population[i])
+        print(i, fit)
+        return fit
+        # except Exception as e:
+        #     return -10000000000
 
 
     def sortByFitness(self,population,topK):
@@ -625,8 +632,8 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
+    ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]*6
     fitnessFunc=headDirectionAndPlace
     num_gens=40
     population_size=28
@@ -643,7 +650,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    # runGA1D(plot=False)
+    runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

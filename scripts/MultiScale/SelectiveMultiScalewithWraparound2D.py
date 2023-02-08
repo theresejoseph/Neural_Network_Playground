@@ -473,8 +473,7 @@ def headDirectionAndPlace():
 
     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,4 #with decimals 200 iters fitness -395
-
-   
+  
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
     for n in range(len(prev_weights)):
@@ -535,8 +534,8 @@ def headDirectionAndPlace():
         # # print(CM)
         
 
-        x_grid.append(x_multiscale_grid)
-        y_grid.append(y_multiscale_grid)
+        x_grid.append(x_multiscale_grid-start_x)
+        y_grid.append(y_multiscale_grid-start_y)
 
         # q_e[0],q_e[1]=q_e[0]+vel[i]*np.cos(q_e[2]), q_e[1]+vel[i]*np.sin(q_e[2])
         # q_e[2]+=angVel[i]
@@ -548,8 +547,8 @@ def headDirectionAndPlace():
 
         q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
         q[2]+=angVel[i]
-        x_integ.append(q[0])
-        y_integ.append(q[1])
+        x_integ.append(q[0]-start_x)
+        y_integ.append(q[1]-start_y)
 
         
 
@@ -673,8 +672,9 @@ def plotFromSavedArray():
 # plt.show()
 
 test_length=500
-kinemVelFile='./results/testEnvPathVelocities2.npy'
-kinemAngVelFile='./results/testEnvPathAngVelocities2.npy'
+
+kinemVelFile='./results/TestEnvironmentFiles/TraverseInfo/testEnvPathVelocities2.npy'
+kinemAngVelFile='./results/TestEnvironmentFiles/TraverseInfo/testEnvPathAngVelocities2.npy'
 vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 scales=[0.25,1,4,16,100,10000]
 vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
