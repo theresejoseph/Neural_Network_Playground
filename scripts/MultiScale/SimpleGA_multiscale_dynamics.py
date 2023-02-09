@@ -560,7 +560,7 @@ class GeneticAlgorithm:
         # sort genomes by fitness
         fitness=np.zeros(len(population))
 
-        with multiprocessing.Pool(processes=4) as pool:
+        with multiprocessing.Pool(processes=14) as pool:
             fitness = pool.map(partial(self.process_element, population=population), range(len(population)))
         
         fitness=np.array(fitness)
@@ -632,11 +632,11 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
-    ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]*6
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.008), np.random.normal(0,0.00008), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
+    ranges = [[1,10],[1,10],[0,1],[0,0.0008],[1,5], [1,5]]*6
     fitnessFunc=headDirectionAndPlace
     num_gens=40
-    population_size=4
+    population_size=28
 
     if plot==True:
         with open(filename, 'rb') as f:
