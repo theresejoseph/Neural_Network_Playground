@@ -454,8 +454,8 @@ def headDirectionAndPlace(genome):
     wrap_iterations=[]
     for i in range(0, 36, 6):
         networks.append(attractorNetwork2D(N,N,genome[i],genome[i+1], genome[i+2],genome[i+3]))
-        iterations.append(genome[i+4])
-        wrap_iterations.append(genome[i+5])
+        iterations.append(int(genome[i+4]))
+        wrap_iterations.append(int(genome[i+5]))
 
     # network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
@@ -636,7 +636,7 @@ def runGA1D(plot=False):
     ranges = [[1,10],[1,10],[0,1],[0,0.0007],[1,5], [1,5]]*6
     fitnessFunc=headDirectionAndPlace
     num_gens=40
-    population_size=28
+    population_size=4
 
     if plot==True:
         with open(filename, 'rb') as f:

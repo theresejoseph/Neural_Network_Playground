@@ -251,8 +251,8 @@ class attractorNetwork2D:
     '''defines 1D attractor network with N neurons, angles associated with each neurons 
     along with inhitory and excitatory connections to update the weights'''
     def __init__(self, N1, N2, num_links, excite_radius, activity_mag,inhibit_scale):
-        self.excite_radius=excite_radius
-        self.num_links=num_links
+        self.excite_radius=int(excite_radius)
+        self.num_links=int(num_links)
         self.N1=N1
         self.N2=N2  
         self.activity_mag=activity_mag
