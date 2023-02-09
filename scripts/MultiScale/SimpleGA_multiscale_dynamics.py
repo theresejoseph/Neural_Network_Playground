@@ -605,7 +605,7 @@ class GeneticAlgorithm:
 
             '''Stop the GA if fitness hasnt improved for <stop_val> generations'''
             current_fitnesses=[max(fit) for fit in np.array(order_population)[:,:,-1]]
-            stop_val=5
+            stop_val=self.num_gens
             if i>=stop_val and all(element == current_fitnesses[i] for element in current_fitnesses[i-stop_val:i]):
                 break
             print(fitnesses)
@@ -615,7 +615,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid8.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid9.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -632,8 +632,8 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.008), np.random.normal(0,0.00008), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
-    ranges = [[1,10],[1,10],[0,1],[0,0.0008],[1,5], [1,5]]*6
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
+    ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]*6
     fitnessFunc=headDirectionAndPlace
     num_gens=40
     population_size=28
@@ -650,7 +650,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
+    # runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

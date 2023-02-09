@@ -105,8 +105,8 @@ normalise_angle = lambda angle: atan2(sin(angle), cos(angle))
 
 class Vehicle:
     def __init__(self, path_x, path_y, throttle, dt,\
-        control_gain=3, softening_gain=1.0, yaw_rate_gain=0.4, steering_damp_gain=0.0, max_steer=np.deg2rad(45), \
-        c_r: float=0.01, c_a: float=2.0, wheelbase=2.96, \
+        control_gain=5, softening_gain=0.25, yaw_rate_gain=0.35, steering_damp_gain=0.0, max_steer=np.deg2rad(45), \
+        c_r: float=0.1, c_a: float=2.0, wheelbase=2.96, \
         overall_length=4.97, overall_width=1.964, rear_overhang=0.0, tyre_diameter=0.4826, \
         tyre_width=0.265, axle_track=1.7):
       
@@ -322,13 +322,31 @@ class Vehicle:
 
 
 # '''drive without visualisation'''
-def simulateDrive(car):
-    # Drive and draw car
-    if (car.px[car.target_id], car.py[car.target_id]) !=(car.px[-1], car.py[-1]):
-        car.drive()
-    else:
-        car.v=0
+def noVisualisationDrive():
+    global velocity, angVel, trueCarPos
+    # Storage Variables
+    velocity=[]
+    angVel=[]
+    trueCarPos=[]
+
+    # car object
+    dt=0.005
+    frames=20000
+    car  = Vehicle(path_x, path_y,100, dt, control_gain=5, softening_gain=0.25, yaw_rate_gain=0.4, 
+    steering_damp_gain=0.0, max_steer=np.deg2rad(60), c_r=0.1, c_a=2.0)
     
+    for i in range(frames):
+        # Drive and draw car
+        if (car.px[car.target_id], car.py[car.target_id]) !=(car.px[-1], car.py[-1]):
+            car.drive()
+            print(car.x, car.y)
+        else:
+            car.v=0
+    
+    outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
+    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=np.array([path_x[0], path_y[0],car.start_heading]))
+    
+        
 
 def runSimulation(path_x, path_y, path_img):
     global velocity, angVel, trueCarPos
@@ -370,7 +388,7 @@ def runSimulation(path_x, path_y, path_img):
     trueCarPos=[]
 
     # Simulation Parameters
-    fps = 30
+    fps = 20
     dt = 1/fps
     map_size_x = 70
     map_size_y = 40
@@ -410,7 +428,6 @@ def runSimulation(path_x, path_y, path_img):
     outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
     np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=np.array([path_x[0], path_y[0],car.start_heading]))
     
-
 
 def pathIntegration(speed, angVel, startPose):
     q=startPose
@@ -454,17 +471,84 @@ path_x, path_y = zip(*path)
 
 
 '''Run Simulation'''
-storedFiles= runSimulation(path_x, path_y, path_img)
+# runSimulation(path_x, path_y, path_img)
+
+# noVisualisationDrive()
 
 '''Test Stored Traverse'''
 
-outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
-traverseInfo=np.load(outfile)
-speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+# outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
+# traverseInfo=np.load(outfile)
+# speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
-x,y=zip(*truePos)
+# x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
+# x,y=zip(*truePos)
 
-plt.plot(x_integ, y_integ, 'm.')
-plt.plot(x, y, 'g.')
+# plt.plot(x_integ, y_integ, 'm.')
+# plt.plot(x, y, 'g.-')
+# plt.plot(path_x, path_y, 'y--')
+# plt.show()
+
+
+'''GPT kinematics model'''
+def initialise_cubic_spline( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str):
+
+    distance = np.concatenate((np.zeros(1), np.cumsum(np.hypot(np.ediff1d(x), np.ediff1d(y)))))
+    points = np.array([x, y]).T
+    s = np.arange(0, distance[-1], ds)
+
+    try:
+        cs = CubicSpline(distance, points, bc_type=bc_type, axis=0, extrapolate=False)
+        
+    except ValueError as e:
+        raise ValueError(f"{e} If you are getting a sequence error, do check if your input dataset contains consecutive duplicate(s).")
+
+    return cs, s
+
+def calculate_spline_yaw( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str='natural'):
+    
+    cs, s = initialise_cubic_spline(x, y, ds, bc_type)
+    dx, dy = cs.derivative(1)(s).T
+    return np.arctan2(dy, dx)
+
+def update_state(state, inputs, dt):
+    x, y, theta, v = state
+    delta, a = inputs
+    x = x + v * np.cos(theta) * dt
+    y = y + v * np.sin(theta) * dt
+    theta = theta + v / Lf * np.tan(delta) * dt
+    v = v + a * dt
+    return x, y, theta, v
+
+def cost_function(state, inputs, desired_state):
+    x, y, theta, v = update_state(state, inputs, dt)
+    x_d, y_d, theta_d, v_d = desired_state
+    return np.sum((x - x_d)**2 + (y - y_d)**2 + (theta - theta_d)**2 + (v - v_d)**2)
+
+def optimal_controller(state, desired_state, dt):
+    inputs = np.random.randn(2) # Initialize inputs randomly
+    for i in range(1000): # Perform optimization for 1000 iterations
+        gradient = np.gradient(cost_function(state, inputs, desired_state))
+        print(gradient)
+        inputs = inputs - gradient
+    return inputs
+
+dt = 0.1 # Time step
+Lf = 2.67 # Length of front wheel to center of gravity
+yaw=calculate_spline_yaw(path_x,path_y,ds=dt)
+state = np.array([path_x[0], path_y[0], yaw[0], 0]) # Initial state
+pos=[]
+for i in range(100):
+    desired_state = np.array([path_x[i], path_y[i], yaw[i], 1]) # Desired state
+
+    inputs = optimal_controller(state, desired_state, dt)
+
+    state=update_state(state, inputs)
+    pos.append(tuple((state[0], state[1])))
+
+x,y=zip(*pos)
+plt.plot(x,y, 'g.-')
+plt.plot(path_x, path_y, 'y--')
 plt.show()
+
+
