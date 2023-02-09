@@ -560,7 +560,7 @@ class GeneticAlgorithm:
         # sort genomes by fitness
         fitness=np.zeros(len(population))
 
-        with multiprocessing.Pool(processes=14) as pool:
+        with multiprocessing.Pool(processes=4) as pool:
             fitness = pool.map(partial(self.process_element, population=population), range(len(population)))
         
         fitness=np.array(fitness)
@@ -615,7 +615,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid7.npy'
+    filename=f'../results/GA_MultiScale/tuningGrid8.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
