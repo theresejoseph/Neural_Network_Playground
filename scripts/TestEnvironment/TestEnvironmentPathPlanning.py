@@ -6,6 +6,7 @@ import cv2
 import random
 import roboticstoolbox as rtb
 from roboticstoolbox import DistanceTransformPlanner
+from roboticstoolbox import Bicycle, RandomPath
 import math
 from spatialmath.base import *
 from math import sin, cos, atan2, radians
@@ -105,8 +106,8 @@ normalise_angle = lambda angle: atan2(sin(angle), cos(angle))
 
 class Vehicle:
     def __init__(self, path_x, path_y, throttle, dt,\
-        control_gain=5, softening_gain=0.25, yaw_rate_gain=0.35, steering_damp_gain=0.0, max_steer=np.deg2rad(45), \
-        c_r: float=0.1, c_a: float=2.0, wheelbase=2.96, \
+        control_gain, softening_gain, yaw_rate_gain, steering_damp_gain, max_steer, \
+        c_r: float, c_a: float, wheelbase=2.96, \
         overall_length=4.97, overall_width=1.964, rear_overhang=0.0, tyre_diameter=0.4826, \
         tyre_width=0.265, axle_track=1.7):
       
@@ -212,6 +213,7 @@ class Vehicle:
 
     def calculate_yaw_term(self, target_index, yaw):
         yaw_error = normalise_angle(self.pyaw[target_index] - yaw)
+        # yaw_error = self.pyaw[target_index] - yaw
 
         return yaw_error
 
@@ -254,7 +256,7 @@ class Vehicle:
         new_velocity = velocity + self.dt*(throttle - friction)
 
         # Limit steering angle to physical vehicle limits
-        steering_angle = -self.max_steer if steering_angle < -self.max_steer else self.max_steer if steering_angle > self.max_steer else steering_angle
+        # steering_angle = -self.max_steer if steering_angle < -self.max_steer else self.max_steer if steering_angle > self.max_steer else steering_angle
 
         # Compute the angular velocity
         angular_velocity = velocity*np.tan(steering_angle) / self.wheelbase
@@ -322,32 +324,81 @@ class Vehicle:
 
 
 # '''drive without visualisation'''
+def angdiff(angle1, angle2):
+    diff = abs(angle1 - angle2)
+    if diff > np.pi:
+        diff = (2*np.pi) - diff
+    return diff
+
+def angsum(angle1, angle2):
+    diff = abs(angle1 + angle2)
+    if diff > 2*np.pi:
+        diff = diff - (2*np.pi)
+    return diff
+
+def rangeSensor(currentPos, landmarks, angleRange, maxDist):
+    lndMrkRange = []
+    for (x,y) in landmarks:
+        theta = math.atan((currentPos[1]-y)/(currentPos[0]-x))
+        dist = math.sqrt((x-currentPos[0]) ** 2 + (y-currentPos[1]) ** 2)
+        
+        # if theta > angleRange[0] and theta < angleRange[1]:
+        if dist < maxDist:
+            print(theta, dist)
+            lndMrkRange.append([dist, theta, x, y])
+
+    return lndMrkRange
+
+# def determine_position(d1, d2, angle1, angle2):
+#     x = (d1**2 - d2**2 + 100)/(2*100)
+#     y = math.sqrt(d1**2 - x**2)
+#     theta = angdiff(angle2,angle1)
+#     X = x * math.cos(theta) - y * math.sin(theta)
+#     Y = x * math.sin(theta) + y * math.cos(theta)
+#     return X, Y
+
+
 def noVisualisationDrive():
     global velocity, angVel, trueCarPos
     # Storage Variables
     velocity=[]
     angVel=[]
     trueCarPos=[]
+    ranges=[]
+    
+    num_landmarks=40
+    xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
+    yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
+    landmarks=list(zip(xLndMks, yLndMks))
 
     # car object
-    dt=0.005
-    frames=20000
-    car  = Vehicle(path_x, path_y,100, dt, control_gain=5, softening_gain=0.25, yaw_rate_gain=0.4, 
-    steering_damp_gain=0.0, max_steer=np.deg2rad(60), c_r=0.1, c_a=2.0)
+    dt=0.05
+    frames=500
+    car  = Vehicle(path_x, path_y,100, dt, control_gain=5, softening_gain=0.05, yaw_rate_gain=0.5, 
+    steering_damp_gain=0.0, max_steer=np.deg2rad(45), c_r=0.1, c_a=3.0)
     
     for i in range(frames):
         # Drive and draw car
         if (car.px[car.target_id], car.py[car.target_id]) !=(car.px[-1], car.py[-1]):
             car.drive()
-            print(car.x, car.y)
+           
+            curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [angdiff(car.yaw,np.deg2rad(60)), angsum(car.yaw,np.deg2rad(60))], 200)
+            ranges.append(curr_lndMrksRange)
+            
+            # if len(curr_lndMrksRange)>= 2:
+            #     dist,theta=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
+            #     X,Y=determine_position(dist[0], dist[1], theta[0], theta[1])
+            #     print(car.x, car.y, X, Y)
+
+
         else:
             car.v=0
     
     outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
-    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=np.array([path_x[0], path_y[0],car.start_heading]))
+    start=np.array([path_x[0], path_y[0],car.start_heading])
+    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges=np.array(ranges))
     
         
-
 def runSimulation(path_x, path_y, path_img):
     global velocity, angVel, trueCarPos
     def animate(frame):
@@ -456,7 +507,7 @@ img[img==255]=1
 
 
 '''Original'''
-pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths3_5kmrad_100pdi_0.2line.npy'
+pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
 
 
 '''Scaled'''
@@ -473,82 +524,169 @@ path_x, path_y = zip(*path)
 '''Run Simulation'''
 # runSimulation(path_x, path_y, path_img)
 
-# noVisualisationDrive()
+noVisualisationDrive()
+
 
 '''Test Stored Traverse'''
 
-# outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
-# traverseInfo=np.load(outfile)
-# speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
+traverseInfo=np.load(outfile, allow_pickle=True)
+speeds,angVel,truePos, startPose, landmarks, ranges=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose'], traverseInfo['landmarks'], traverseInfo['ranges']
 
-# x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
-# x,y=zip(*truePos)
+x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
+x,y=zip(*truePos)
+landX,landY=zip(*landmarks)
 
-# plt.plot(x_integ, y_integ, 'm.')
-# plt.plot(x, y, 'g.-')
+
+fig = plt.figure()
+ax = plt.axes()
+def animate(i):
+    ax.clear()
+    
+    print(i)
+    # ax.plot(x_integ, y_integ, 'm.')
+    ax.plot(x[0:i], y[0:i], 'b.-')
+    ax.plot(path_x, path_y, 'g--')
+    ax.plot(landX,landY, 'k*')
+    if  len(ranges[i]) > 0:
+        closeX,closeY=zip(*[(range[2],range[3]) for range in ranges[i]])
+        ax.plot(closeX,closeY, 'r*')
+
+
+ani = FuncAnimation(fig, animate, frames=len(x), interval=1)
+# plt.show()
+
+f = "./results/GIFs/LandmarksRangeSense.gif" 
+writergif = animation.PillowWriter(fps=60) 
+ani.save(f, writer=writergif)
+
+
+'''Peter Corke kinematics model'''
+# for c in np.array(path):
+#     print(c)
+# robot = Bicycle()
+# workspace=[0, np.shape(path_img)[0], 0,np.shape(path_img)[1]]
+# pathObj=RandomPath(workspace, np.array(path))
+# robot.add_driver(pathObj)
+
+
+# map = rtb.LandmarkMap(20, workspace, seed=0)
+
+# W = np.diag([0.1, np.radians(1)]) ** 2
+# sensor = rtb.RangeBearingSensor(robot, map, W)
+
+# ekf = rtb.EKF(robot=(robot, None), sensor=(sensor, W))
+
+# ekf.run(T=1000)  # run the simulation for 20 seconds
+
+# map.plot()  #  plot the map
+# # plt.imshow(path_img,  cmap='gray')
+# plt.plot(path_x, path_y, 'g--')
+# robot.plot_xy(color="m")  # plot the true vehicle path
+# plt.show()
+
+# x,y=zip(*pos)
+# plt.plot(x,y, 'g.-')
 # plt.plot(path_x, path_y, 'y--')
 # plt.show()
 
 
-'''GPT kinematics model'''
-def initialise_cubic_spline( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str):
+''' Pure Pursuit'''
+# def initialise_cubic_spline( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str):
 
-    distance = np.concatenate((np.zeros(1), np.cumsum(np.hypot(np.ediff1d(x), np.ediff1d(y)))))
-    points = np.array([x, y]).T
-    s = np.arange(0, distance[-1], ds)
+#     distance = np.concatenate((np.zeros(1), np.cumsum(np.hypot(np.ediff1d(x), np.ediff1d(y)))))
+#     points = np.array([x, y]).T
+#     s = np.arange(0, distance[-1], ds)
 
-    try:
-        cs = CubicSpline(distance, points, bc_type=bc_type, axis=0, extrapolate=False)
+#     try:
+#         cs = CubicSpline(distance, points, bc_type=bc_type, axis=0, extrapolate=False)
         
-    except ValueError as e:
-        raise ValueError(f"{e} If you are getting a sequence error, do check if your input dataset contains consecutive duplicate(s).")
+#     except ValueError as e:
+#         raise ValueError(f"{e} If you are getting a sequence error, do check if your input dataset contains consecutive duplicate(s).")
 
-    return cs, s
+#     return cs, s
 
-def calculate_spline_yaw( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str='natural'):
+# def calculate_spline_yaw( x: ArrayLike, y: ArrayLike, ds: float, bc_type: str='natural'):
     
-    cs, s = initialise_cubic_spline(x, y, ds, bc_type)
-    dx, dy = cs.derivative(1)(s).T
-    return np.arctan2(dy, dx)
+#     cs, s = initialise_cubic_spline(x, y, ds, bc_type)
+#     dx, dy = cs.derivative(1)(s).T
+#     return np.arctan2(dy, dx)
 
-def update_state(state, inputs, dt):
-    x, y, theta, v = state
-    delta, a = inputs
-    x = x + v * np.cos(theta) * dt
-    y = y + v * np.sin(theta) * dt
-    theta = theta + v / Lf * np.tan(delta) * dt
-    v = v + a * dt
-    return x, y, theta, v
+# class PurePursuitController:
+#     def __init__(self, path, lookahead_distance, R, speed, gainW):
+        
+#         self.path = path
+#         self.lookahead_distance = lookahead_distance
+#         self.R = R 
+#         self.speed= speed
+#         self.gainW= gainW
 
-def cost_function(state, inputs, desired_state):
-    x, y, theta, v = update_state(state, inputs, dt)
-    x_d, y_d, theta_d, v_d = desired_state
-    return np.sum((x - x_d)**2 + (y - y_d)**2 + (theta - theta_d)**2 + (v - v_d)**2)
+#     def control_input(self, q):
+#         # Inputs:
+#         #  q is a 1x3 vector giving the current configuration of the robot in units of metres and radians
+#         #  self.R is the pure pursuit following distance
+#         #  self.speed is the forward self.speed of the vehicle
+#         #  path is an Nx2 matrix containing the path as a set of waypoints, columns are x- and y-coordinates respectively.
+#         # Return:
+#         #  vel is a 1x2 vector containing the requested velocity and turn rate of the robot [v, omega]
 
-def optimal_controller(state, desired_state, dt):
-    inputs = np.random.randn(2) # Initialize inputs randomly
-    for i in range(1000): # Perform optimization for 1000 iterations
-        gradient = np.gradient(cost_function(state, inputs, desired_state))
-        print(gradient)
-        inputs = inputs - gradient
-    return inputs
-
-dt = 0.1 # Time step
-Lf = 2.67 # Length of front wheel to center of gravity
-yaw=calculate_spline_yaw(path_x,path_y,ds=dt)
-state = np.array([path_x[0], path_y[0], yaw[0], 0]) # Initial state
-pos=[]
-for i in range(100):
-    desired_state = np.array([path_x[i], path_y[i], yaw[i], 1]) # Desired state
-
-    inputs = optimal_controller(state, desired_state, dt)
-
-    state=update_state(state, inputs)
-    pos.append(tuple((state[0], state[1])))
-
-x,y=zip(*pos)
-plt.plot(x,y, 'g.-')
-plt.plot(path_x, path_y, 'y--')
-plt.show()
+#         # closest point
+#         point = [q[0], q[1]]
+#         # dist = [math.sqrt((path[i][0]-point[0])**2 + (path[i][1]-point[1])**2) for i in range(len(path))]
+#         dist=[np.sqrt((self.path[i][0]-q[0])**2+(self.path[i][1]-q[1])**2) for i in range(len(self.path))]
+#         index = dist.index(min(dist))
+#         C = [self.path[index][0], self.path[index][1]]
 
 
+#         # find the first point on the self.path that is further than self.self.R from C
+#         for i in range(index, len(self.path)):
+#             dist2path = math.sqrt((C[0]-self.path[i][0])**2 + (C[1]-self.path[i][1])**2)
+#             if dist2path > self.R:
+#                 g_index = i
+#                 break
+#         else:
+#             g_index = len(self.path)-1
+#         G = self.path[g_index]
+
+#         # controller to move from point to intersection
+#         thetagoal = math.atan2(G[1]-q[1], G[0]-q[0])
+#         W = self.gainW*(thetagoal-q[2])
+#         d = math.sqrt((self.path[-1][0]-q[0])**2 + (self.path[-1][1]-q[1])**2)
+#         vel = [self.speed, W]
+#         return vel
+
+#     def qupdate(self, q, vel, dt):
+#         # Inputs:
+#         # q is the configuration vector (x, y, theta) in units of metres and radians
+#         # vel is the velocity vector (v, omega)
+#         # dt is the length of the integration timestep in units of seconds
+#         # Return:
+#         # qnew is the new configuration vector vector (x, y, theta) in units of metres and radians at the
+#         # end of the time interval.
+
+#         x = dt*vel[0]*math.cos(q[2]) + q[0]
+#         y = dt*vel[0]*math.sin(q[2]) + q[1]
+#         theta = dt*vel[1] + q[2]
+#         qnew = [x, y, theta]
+#         return qnew
+
+# R=0.01
+# speed=0.1
+# gainW=0.1
+# dt=0.5
+# carPath=[]
+# yaw=calculate_spline_yaw(path_x,path_y,ds=dt)
+# path=np.array(list(zip(path_x,path_y)))
+# q=[path_x[0],path_y[0],yaw[0]]
+# car=PurePursuitController(path, 1, R, speed, gainW)
+
+
+# for i in range(1000):
+#     vel=car.control_input(q)
+#     q=car.qupdate(q,vel,dt)
+#     carPath.append(tuple((q[0],q[1])))
+
+# x,y=zip(*carPath)
+# plt.plot(x,y, 'g.')
+# plt.plot(path_x, path_y, 'b--')
+# plt.show()

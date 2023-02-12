@@ -522,7 +522,12 @@ class GeneticAlgorithm:
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')]*6 #head direction and grid cell 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int'),
+            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int'),
+            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int'),
+            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int'),
+            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int'),
+            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(i,'int')] #head direction and grid cell 
             population.append(genome)
         return population 
 
@@ -531,7 +536,7 @@ class GeneticAlgorithm:
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
         mutate_prob=np.array([random.random() for i in range(len(genome))])
-        mutate_indexs=np.argwhere(mutate_prob<=0.7)
+        mutate_indexs=np.argwhere(mutate_prob<=0.2)
         
         new_genome=np.array(genome)
         new_genome[mutate_indexs]+=self.mutate_amount[mutate_indexs]
@@ -632,6 +637,7 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
+
     mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
     ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]*6
     fitnessFunc=headDirectionAndPlace
@@ -644,13 +650,13 @@ def runGA1D(plot=False):
         plt.plot([max(fit) for fit in data[:,:,-1]], 'g*-')
         plt.title('Best Fitness over 20 Generation')
         plt.show()
-        print(data[:,1,:])
+        print(data[:0,:])
     else:
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount).implimentGA()
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
+    # runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
