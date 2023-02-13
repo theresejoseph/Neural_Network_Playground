@@ -498,6 +498,67 @@ def headDirectionAndPlace(genome):
 
     return (x_error+y_error)*-1     
 
+def wraparoundNetwork(genome):
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
+
+    scales=[0.25,1,4,16,100,10000]
+    angVel=[np.deg2rad(90), np.deg2rad(90), np.deg2rad(90),  np.deg2rad(90)]*4
+    vel=[]
+    for i in range(4):
+        for j in range(4):
+            vel.append(scales[j]*100)
+
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
+
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+    start_x, start_y=5000,5000
+    N=100
+    
+
+    networks=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=np.zeros((N,N))
+   
+    prev_weights=networks.excitations(50,50)
+    prev_weights= networks.update_weights_dynamics_row_col(prev_weights,0,0)
+    prev_weights[prev_weights<0]=0
+
+
+    x_grid, y_grid=[], []
+    x_integ, y_integ=[],[]
+    q=[start_x,start_y,0]
+
+    for i in range(len(vel)):
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
+        direction=np.argmax(theta_weights)
+
+        for j in range(iterations):
+            prev_weights,wrap_rows, wrap_cols = networks.update_weights_dynamics(prev_weights, direction, vel[i]/scales[4])
+            prev_weights[prev_weights<0]=0
+
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)) 
+        decodedXPerScale=can.activityDecoding(prev_weights[maxXPerScale, :],5,N)*scales[4] 
+        decodedYPerScale=can.activityDecoding(prev_weights[:,maxYPerScale],5,N)*scales[4]
+        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
+
+        x_grid.append(x_multiscale_grid-start_x)
+        y_grid.append(y_multiscale_grid-start_y)
+
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        q[2]+=angVel[i]
+        x_integ.append(q[0]-start_x)
+        y_integ.append(q[1]-start_y)
+
+
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+
+    return (x_error+y_error)*-1     
 
 '''Implementation'''
 class GeneticAlgorithm:
@@ -520,14 +581,14 @@ class GeneticAlgorithm:
         population=[]
         for i in range(numRandGenomes):
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
-            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')]
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #2d no wrap iters
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
-            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
-            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
-            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
-            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
-            self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #head direction and grid cell 
+            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
+            # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
+            # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
+            # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
+            # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
+            # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #head direction and grid cell 
             population.append(genome)
         return population 
 
@@ -552,7 +613,6 @@ class GeneticAlgorithm:
     def process_element(self, i, population):
         # return self.fitnessFunc(population[i])
         # try:
-        print(i)    
         fit=self.fitnessFunc(population[i])
         print(i, fit)
         return fit
@@ -620,7 +680,7 @@ class GeneticAlgorithm:
 
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
-    filename=f'../results/GA_MultiScale/tuningGrid10.npy'
+    filename=f'../results/GA_MultiScale/tuningGridWrapOnly1.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -637,10 +697,13 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    # ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]
+    # fitnessFunc=headDirectionAndPlace
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))]*6)
-    ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]*6
-    fitnessFunc=headDirectionAndPlace
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5]]
+    fitnessFunc=wraparoundNetwork
     num_gens=40
     population_size=28
 
@@ -648,7 +711,7 @@ def runGA1D(plot=False):
         with open(filename, 'rb') as f:
             data = np.load(f)
         plt.plot([max(fit) for fit in data[:,:,-1]], 'g*-')
-        plt.title('Best Fitness over 20 Generation')
+        plt.title('Best Fitness over 40 Generation')
         plt.show()
         print(data[:0,:])
     else:
@@ -660,7 +723,6 @@ if __name__ == '__main__':
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
-
 
 
 

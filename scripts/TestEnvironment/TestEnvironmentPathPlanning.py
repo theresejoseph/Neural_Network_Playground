@@ -15,9 +15,11 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 from scipy.interpolate import CubicSpline
 from numpy.typing import ArrayLike
-from easy_trilateration.model import *  
-from easy_trilateration.least_squares import easy_least_squares  
-from easy_trilateration.graph import * 
+# from easy_trilateration.model import *  
+# from easy_trilateration.least_squares import easy_least_squares  
+# from easy_trilateration.graph import * 
+import timeout_decorator #pip install timeout-decorator
+@timeout_decorator.timeout(60) 
 
 
 def processMap(map_path, scale_percent):
@@ -43,7 +45,7 @@ def processMap(map_path, scale_percent):
     return img, imgColor, imgdia, binMap
 
 
-def findPathsthroughRandomPoints(img):
+def findPathsthroughRandomPoints(img,num_locations):
 
     free_spaces=[]
     for i in range(img.shape[0]):
@@ -51,39 +53,27 @@ def findPathsthroughRandomPoints(img):
             if img[i][j]==0:
                 free_spaces.append((j,i))
 
-    num_locations=5
+    # num_locations=3
     locations=random.choices(free_spaces, k=num_locations)
     print(locations)
 
-    path=[]
+    paths=[]
     for i in range(len(locations)-1):
-        dx = DistanceTransformPlanner(img, goal=locations[i+1], distance="euclidean")
-        dx.plan()
-        path.extend(dx.query(start=locations[i]))
+        try:
+            dx = DistanceTransformPlanner(img, goal=locations[i+1], distance="euclidean")
+            dx.plan()
+            path=dx.query(start=locations[i])
+        except TimeoutError:
+            # locations.append(free_spaces, k=1)
+            print('removed a goal')
+            continue
+        paths.append(path)
         print(f"done {i+1} paths")
-
-        outfile='/Users/theresejoseph/Documents/Neural_Network_Playground/results/testEnvMultiplePaths3_5kmrad_100pdi_0.2line.npy'
-        np.save(outfile,path)
-
-
-
-def rescalePath(path, img, scale, pxlPerMeter):
-    #convert path to image
-    path_x, path_y = zip(*path)
-    pathImg=np.zeros((np.shape(img)))
-    pathImg[(path_y, path_x)]=1
-
-    # scale down path image by given percentage 
-    width = int(img.shape[1] * scale)
-    height = int(img.shape[0] * scale)
-    dim = (width, height)
-    newImg= cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-    pathImgRescaled=cv2.resize(pathImg, dim, interpolation = cv2.INTER_AREA)
     
-    #identify new path from rescaled image 
-    # pathImgRescaled[pathImgRescaled>0]=1
-    # newYpath, newXpath=np.where(pathImgRescaled==1)
-    return [np.round(x*scale) for x in path_x], [np.round(y*scale) for y in path_y], newImg, pxlPerMeter*scale 
+    outfile='./results/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
+    np.save(outfile,np.array(paths))
+
+    print(paths)
 
 
 def remove_consecutive_duplicates(coords):
@@ -101,6 +91,33 @@ def remove_consecutive_duplicates(coords):
             
     # Return the filtered list
     return filtered
+
+
+def rescalePath(paths, path_idx, img, scale, pxlPerMeter):
+    
+    #convert path to image
+    path_x, path_y = zip(*paths[path_idx])
+    pathImg=np.zeros((np.shape(img)))
+    pathImg[(path_y, path_x)]=1
+
+    if scale != 1:
+        # scale down path image by given percentage 
+        width = int(img.shape[1] * scale)
+        height = int(img.shape[0] * scale)
+        dim = (width, height)
+        newImg= cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+        pathImgRescaled=cv2.resize(pathImg, dim, interpolation = cv2.INTER_AREA)
+    
+    else:
+        newImg=path_idx
+        
+        
+    #identify new path from rescaled image 
+    # pathImgRescaled[pathImgRescaled>0]=1
+    # newYpath, newXpath=np.where(pathImgRescaled==1)
+    return [np.round(x*scale) for x in path_x], [np.round(y*scale) for y in path_y], newImg, pxlPerMeter*scale 
+
+
 
 
 normalise_angle = lambda angle: atan2(sin(angle), cos(angle))
@@ -326,18 +343,6 @@ class Vehicle:
 
 
 # '''drive without visualisation'''
-def angdiff(angle1, angle2):
-    diff = abs(angle1 - angle2)
-    if diff > np.pi:
-        diff = (2*np.pi) - diff
-    return diff
-
-def angsum(angle1, angle2):
-    diff = abs(angle1 + angle2)
-    if diff > 2*np.pi:
-        diff = diff - (2*np.pi)
-    return diff
-
 def rangeSensor(currentPos, landmarks, angleRange, maxDist):
     lndMrkRange = []
     for (x,y) in landmarks:
@@ -352,8 +357,7 @@ def rangeSensor(currentPos, landmarks, angleRange, maxDist):
     return lndMrkRange
 
 
-
-def noVisualisationDrive():
+def noVisualisationDrive(path_x, path_y,path_idx,frames=1000):
     global velocity, angVel, trueCarPos
     # Storage Variables
     velocity=[]
@@ -362,14 +366,13 @@ def noVisualisationDrive():
     ranges=[]
     trilatEstimate=[]
     
-    num_landmarks=80
-    xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
-    yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
-    landmarks=list(zip(xLndMks, yLndMks))
+    # num_landmarks=80
+    # xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
+    # yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
+    # landmarks=list(zip(xLndMks, yLndMks))
 
     # car object
     dt=0.05
-    frames=1000
     car  = Vehicle(path_x, path_y,100, dt, control_gain=5, softening_gain=0.05, yaw_rate_gain=0.5, 
     steering_damp_gain=0.0, max_steer=np.deg2rad(45), c_r=0.1, c_a=3.0)
     
@@ -378,29 +381,25 @@ def noVisualisationDrive():
         if (car.px[car.target_id], car.py[car.target_id]) !=(car.px[-1], car.py[-1]):
             car.drive()
            
-            curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [angdiff(car.yaw,np.deg2rad(60)), angsum(car.yaw,np.deg2rad(60))], 200)
-            ranges.append(curr_lndMrksRange)
+            '''Landmarks'''
+            # curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [car.yaw-np.deg2rad(60), car.yaw+np.deg2rad(60)], 200)
+            # ranges.append(curr_lndMrksRange)
             
-            
-            if len(curr_lndMrksRange)>= 4:
-                distances,angles=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
-                x,y=zip(*[(range[2],range[3]) for range in curr_lndMrksRange])
-                trilat=[Circle(x[i], y[i], distances[i]) for i in range(len(x))]
-                result, meta = easy_least_squares(trilat)  
-                trilatEstimate.append(( result.center.x, result.center.y))
-
-                # pos=calculate_position(coordinates, distances, angles)
-            #     X,Y=determine_position(dist[0], dist[1], theta[0], theta[1])
-                print(car.x, car.y, result.center.x, result.center.y)
-            # else:
-            #     trilatEstimate.append(None)
-
+            # if len(curr_lndMrksRange)>= 4:
+            #     distances,angles=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
+            #     x,y=zip(*[(range[2],range[3]) for range in curr_lndMrksRange])
+            #     trilat=[Circle(x[i], y[i], distances[i]) for i in range(len(x))]
+            #     result, meta = easy_least_squares(trilat)  
+            #     trilatEstimate.append(( result.center.x, result.center.y))
+            #     print(car.x, car.y, result.center.x, result.center.y)
+ 
         else:
             car.v=0
     
-    outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
+    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{path_idx}.npz'
     start=np.array([path_x[0], path_y[0],car.start_heading])
-    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges= np.array(ranges), trilat=np.array(trilatEstimate))
+    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start)
+    # np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges= np.array(ranges), trilat=np.array(trilatEstimate))
     
         
 def runSimulation(path_x, path_y, path_img):
@@ -507,66 +506,67 @@ img[img<255]= 0
 img[img==255]=1
 
 '''Generate Paths'''
-# findPathsthroughRandomPoints(img)
+# num_locations=20
+# findPathsthroughRandomPoints(img,num_locations)
 
 
 '''Original'''
-pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
+# pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
+pathfile='./results/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
+
 
 
 '''Scaled'''
-scale=1
-path_x, path_y, path_img, currentPxlPerMeter= rescalePath(np.load(pathfile), img, scale, pxlPerMeter)
-print(f"scaled width{np.shape(path_img)[0], np.shape(path_img)[1]}, pxlPerMeter{np.shape(path_img)[0]/meterWidth, np.shape(path_img)[1]/meterWidth}")
-# plt.imshow(path_img, cmap='gray')
-# plt.plot(path_x, path_y,'r.')
-# plt.show()
-path= remove_consecutive_duplicates(list(zip(path_x, path_y)))
-path_x, path_y = zip(*path)
+
+# print(f"scaled width{np.shape(path_img)[0], np.shape(path_img)[1]}, pxlPerMeter{np.shape(path_img)[0]/meterWidth, np.shape(path_img)[1]/meterWidth}")
+# path= remove_consecutive_duplicates(list(zip(path_x, path_y)))
+# path_x, path_y = zip(*path)
+paths=np.load(pathfile, allow_pickle=True)
 
 
 '''Run Simulation'''
 # runSimulation(path_x, path_y, path_img)
 
-noVisualisationDrive()
+# for i in range(len(paths)-1):
+#     scale=1
+#     path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, i, img, scale, pxlPerMeter)
+#     noVisualisationDrive(path_x, path_y, i, frames=len(path_x)*3)
 
 
 '''Test Stored Traverse'''
-
-outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
+index = 10
+path_x, path_y=zip(*paths[index])
+outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
 traverseInfo=np.load(outfile, allow_pickle=True)
-speeds,angVel,truePos, startPose, landmarks, ranges, trilat=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose'], traverseInfo['landmarks'],traverseInfo['ranges'], traverseInfo['trilat']
+speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
 x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
 x,y=zip(*truePos)
-landX,landY=zip(*landmarks)
 
-trilX, trily = zip(*trilat)
-plt.plot(x, y, 'b.')
-plt.plot(path_x, path_y, 'g--')
-plt.plot(landX,landY, 'k*')
-plt.plot(trilX, trily, 'r--' )
+plt.plot(x_integ,y_integ, 'g.-')
+plt.plot(x, y, 'b--')
+plt.plot(path_x, path_y, 'r--')
 plt.axis('equal')
-plt.legend(['True Position', 'Berlin Path','Landmarks', 'Trilaterate Estimate'])
+plt.legend(['Integrated Position','True Position', 'Berlin Path'])
 plt.show()
+
 
 # fig = plt.figure()
 # ax = plt.axes()
-def animate(i):
-    # ax.clear()
+# def animate(i):
+#     # ax.clear()
     
-    print(i)
-    # ax.plot(x_integ, y_integ, 'm.')
-    ax.plot(x[0:i], y[0:i], 'b.-')
-    ax.plot(path_x, path_y, 'g--')
-    ax.plot(landX,landY, 'k*')
-    if trilat[i] != None:
-        ax.plot(trilat[i][0],trilat[i][1], 'm.' )
-    if  len(ranges[i]) > 0:
-        closeX,closeY=zip(*[(range[2],range[3]) for range in ranges[i]])
-        ax.plot(closeX,closeY, 'r*')
-    ax.legend(['True Position', 'Berlin Path','Landmarks'])
-
+#     print(i)
+#     # ax.plot(x_integ, y_integ, 'm.')
+#     ax.plot(x[0:i], y[0:i], 'b.-')
+#     ax.plot(path_x, path_y, 'g--')
+#     # ax.plot(landX,landY, 'k*')
+#     # if trilat[i] != None:
+#     #     ax.plot(trilat[i][0],trilat[i][1], 'm.' )
+#     # if  len(ranges[i]) > 0:
+#     #     closeX,closeY=zip(*[(range[2],range[3]) for range in ranges[i]])
+#     #     ax.plot(closeX,closeY, 'r*')
+#     ax.legend(['True Position', 'Berlin Path'])
 
 # ani = FuncAnimation(fig, animate, frames=len(x), interval=1)
 # plt.show()
