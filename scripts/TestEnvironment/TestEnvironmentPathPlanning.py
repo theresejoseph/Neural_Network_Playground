@@ -15,7 +15,9 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 from scipy.interpolate import CubicSpline
 from numpy.typing import ArrayLike
-
+from easy_trilateration.model import *  
+from easy_trilateration.least_squares import easy_least_squares  
+from easy_trilateration.graph import * 
 
 
 def processMap(map_path, scale_percent):
@@ -344,18 +346,11 @@ def rangeSensor(currentPos, landmarks, angleRange, maxDist):
         
         # if theta > angleRange[0] and theta < angleRange[1]:
         if dist < maxDist:
-            print(theta, dist)
+            # print(theta, dist)
             lndMrkRange.append([dist, theta, x, y])
 
     return lndMrkRange
 
-# def determine_position(d1, d2, angle1, angle2):
-#     x = (d1**2 - d2**2 + 100)/(2*100)
-#     y = math.sqrt(d1**2 - x**2)
-#     theta = angdiff(angle2,angle1)
-#     X = x * math.cos(theta) - y * math.sin(theta)
-#     Y = x * math.sin(theta) + y * math.cos(theta)
-#     return X, Y
 
 
 def noVisualisationDrive():
@@ -365,15 +360,16 @@ def noVisualisationDrive():
     angVel=[]
     trueCarPos=[]
     ranges=[]
+    trilatEstimate=[]
     
-    num_landmarks=40
+    num_landmarks=80
     xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
     yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
     landmarks=list(zip(xLndMks, yLndMks))
 
     # car object
     dt=0.05
-    frames=500
+    frames=1000
     car  = Vehicle(path_x, path_y,100, dt, control_gain=5, softening_gain=0.05, yaw_rate_gain=0.5, 
     steering_damp_gain=0.0, max_steer=np.deg2rad(45), c_r=0.1, c_a=3.0)
     
@@ -385,18 +381,26 @@ def noVisualisationDrive():
             curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [angdiff(car.yaw,np.deg2rad(60)), angsum(car.yaw,np.deg2rad(60))], 200)
             ranges.append(curr_lndMrksRange)
             
-            # if len(curr_lndMrksRange)>= 2:
-            #     dist,theta=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
-            #     X,Y=determine_position(dist[0], dist[1], theta[0], theta[1])
-            #     print(car.x, car.y, X, Y)
+            
+            if len(curr_lndMrksRange)>= 4:
+                distances,angles=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
+                x,y=zip(*[(range[2],range[3]) for range in curr_lndMrksRange])
+                trilat=[Circle(x[i], y[i], distances[i]) for i in range(len(x))]
+                result, meta = easy_least_squares(trilat)  
+                trilatEstimate.append(( result.center.x, result.center.y))
 
+                # pos=calculate_position(coordinates, distances, angles)
+            #     X,Y=determine_position(dist[0], dist[1], theta[0], theta[1])
+                print(car.x, car.y, result.center.x, result.center.y)
+            # else:
+            #     trilatEstimate.append(None)
 
         else:
             car.v=0
     
     outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
     start=np.array([path_x[0], path_y[0],car.start_heading])
-    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges=np.array(ranges))
+    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges= np.array(ranges), trilat=np.array(trilatEstimate))
     
         
 def runSimulation(path_x, path_y, path_img):
@@ -531,58 +535,76 @@ noVisualisationDrive()
 
 outfile='./results/TestEnvironmentFiles/TraverseInfo/EnvPath.npz'
 traverseInfo=np.load(outfile, allow_pickle=True)
-speeds,angVel,truePos, startPose, landmarks, ranges=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose'], traverseInfo['landmarks'], traverseInfo['ranges']
+speeds,angVel,truePos, startPose, landmarks, ranges, trilat=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose'], traverseInfo['landmarks'],traverseInfo['ranges'], traverseInfo['trilat']
 
 x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
 x,y=zip(*truePos)
 landX,landY=zip(*landmarks)
 
+trilX, trily = zip(*trilat)
+plt.plot(x, y, 'b.')
+plt.plot(path_x, path_y, 'g--')
+plt.plot(landX,landY, 'k*')
+plt.plot(trilX, trily, 'r--' )
+plt.axis('equal')
+plt.legend(['True Position', 'Berlin Path','Landmarks', 'Trilaterate Estimate'])
+plt.show()
 
-fig = plt.figure()
-ax = plt.axes()
+# fig = plt.figure()
+# ax = plt.axes()
 def animate(i):
-    ax.clear()
+    # ax.clear()
     
     print(i)
     # ax.plot(x_integ, y_integ, 'm.')
     ax.plot(x[0:i], y[0:i], 'b.-')
     ax.plot(path_x, path_y, 'g--')
     ax.plot(landX,landY, 'k*')
+    if trilat[i] != None:
+        ax.plot(trilat[i][0],trilat[i][1], 'm.' )
     if  len(ranges[i]) > 0:
         closeX,closeY=zip(*[(range[2],range[3]) for range in ranges[i]])
         ax.plot(closeX,closeY, 'r*')
+    ax.legend(['True Position', 'Berlin Path','Landmarks'])
 
 
-ani = FuncAnimation(fig, animate, frames=len(x), interval=1)
+# ani = FuncAnimation(fig, animate, frames=len(x), interval=1)
 # plt.show()
 
-f = "./results/GIFs/LandmarksRangeSense.gif" 
-writergif = animation.PillowWriter(fps=60) 
-ani.save(f, writer=writergif)
+# f = "./results/GIFs/LandmarksTrilat.gif" 
+# writergif = animation.PillowWriter(fps=60) 
+# ani.save(f, writer=writergif)
 
 
 '''Peter Corke kinematics model'''
-# for c in np.array(path):
-#     print(c)
+
 # robot = Bicycle()
 # workspace=[0, np.shape(path_img)[0], 0,np.shape(path_img)[1]]
-# pathObj=RandomPath(workspace, np.array(path))
+# pathObj=RandomPath(workspace, np.array(path[:100]))
 # robot.add_driver(pathObj)
 
 
 # map = rtb.LandmarkMap(20, workspace, seed=0)
-
 # W = np.diag([0.1, np.radians(1)]) ** 2
 # sensor = rtb.RangeBearingSensor(robot, map, W)
 
 # ekf = rtb.EKF(robot=(robot, None), sensor=(sensor, W))
+# ekf.run(T=500)  # run the simulation for 20 seconds
 
-# ekf.run(T=1000)  # run the simulation for 20 seconds
 
+# R = np.diag([0.1, 0.1, np.radians(1)]) ** 2
+# L = np.diag([0.1, 0.1])
+# pf = rtb.ParticleFilter(robot, sensor, R, L, nparticles=2000)
+# pf.run(T=500)
+# pf.plot_xy(color="b")
+
+
+# ## plt.imshow(path_img,  cmap='gray')
 # map.plot()  #  plot the map
-# # plt.imshow(path_img,  cmap='gray')
-# plt.plot(path_x, path_y, 'g--')
 # robot.plot_xy(color="m")  # plot the true vehicle path
+# ## ekf.plot_xy(color="r")    # overlay the estimated path
+# plt.legend(['Particle Filter', 'Landmarks','True Path'])
+# plt.plot(path_x, path_y, 'g--')
 # plt.show()
 
 # x,y=zip(*pos)
