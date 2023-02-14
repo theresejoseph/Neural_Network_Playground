@@ -225,7 +225,20 @@ def MultiResolutionFeedthrough2D(x_velocities,y_velocities, scales, fitness=Fals
 # prev_weights=[np.zeros((N,N))+2,np.zeros((N,N))+1,np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N))]
 # plt.imshow(prev_weights[0][:][:])
 # plt.show()
+def shfitingPeakDecoding2D(prev_weights, peakRowIdx, peakColIdx, radius, N):
+    diam=(radius*2)+1
+    new_array=np.zeros((diam,diam))
+    rows=np.arange(peakRowIdx-radius, peakRowIdx+radius+1)
+    cols=np.arange(peakColIdx-radius, peakColIdx+radius+1)
 
+    for j in range(diam):
+        for k in range(diam):
+            new_array[j,k]=(prev_weights[rows[j]%N,cols[k]%N])
+
+    x,y=ndimage.center_of_mass(new_array)
+    CM=(x+peakColIdx-radius, y+peakRowIdx-radius)
+
+    return CM
 
 def headDirection(theta_weights, angVel, init_angle):
     global theata_called_iters
@@ -901,21 +914,6 @@ def headDirectionAndPlace(index, outfile):
     # plt.show()
 
 
-def shfitingPeak2D(prev_weights, peakRowIdx, peakColIdx, radius, N):
-    diam=(radius*2)+1
-    new_array=np.zeros((diam,diam))
-    rows=np.arange(peakRowIdx-radius, peakRowIdx+radius+1)
-    cols=np.arange(peakColIdx-radius, peakColIdx+radius+1)
-
-    for j in range(diam):
-        for k in range(diam):
-            new_array[j,k]=(prev_weights[rows[j]%N,cols[k]%N])
-
-    x,y=ndimage.center_of_mass(new_array)
-    CM=(x+peakColIdx-radius, y+peakRowIdx-radius)
-
-    return CM
-
 
 def plotFromSavedArray():
     outfile='./results/xGrid_yGrid5.npy'
@@ -942,7 +940,6 @@ def plotFromSavedArray():
     plt.title('Test Environment 2D space')
     plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
     plt.show()
-
 
 def plotSavedMultiplePaths():
     fig, axs = plt.subplots(6,3,figsize=(10, 8))
@@ -998,19 +995,19 @@ def plotSavedMultiplePaths():
 #         test_length=1000
 #     headDirectionAndPlace(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{index}.npy')
 
-# index=1
-# outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-# traverseInfo=np.load(outfile, allow_pickle=True)
-# vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+index=1
+outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+traverseInfo=np.load(outfile, allow_pickle=True)
+vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-# scales=[0.25,1,4,16,100,10000]
-# if len(vel)<500:
-#     test_length=len(vel)
-# else:
-#     test_length=500
-# headDirectionAndPlace(index, f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{index}.npy')
+scales=[0.25,1,4,16,100,10000]
+if len(vel)<500:
+    test_length=len(vel)
+else:
+    test_length=500
+headDirectionAndPlace(index, f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{index}.npy')
 
 # headDirectionAndPlaceMultiparameter()
 # headDirectionAndPlace(index)
 # plotFromSavedArray()
-plotSavedMultiplePaths()
+# plotSavedMultiplePaths()
