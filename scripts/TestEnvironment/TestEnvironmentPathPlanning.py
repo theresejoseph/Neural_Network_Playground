@@ -512,7 +512,7 @@ img[img==255]=1
 
 '''Original'''
 # pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
-pathfile='./results/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
+pathfile='./results/TestEnvironmentFiles/Paths/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
 
 
 
