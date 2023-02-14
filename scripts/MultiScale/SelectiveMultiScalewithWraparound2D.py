@@ -950,7 +950,7 @@ def plotSavedMultiplePaths():
     fig.tight_layout(pad=2.0)
     axs=axs.ravel()
     for i in range(18):
-        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{i}.npy'
+        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{i}.npy'
         x_grid,y_grid,x_integ, y_integ = np.load(outfile)
         x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
         y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
@@ -986,17 +986,17 @@ def plotSavedMultiplePaths():
 # vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
 
 '''Running 18 paths with Multiscale CAN'''
-for index in range(18):
-    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-    traverseInfo=np.load(outfile, allow_pickle=True)
-    vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+# for index in range(18):
+#     outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+#     traverseInfo=np.load(outfile, allow_pickle=True)
+#     vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-    scales=[0.25,1,4,16,100,10000]
-    if len(vel)<1000:
-        test_length=len(vel)
-    else:
-        test_length=1000
-    headDirectionAndPlace(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{index}.npy')
+#     scales=[0.25,1,4,16,100,10000]
+#     if len(vel)<1000:
+#         test_length=len(vel)
+#     else:
+#         test_length=1000
+#     headDirectionAndPlace(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{index}.npy')
 
 # index=1
 # outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
@@ -1013,5 +1013,4 @@ for index in range(18):
 # headDirectionAndPlaceMultiparameter()
 # headDirectionAndPlace(index)
 # plotFromSavedArray()
-
-
+plotSavedMultiplePaths()
