@@ -15,9 +15,9 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 from scipy.interpolate import CubicSpline
 from numpy.typing import ArrayLike
-# from easy_trilateration.model import *  
-# from easy_trilateration.least_squares import easy_least_squares  
-# from easy_trilateration.graph import * 
+from easy_trilateration.model import *  
+from easy_trilateration.least_squares import easy_least_squares  
+from easy_trilateration.graph import * 
 import timeout_decorator #pip install timeout-decorator
 @timeout_decorator.timeout(60) 
 
@@ -366,10 +366,10 @@ def noVisualisationDrive(path_x, path_y,path_idx,frames=1000):
     ranges=[]
     trilatEstimate=[]
     
-    # num_landmarks=80
-    # xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
-    # yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
-    # landmarks=list(zip(xLndMks, yLndMks))
+    num_landmarks=80
+    xLndMks = np.random.randint(0, np.shape(path_img)[1], num_landmarks)
+    yLndMks = np.random.randint(0, np.shape(path_img)[0], num_landmarks)
+    landmarks=list(zip(xLndMks, yLndMks))
 
     # car object
     dt=0.05
@@ -382,24 +382,24 @@ def noVisualisationDrive(path_x, path_y,path_idx,frames=1000):
             car.drive()
            
             '''Landmarks'''
-            # curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [car.yaw-np.deg2rad(60), car.yaw+np.deg2rad(60)], 200)
-            # ranges.append(curr_lndMrksRange)
+            curr_lndMrksRange=rangeSensor([car.x, car.y], landmarks, [car.yaw-np.deg2rad(60), car.yaw+np.deg2rad(60)], 200)
+            ranges.append(curr_lndMrksRange)
             
-            # if len(curr_lndMrksRange)>= 4:
-            #     distances,angles=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
-            #     x,y=zip(*[(range[2],range[3]) for range in curr_lndMrksRange])
-            #     trilat=[Circle(x[i], y[i], distances[i]) for i in range(len(x))]
-            #     result, meta = easy_least_squares(trilat)  
-            #     trilatEstimate.append(( result.center.x, result.center.y))
-            #     print(car.x, car.y, result.center.x, result.center.y)
+            if len(curr_lndMrksRange)>= 4:
+                distances,angles=zip(*[(range[0],range[1]) for range in curr_lndMrksRange])
+                x,y=zip(*[(range[2],range[3]) for range in curr_lndMrksRange])
+                trilat=[Circle(x[i], y[i], distances[i]) for i in range(len(x))]
+                result, meta = easy_least_squares(trilat)  
+                trilatEstimate.append(( result.center.x, result.center.y))
+                print(car.x, car.y, result.center.x, result.center.y)
  
         else:
             car.v=0
     
-    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{path_idx}.npz'
+    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlinEnvPathLandmark{path_idx}.npz'
     start=np.array([path_x[0], path_y[0],car.start_heading])
-    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start)
-    # np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges= np.array(ranges), trilat=np.array(trilatEstimate))
+    # np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start)
+    np.savez(outfile,speeds=velocity, angVel=angVel, truePos= trueCarPos, startPose=start, landmarks=landmarks, ranges= np.array(ranges), trilat=np.array(trilatEstimate))
     
         
 def runSimulation(path_x, path_y, path_img):
@@ -532,23 +532,26 @@ paths=np.load(pathfile, allow_pickle=True)
 #     path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, i, img, scale, pxlPerMeter)
 #     noVisualisationDrive(path_x, path_y, i, frames=len(path_x)*3)
 
+scale,index=1,0
+path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, index, img, scale, pxlPerMeter)
+noVisualisationDrive(path_x, path_y, index, frames=len(path_x)*3)
 
 '''Test Stored Traverse'''
-index = 10
-path_x, path_y=zip(*paths[index])
-outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-traverseInfo=np.load(outfile, allow_pickle=True)
-speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+# index = 10
+# path_x, path_y=zip(*paths[index])
+# outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+# traverseInfo=np.load(outfile, allow_pickle=True)
+# speeds,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
-x,y=zip(*truePos)
+# x_integ,y_integ=pathIntegration(speeds, angVel, startPose)
+# x,y=zip(*truePos)
 
-plt.plot(x_integ,y_integ, 'g.-')
-plt.plot(x, y, 'b--')
-plt.plot(path_x, path_y, 'r--')
-plt.axis('equal')
-plt.legend(['Integrated Position','True Position', 'Berlin Path'])
-plt.show()
+# plt.plot(x_integ,y_integ, 'g.-')
+# plt.plot(x, y, 'b--')
+# plt.plot(path_x, path_y, 'r--')
+# plt.axis('equal')
+# plt.legend(['Integrated Position','True Position', 'Berlin Path'])
+# plt.show()
 
 
 # fig = plt.figure()
