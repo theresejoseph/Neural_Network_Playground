@@ -243,7 +243,8 @@ def shfitingPeakDecoding2D(prev_weights, peakRowIdx, peakColIdx, radius, N):
 def headDirection(theta_weights, angVel, init_angle):
     global theata_called_iters
     N=360
-    num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
+    # num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
+    num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.46818183,  0.0381834545, 2
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     
     if theata_called_iters==0:
@@ -717,23 +718,23 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
     
     '''Update the 16 scale based on wraparound in 0.25 scale'''
     if (cs_idx==0 and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 )):
-        del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[3], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[3]  
-        direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
-        distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
+        del_rows_16, del_cols_16=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[3], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[3]  
+        direction_16=np.rad2deg(math.atan2(del_rows_16, del_cols_16))
+        distance_16=math.sqrt(del_cols_16**2 + del_rows_16**2)
 
-        x_grid_expect[3]=(x_grid_expect[3]+(del_cols_100 *scales[3]))%(N*scales[3])
-        y_grid_expect[3]=(y_grid_expect[3]+(del_rows_100 *scales[3]))%(N*scales[3])
+        x_grid_expect[3]=(x_grid_expect[3]+(del_cols_16 *scales[3]))%(N*scales[3])
+        y_grid_expect[3]=(y_grid_expect[3]+(del_rows_16 *scales[3]))%(N*scales[3])
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
         for i in range(wrap_iterations):
-            prev_weights[3][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[3][:],direction_100, distance_100)
+            prev_weights[3][:], wrap_rows_16, wrap_cols_16= net.update_weights_dynamics(prev_weights[3][:],direction_16, distance_16)
             prev_weights[3][prev_weights[3][:]<0]=0
-            wrap_rows[3]+=wrap_rows_100
-            wrap_cols[3]+=wrap_cols_100
+            wrap_rows[3]+=wrap_rows_16
+            wrap_cols[3]+=wrap_cols_16
 
     '''Update the 100 scale based on wraparound in any of the previous scales'''
     if (cs_idx!=0 and (wrap_rows[cs_idx]!=0 or wrap_cols[cs_idx]!=0 )): 
-        # tunedParms=3,5,1,0.000865888565,1
-        # net100=attractorNetwork2D(N,N,tunedParms[0],tunedParms[1], tunedParms[2],tunedParms[3])
+        tunedParms=3,5,1,0.000865888565,1
+        net100=attractorNetwork2D(N,N,tunedParms[0],tunedParms[1], tunedParms[2],tunedParms[3])
         del_rows_100, del_cols_100=(wrap_rows[cs_idx]*scales[cs_idx]*N)/scales[4], (wrap_cols[cs_idx]*scales[cs_idx]*N)/scales[4]  
         direction_100=np.rad2deg(math.atan2(del_rows_100, del_cols_100))
         distance_100=math.sqrt(del_cols_100**2 + del_rows_100**2)
@@ -741,34 +742,40 @@ def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, w
         x_grid_expect[4]=(x_grid_expect[4]+(del_cols_100 *scales[4]))%(N*scales[4])
         y_grid_expect[4]=(y_grid_expect[4]+(del_rows_100 *scales[4]))%(N*scales[4])
         # wraparound[4]=(can.activityDecoding(prev_weights[4][:],4,N) + update_amount)//(N-1)
-        for i in range(wrap_iterations):
-            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100)
+        for i in range(tunedParms[4]):
+            prev_weights[4][:], wrap_rows_100, wrap_cols_100= net100.update_weights_dynamics(prev_weights[4][:],direction_100, distance_100)
             prev_weights[4][prev_weights[4][:]<0]=0
             wrap_rows[4]+=wrap_rows_100
             wrap_cols[4]+=wrap_cols_100
 
     '''Update the 10000 scale based on wraparound in the 100 scale'''
-    if (wrap_rows[-2]!=0 or wrap_cols[-2]!=0 ):
-        del_rows_10000, del_cols_10000=(wrap_rows[-2]*scales[-2]*N)/scales[5], (wrap_cols[-2]*scales[-2]*N)/scales[5]  
+    if (wrap_rows[4]!=0 or wrap_cols[4]!=0 ):
+        tunedParms=3,5,1,0.000865888565,1
+        net100=attractorNetwork2D(N,N,tunedParms[0],tunedParms[1], tunedParms[2],tunedParms[3])
+
+        del_rows_10000, del_cols_10000=(wrap_rows[4]*scales[4]*N)/scales[5], (wrap_cols[4]*scales[4]*N)/scales[5]  
         direction_10000=np.rad2deg(math.atan2(del_rows_10000, del_cols_10000))
         distance_10000=math.sqrt(del_cols_10000**2 + del_rows_10000**2)
 
-        for i in range(wrap_iterations):
-            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
+        x_grid_expect[5]=(x_grid_expect[5]+(del_cols_10000 *scales[5]))%(N*scales[5])
+        y_grid_expect[5]=(y_grid_expect[5]+(del_rows_10000 *scales[5]))%(N*scales[5])
+
+        for i in range(tunedParms[4]):
+            prev_weights[-1][:], wrap_rows[-1], wrap_cols[-1]= net100.update_weights_dynamics(prev_weights[-1][:],direction_10000, distance_10000)
             prev_weights[-1][prev_weights[-1][:]<0]=0
         
     wrap=0
-    # if np.any(wrap_cols!=0):
-    #     wrap=1
-    #     print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
-    # if np.any(wrap_rows!=0):
-    #     wrap=1
-    #     print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    if np.any(wrap_cols!=0):
+        wrap=1
+        print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
+    if np.any(wrap_rows!=0):
+        wrap=1
+        print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
 
        
     return prev_weights, wrap, x_grid_expect, y_grid_expect
 
-def headDirectionAndPlace(index, outfile, N=100):
+def headDirectionAndPlace(index, outfile, plot=False, N=100):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #good only at small scale
@@ -777,7 +784,7 @@ def headDirectionAndPlace(index, outfile, N=100):
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.50262708e-01,6.51431074e-04,2,2 #with decimals 200 iters fitness -395 modified
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,7.51431074e-04,2,2 #with decimals 200 iters fitness -395 modified
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
 
     '''__________________________Storage and initilisation parameters______________________________'''
@@ -793,7 +800,7 @@ def headDirectionAndPlace(index, outfile, N=100):
 
     '''__________________________Initilising scales in the center and at the edge_____________________________'''
     prev_weights=[np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)),np.zeros((N,N)), np.zeros((N,N))]
-    for n in range(2):
+    for n in range(3):
         prev_weights[n]=network.excitations(0,0)
         prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
         prev_weights[n][prev_weights[n][:]<0]=0
@@ -812,7 +819,8 @@ def headDirectionAndPlace(index, outfile, N=100):
     #     global theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect
         N_dir=360
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
-        direction=np.argmax(theta_weights)
+        direction=activityDecodingAngle(theta_weights,5,N_dir)
+        # direction=np.argmax(theta_weights)
         # hD_x,hD_y=(theta_weights*np.cos(np.deg2rad(np.arange(N_dir)*360/N)))[::3], (theta_weights*np.sin(np.deg2rad(np.arange(N_dir)*360/N)))[::3]
         prev_weights, wrap, x_grid_expect, y_grid_expect= hierarchicalNetwork2DGrid(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, x_grid_expect, y_grid_expect, scales)
 
@@ -830,7 +838,7 @@ def headDirectionAndPlace(index, outfile, N=100):
         x_integ.append(q[0]-start_x)
         y_integ.append(q[1]-start_y)
 
-        
+        print(np.rad2deg(q[2]), direction)
         print(f'decoded: {decodedXPerScale}, {decodedYPerScale}')
         print(f'expected: {x_grid_expect}, {y_grid_expect}')
         print(x_integ[-1], y_integ[-1])
@@ -866,48 +874,37 @@ def headDirectionAndPlace(index, outfile, N=100):
     # ani.save(f, writer=writergif)
 
     np.save(outfile, np.array([x_grid, y_grid, x_integ, y_integ]))
-    
-    # outfile='./results/wrapPos7.npy'
-    # np.save(outfile, np.array(wrapPos))
-    # x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-    # y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-    # # wrap_x,wrap_y=zip(*wrapPos)
-    # plt.plot(x_integ_error, y_integ_error, 'm--')
-    # plt.plot(wrap_x, wrap_y,'r*')
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+    print((x_error+y_error)*-1  )
 
-    # plt.plot(x_grid, y_grid, 'b.')
-    # plt.plot(x_integ, y_integ, 'g.')
-    # plt.axis('equal')
-    # plt.title('Test Environment 2D space')
-    # plt.legend(('Path Integration', 'Multiscale Grid Decoding'))
-    # plt.show()
+    if plot ==True:
+        plt.plot(x_grid, y_grid, 'b.')
+        plt.plot(x_integ, y_integ, 'g.')
+        plt.axis('equal')
+        plt.title('Test Environment 2D space')
+        plt.legend(('Path Integration', 'Multiscale Grid Decoding'))
+        plt.show()
 
 
 
-def plotFromSavedArray():
-    outfile='./results/xGrid_yGrid5.npy'
-    x_grid,y_grid = np.load(outfile)
+def plotFromSavedArray(outfile):
+    x_grid,y_grid, x_integ, y_integ = np.load(outfile)
+    '''Compute distance'''
+    dist=np.sum(vel)
+   
+    '''Compute error'''
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+    error=((x_error+y_error)*-1)/len(x_grid)
 
-    outfile='./results/wrapPos5.npy'
-    wrapPos=np.load(outfile)
-    wrap_x,wrap_y=zip(*wrapPos)
-
-    x_integ, y_integ=[],[]
-    start_x, start_y=1000,1000
-    q=[start_x,start_y,0]
-    for i in range(len(x_grid)): 
-        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
-        q[2]+=angVel[i]
-        x_integ.append(round(q[0]))
-        y_integ.append(round(q[1]))
-
-
+    '''Plot'''
     plt.plot(x_integ, y_integ, 'g.')
     plt.plot(x_grid, y_grid, 'b.')
     # plt.plot(wrap_x, wrap_y,'r*')
     plt.axis('equal')
-    plt.title('Test Environment 2D space')
-    plt.legend(('Path Integration', 'Multiscale Grid Decoding', 'Instances of Wraparound'))
+    plt.title(f'Distance:{round(dist)}m   Error:{round(error)}m/iter   Iterations:{len(x_integ)}')
+    plt.legend(('Path Integration', 'Multiscale Grid Decoding'))
     plt.show()
 
 def plotSavedMultiplePaths():
@@ -916,15 +913,28 @@ def plotSavedMultiplePaths():
     fig.tight_layout(pad=2.0)
     axs=axs.ravel()
     for i in range(18):
-        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{i}.npy'
+        '''distance'''
+        outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{i}.npz'
+        traverseInfo=np.load(outfile, allow_pickle=True)
+        dist=np.sum(traverseInfo['speeds'])
+
+
+        '''error'''
+        # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{i}.npy'         
+        # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{i}.npy'
+        # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTuned_{i}.npy'
+        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathLonger_{i}.npy'
         x_grid,y_grid,x_integ, y_integ = np.load(outfile)
         x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
         y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-        error=(x_error+y_error)*-1 
+        error=((x_error+y_error)*-1)/len(x_grid)
+
+
+        '''plot'''
         axs[i].plot(x_grid,y_grid, 'b.')
         axs[i].plot(x_integ, y_integ, 'g.')
         axs[i].axis('equal')
-        axs[i].set_title(f'Error:{round(error,2)}')
+        axs[i].set_title(f'Dist:{round(dist)}m   Err:{round(error)}m/iter   Iter:{len(x_integ)}')
         # axs[i].legend(['MultiscaleCAN', 'Grid'])
 
     plt.show()
@@ -958,25 +968,30 @@ def plotSavedMultiplePaths():
 #     vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
 #     scales=[0.25,1,4,16,100,10000]
-#     if len(vel)<1000:
+#     if len(vel)<2000:
 #         test_length=len(vel)
 #     else:
-#         test_length=1000
-#     headDirectionAndPlace(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{index}.npy')
+#         test_length=2000
 
-index=1
-outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-traverseInfo=np.load(outfile, allow_pickle=True)
-vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+#     iterPerScale=int(np.ceil(test_length/4))
+#     vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
 
-scales=[0.25,1,4,16,100,10000]
-if len(vel)<500:
-    test_length=len(vel)
-else:
-    test_length=500
-headDirectionAndPlace(index, f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{index}.npy')
+#     headDirectionAndPlace(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathLonger_{index}.npy')
+
+# index=0
+# scales=[0.25,1,4,16,100,10000]
+# outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+# traverseInfo=np.load(outfile, allow_pickle=True)
+# vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+# if len(vel)<500:
+#     test_length=len(vel)
+# else:
+#     test_length=500
+# iterPerScale=int(np.ceil(test_length/4))
+# vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
+# headDirectionAndPlace(index, f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
 
 # headDirectionAndPlaceMultiparameter()
 # headDirectionAndPlace(index)
-# plotFromSavedArray()
-# plotSavedMultiplePaths()
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting_long{index}.npy')
+plotSavedMultiplePaths()

@@ -379,6 +379,79 @@ def headDirection(theta_weights, angVel, init_angle):
 
     return theta_weights
 
+def wraparoundNetwork(genome):
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
+
+    scales=[0.25,1,4,16,100,10000]
+    angVel=[np.deg2rad(90), np.deg2rad(90), np.deg2rad(90),  np.deg2rad(90)]*4
+    vel=[]
+    for i in range(4):
+        for j in range(4):
+            vel.append(scales[j])
+
+
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
+
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+    start_x, start_y=50,50
+    N=100
+    
+
+    networks=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=np.zeros((N,N))
+   
+    prev_weights=networks.excitations(50,50)
+    prev_weights= networks.update_weights_dynamics_row_col(prev_weights,0,0)
+    prev_weights[prev_weights<0]=0
+
+
+    x_grid, y_grid=[], []
+    x_integ, y_integ=[],[]
+    q=[start_x,start_y,0]
+
+    for i in range(len(vel)):
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
+        direction=np.argmax(theta_weights)
+        # print(angVel[i],direction)
+
+        for j in range(iterations):
+            prev_weights,wrap_rows, wrap_cols = networks.update_weights_dynamics(prev_weights, direction, vel[i])
+            prev_weights[prev_weights<0]=0
+
+        # plt.imshow(prev_weights)
+        # plt.show()
+
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)) 
+        decodedXPerScale=can.activityDecoding(prev_weights[maxXPerScale, :],5,N)
+        decodedYPerScale=can.activityDecoding(prev_weights[:,maxYPerScale],5,N)
+        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
+
+        x_grid.append(x_multiscale_grid-start_x)
+        y_grid.append(y_multiscale_grid-start_y)
+
+        q[2]+=angVel[i]
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        
+        x_integ.append(q[0]-start_x)
+        y_integ.append(q[1]-start_y)
+
+        plt.plot(x_integ,y_integ,'.-')
+        plt.plot(x_grid, y_grid,'.-')
+        plt.legend(['Integrated', 'Multiscale'])
+        plt.show()
+
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+
+    return (x_error+y_error)*-1     
+
+
 
 def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, scales):
     delta = [(vel/scales[0]), (vel/scales[1]), (vel/scales[2]), (vel/scales[3]), (vel/scales[4])]
@@ -505,78 +578,6 @@ def headDirectionAndPlace(genome):
     return (x_error+y_error)*-1     
 
 
-def wraparoundNetwork(genome):
-    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
-
-    scales=[0.25,1,4,16,100,10000]
-    angVel=[np.deg2rad(90), np.deg2rad(90), np.deg2rad(90),  np.deg2rad(90)]*4
-    vel=[]
-    for i in range(4):
-        for j in range(4):
-            vel.append(scales[j])
-
-
-    num_links=int(genome[0]) #int
-    excite=int(genome[1]) #int
-    activity_mag=genome[2] #uni
-    inhibit_scale=genome[3] #uni
-    iterations=int(genome[4])
-
-    theta_weights=np.zeros(360)
-    theata_called_iters=0
-    start_x, start_y=50,50
-    N=100
-    
-
-    networks=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
-    prev_weights=np.zeros((N,N))
-   
-    prev_weights=networks.excitations(50,50)
-    prev_weights= networks.update_weights_dynamics_row_col(prev_weights,0,0)
-    prev_weights[prev_weights<0]=0
-
-
-    x_grid, y_grid=[], []
-    x_integ, y_integ=[],[]
-    q=[start_x,start_y,0]
-
-    for i in range(len(vel)):
-        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
-        direction=np.argmax(theta_weights)
-        # print(angVel[i],direction)
-
-        for j in range(iterations):
-            prev_weights,wrap_rows, wrap_cols = networks.update_weights_dynamics(prev_weights, direction, vel[i])
-            prev_weights[prev_weights<0]=0
-
-        # plt.imshow(prev_weights)
-        # plt.show()
-
-        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)) 
-        decodedXPerScale=can.activityDecoding(prev_weights[maxXPerScale, :],5,N)
-        decodedYPerScale=can.activityDecoding(prev_weights[:,maxYPerScale],5,N)
-        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
-
-        x_grid.append(x_multiscale_grid-start_x)
-        y_grid.append(y_multiscale_grid-start_y)
-
-        q[2]+=angVel[i]
-        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
-        
-        x_integ.append(q[0]-start_x)
-        y_integ.append(q[1]-start_y)
-
-        plt.plot(x_integ,y_integ,'.-')
-        plt.plot(x_grid, y_grid,'.-')
-        plt.legend(['Integrated', 'Multiscale'])
-        plt.show()
-
-    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-
-
-    return (x_error+y_error)*-1     
-
 
 def hierarchicalNetwork2DGridNew(prev_weights, net,N, vel, direction, iterations, wrap_iterations, x_grid_expect, y_grid_expect,scales):
     '''Select scale and initilise wrap storage'''
@@ -694,7 +695,7 @@ def headDirectionAndPlaceNew(genome):
 
     '''_______________________________Iterating through simulation velocities_______________________________'''
     
-    for i in range(len(vel)):   
+    for i in range(300):   
         N_dir=360
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=np.argmax(theta_weights)
