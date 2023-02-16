@@ -451,6 +451,101 @@ def wraparoundNetwork(genome):
 
     return (x_error+y_error)*-1     
 
+def errorFilterNetwork(genome, plot=False, pri=False):
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter
+
+    scales=[0.25,1,4,16,100,10000]
+    angVel=[np.deg2rad(90), np.deg2rad(90), np.deg2rad(90),  np.deg2rad(90)]*4
+    vel=[i*0.5 for i in range(16)]
+
+
+    num_links=int(genome[0]) #int
+    excite=int(genome[1]) #int
+    activity_mag=genome[2] #uni
+    inhibit_scale=genome[3] #uni
+    iterations=int(genome[4])
+
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+    start_x, start_y=50,50
+    N=100
+    
+
+    networks=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=np.zeros((N,N))
+   
+    prev_weights=networks.excitations(50,50)
+
+    prev_weights= networks.update_weights_dynamics_row_col(prev_weights,0,0)
+    prev_weights[prev_weights<0]=0
+
+
+    x_grid, y_grid=[], []
+    x_integ, y_integ=[],[]
+    q=[start_x,start_y,0]
+    x_integ_err, y_integ_err=[],[]
+    q_err=[start_x,start_y,0]
+
+    for i in range(len(vel)):
+        '''Path integration'''
+        q[2]+=angVel[i]
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        
+        x_integ.append(q[0]-start_x)
+        y_integ.append(q[1]-start_y)
+
+        '''Multiscale CAN'''
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
+        direction=np.argmax(theta_weights)
+        # print(angVel[i],direction)
+
+        noise = np.random.uniform(0,1,1)
+        vel[i]+=noise
+        for j in range(iterations):
+            prev_weights,wrap_rows, wrap_cols = networks.update_weights_dynamics(prev_weights, direction, vel[i])
+            prev_weights[prev_weights<0]=0
+
+        # plt.imshow(prev_weights)
+        # plt.show()
+
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)), np.argmax(np.max(prev_weights, axis=0)) 
+        decodedXPerScale=can.activityDecoding(prev_weights[maxXPerScale, :],5,N)
+        decodedYPerScale=can.activityDecoding(prev_weights[:,maxYPerScale],5,N)
+        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
+
+        x_grid.append(x_multiscale_grid-start_x)
+        y_grid.append(y_multiscale_grid-start_y)
+
+        '''Error Path integration'''
+        q_err[2]+=angVel[i]
+        q_err[0],q_err[1]=q_err[0]+vel[i]*np.cos(q_err[2]), q_err[1]+vel[i]*np.sin(q_err[2])
+        x_integ_err.append(np.float64(q_err[0]-start_x))
+        y_integ_err.append(np.float64(q_err[1]-start_y))
+
+
+        if plot==True:
+            plt.plot(x_integ,y_integ,'g.-')
+            plt.plot(x_grid, y_grid,'b.-')
+            plt.plot(x_integ_err, y_integ_err,'r.-')
+            plt.legend(['Integrated', 'Multiscale', 'Integrated with Error'])
+
+
+            # print(f'integrated {x_integ[-1]}, {y_integ[-1]}')
+            # print(f'integrated with error {x_integ_err[-1]}, {y_integ_err[-1]}')
+            # print(f'CAN with error {x_grid[-1]}, {y_grid[-1]}')
+            # print('')
+            plt.show()
+
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+    if pri==True:
+        x_error_integ=np.sum(np.abs(np.array(x_integ_err) - np.array(x_integ)))
+        y_error_integ=np.sum(np.abs(np.array(y_integ_err) - np.array(y_integ)))
+        print(f'Integrated error: {(x_error_integ+y_error_integ)*-1}')
+        print(f'CAN error: {(x_error+y_error)*-1}')
+
+    return (x_error+y_error)*-1     
 
 
 def hierarchicalNetwork2DGrid(prev_weights, net,N, vel, direction, iterations, wrap_iterations, wrap_counter, scales):
@@ -745,8 +840,8 @@ class GeneticAlgorithm:
         population=[]
         for i in range(numRandGenomes):
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'),self.rand(6,'uni'),self.rand(7,'uni')]
-            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #2d no wrap iters
-            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
+            genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int')] #2d no wrap iters
+            # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int')] #2d 
             # genome=[self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
             # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
             # self.rand(0,'int'), self.rand(1,'int'),self.rand(2,'uni'),self.rand(3,'uni'), self.rand(4,'int'), self.rand(5,'int'), \
@@ -861,15 +956,15 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirection
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
-    ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]
-    fitnessFunc=headDirectionAndPlaceNew
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
+    # ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]
+    # fitnessFunc=headDirectionAndPlaceNew
 
-    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1))])
-    # ranges = [[1,10],[1,10],[0,1],[0,0.0008],[1,5]]
-    # fitnessFunc=wraparoundNetwork
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1))])
+    ranges = [[1,10],[1,10],[0,1],[0,0.0008],[1,5]]
+    fitnessFunc=errorFilterNetwork
     num_gens=40
-    population_size=28
+    population_size=40
 
     if plot==True:
         with open(filename, 'rb') as f:
@@ -877,22 +972,27 @@ def runGA1D(plot=False):
         plt.plot([max(fit) for fit in data[:,:,-1]], 'g*-')
         plt.title('Best Fitness over 40 Generation')
         plt.show()
-        print(data[-1,0,:])
+        print(data[3,0,:])
     else:
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount).implimentGA()
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
-    runGA1D(plot=True)
+    # runGA1D(plot=False)
+    # runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
 # genome=[1,1,2.20759901e-01,2.34033865e-04,2] # training 1
 # genome=[2,1,3.06156800e-04 ,4.97577884e-04,2] # somewhat cheating
 # genome=[7,8,5.47157578e-01 ,3.62745653e-04, 2] #very old params 
 # genome=[3,5,1,0.000865888565,1,1] # hand tuning error -2.6
-# genome=[2,1,5.95419233e-01,6.59650534e-04,1]
+# genome=[5,5,0.595419233e-01,10.59650534e-04,1]
+# genome=[1,1,5.14308795e-02,7.90257231e-04,3]
+# genome=[8,5,5.53216258e-01,7.15843275e-04,1]
+# genome=[8,10,2.34724249e-01,1.78275526e-04,1]
+genome=[5,10,7.59471889e-01,3.93846361e-04,1]
 
+errorFilterNetwork(genome, plot=False, pri=True)
 # print(wraparoundNetwork(genome))
 # print(headDirectionAndPlaceNew(genome))
 
