@@ -994,4 +994,19 @@ def plotSavedMultiplePaths():
 # headDirectionAndPlaceMultiparameter()
 # headDirectionAndPlace(index)
 # plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting_long{index}.npy')
-plotSavedMultiplePaths()
+# plotSavedMultiplePaths()
+
+
+num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,10,1.50262708e-01,5.51431074e-04,2,2 #with decimals 200 iters fitness -395 modified
+network=attractorNetwork2D(60,60,num_links,excite, activity_mag,inhibit_scale)
+# prev_weights=np.zeros((100,100))
+prev_weights=network.excitations(30,30)
+prev_weights=network.update_weights_dynamics_row_col(prev_weights, 0,0)
+prev_weights=network.update_weights_dynamics_row_col(prev_weights, 0,0)
+for i in range(1):
+    prev_weights=network.update_weights_dynamics_row_col(prev_weights, -10,-10)
+    prev_weights[prev_weights<0]=0
+
+
+plt.imshow(prev_weights, cmap='jet')
+plt.show()

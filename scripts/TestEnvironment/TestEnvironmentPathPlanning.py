@@ -18,8 +18,8 @@ from numpy.typing import ArrayLike
 from easy_trilateration.model import *  
 from easy_trilateration.least_squares import easy_least_squares  
 from easy_trilateration.graph import * 
-import timeout_decorator #pip install timeout-decorator
-@timeout_decorator.timeout(60) 
+# import timeout_decorator #pip install timeout-decorator
+# @timeout_decorator.timeout(60) 
 
 
 def processMap(map_path, scale_percent):
@@ -496,7 +496,7 @@ def pathIntegration(speed, angVel, startPose):
 
 
 '''Initialising Image'''
-map_path = './results/TestingMaps/berlin_5kmrad_0.2Line_100pdi.png'
+map_path = './results/TestEnvironmentFiles/TestingMaps/berlin_5kmrad_0.2Line_100pdi.png'
 img=np.array(Image.open(map_path).convert("L"))
 
 meterWidth=5000
@@ -511,8 +511,9 @@ img[img==255]=1
 
 
 '''Original'''
-# pathfile='results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
-pathfile='./results/TestEnvironmentFiles/Paths/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
+# pathfile='./results/TestEnvironmentFiles/Paths/testEnvPath1_5kmrad_100pdi_0.2line.npy'
+pathfile='./results/TestEnvironmentFiles/Paths/testEnvMultiplePaths1_5kmrad_100pdi_0.2line.npy'
+# pathfile='./results/TestEnvironmentFiles/Paths/testEnvMultiplePathsSeparate_5kmrad_100pdi_0.2line.npy'
 
 
 
@@ -520,9 +521,11 @@ pathfile='./results/TestEnvironmentFiles/Paths/testEnvMultiplePathsSeparate_5kmr
 
 # print(f"scaled width{np.shape(path_img)[0], np.shape(path_img)[1]}, pxlPerMeter{np.shape(path_img)[0]/meterWidth, np.shape(path_img)[1]/meterWidth}")
 # path= remove_consecutive_duplicates(list(zip(path_x, path_y)))
-# path_x, path_y = zip(*path)
-paths=np.load(pathfile, allow_pickle=True)
 
+# path_x, path_y = zip(*np.load(pathfile))
+# plt.plot(path_x, path_y, 'k-')
+# plt.grid('off')
+# plt.show()
 
 '''Run Simulation'''
 # runSimulation(path_x, path_y, path_img)
@@ -532,9 +535,10 @@ paths=np.load(pathfile, allow_pickle=True)
 #     path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, i, img, scale, pxlPerMeter)
 #     noVisualisationDrive(path_x, path_y, i, frames=len(path_x)*3)
 
-scale,index=1,0
-path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, index, img, scale, pxlPerMeter)
-noVisualisationDrive(path_x, path_y, index, frames=len(path_x)*3)
+# paths=np.load(pathfile)
+# scale,index=1,0
+# path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, index, img, scale, pxlPerMeter)
+# noVisualisationDrive(path_x, path_y, index, frames=len(path_x)*3)
 
 '''Test Stored Traverse'''
 # index = 10
