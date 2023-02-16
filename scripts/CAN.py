@@ -406,7 +406,10 @@ class attractorNetwork2D:
     
     def update_weights_dynamics(self,prev_weights, direction, speed, moreResults=None):
         non_zero_rows, non_zero_cols=np.nonzero(prev_weights) # indexes of non zero prev_weights
-        prev_max_col,prev_max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
+        # maxXPerScale, maxYPerScale=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
+        prev_maxXPerScale, prev_maxYPerScale = np.argmax(np.max(prev_weights, axis=1)) , np.argmax(np.max(prev_weights, axis=0))
+        prev_max_col=round(activityDecoding(prev_weights[prev_maxXPerScale, :],5,self.N2),0)
+        prev_max_row=round(activityDecoding(prev_weights[:,prev_maxYPerScale],5,self.N1),0)
 
         delta_row=np.round(speed*np.sin(np.deg2rad(direction)),6)
         delta_col=np.round(speed*np.cos(np.deg2rad(direction)),6)
@@ -447,12 +450,18 @@ class attractorNetwork2D:
 
  
         '''wrap around'''
-        max_col,max_row=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
-        # print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
+        # maxXPerScale, maxYPerScale=np.argmax(np.max(prev_weights, axis=0)),np.argmax(np.max(prev_weights, axis=1))
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)) , np.argmax(np.max(prev_weights, axis=0))
+        max_col=round(activityDecoding(prev_weights[maxXPerScale, :],5,self.N2),0)
+        max_row=round(activityDecoding(prev_weights[:,maxYPerScale],5,self.N1),0)
+        
+        print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
         if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
             wrap_cols=1
+            # print(f'{direction}, wrapcol {wrap_cols}')
         elif prev_max_col<max_col and (direction>=90 and direction<=270): #left
             wrap_cols=-1
+            # print(f'{direction}, prevCol {prev_max_col}, currCol {max_col}')
         else:
             wrap_cols=0 
 
@@ -462,6 +471,7 @@ class attractorNetwork2D:
             wrap_rows=-1
         else:
             wrap_rows=0 
+
 
         # actual_delta_col=max_col-prev_max_col
         # actual_delta_row=max_row-prev_max_row
