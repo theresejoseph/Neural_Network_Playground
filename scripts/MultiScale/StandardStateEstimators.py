@@ -185,7 +185,9 @@ def run_localization(landmarks, std_vel, std_steer,
         plt.plot(x_grid, y_grid, 'm--')
         plt.axis('equal')
         plt.title("EKF Robot localization")
+        plt.legend(['EKF', 'Ground Truth','Naive Interation','Multiscale CAN'])
         if ylim is not None: plt.ylim(*ylim)
+        plt.show()
 
    
     return ekf, np.array(ekfPos).T
@@ -203,6 +205,7 @@ def pathIntegration(speed, angVel):
 
     return x_integ, y_integ
 
+'''Testing 18 paths'''
 # errors=[]
 # for index in range(18):
 #     outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
@@ -243,6 +246,7 @@ def pathIntegration(speed, angVel):
 #     errors.append([np.sum(naiiveIntegMSE), np.sum(ekfMSE), np.sum(canMSE)])
 # np.save(f'./results/TestEnvironmentFiles/Errors_EKFcomparisonUniformErr_0_1.npy',np.array(errors))
 
+'''Viewing test results'''
 # errors=np.load(f'./results/TestEnvironmentFiles/Errors_EKFcomparisonUniformErr_0_1.npy')
 # plt.plot(errors[:,0],'y.-')
 # plt.plot(errors[:,1],'k.-')
@@ -251,22 +255,23 @@ def pathIntegration(speed, angVel):
 # plt.title('MSE in position over Multiple Paths')
 # plt.show()
 
-index=3
-outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
-ComparisonInfo=np.load(outfile, allow_pickle=True)
-integPos, canPos,integErrPos, ekfPos=ComparisonInfo['integPos'], ComparisonInfo['canPos'], ComparisonInfo['integErrPos'], ComparisonInfo['ekfPos']
+# index=3
+# outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
+# ComparisonInfo=np.load(outfile, allow_pickle=True)
+# integPos, canPos,integErrPos, ekfPos=ComparisonInfo['integPos'], ComparisonInfo['canPos'], ComparisonInfo['integErrPos'], ComparisonInfo['ekfPos']
 
-plt.plot(ekfPos[0, :], ekfPos[1,:], '--',color='k', lw=2)
-plt.plot(integPos[0, :], integPos[1,:], 'g--')
-plt.plot(integErrPos[0, :], integErrPos[1,:], 'r')
-plt.plot(canPos[0, :], canPos[1,:], 'm--')
-plt.legend(['EKF', 'Ground Truth','Naive Interation','Multiscale CAN'])
-plt.title('Position estimation Comparison [m]')
-plt.axis('equal')
-plt.show()
+# plt.plot(ekfPos[0, :], ekfPos[1,:], '--',color='k', lw=2)
+# plt.plot(integPos[0, :], integPos[1,:], 'g--')
+# plt.plot(integErrPos[0, :], integErrPos[1,:], 'r')
+# plt.plot(canPos[0, :], canPos[1,:], 'm--')
+# plt.legend(['EKF', 'Ground Truth','Naive Interation','Multiscale CAN'])
+# plt.title('Position estimation Comparison [m]')
+# plt.axis('equal')
+# plt.show()
 
 
-
+'''Testing single path'''
+index=0
 outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
 traverseInfo=np.load(outfile, allow_pickle=True)
 vel,angVel=traverseInfo['speeds'], traverseInfo['angVel']
@@ -276,24 +281,24 @@ else:
     test_length=500
 x_integ, y_integ=pathIntegration(vel[:test_length], angVel[:test_length])
 
-noise=np.random.uniform(0,1,len(vel))
-vel+=noise
+# noise=np.random.uniform(-1,1,len(vel))
+# vel+=noise
 
 x_integ_err, y_integ_err=pathIntegration(vel[:test_length], angVel[:test_length])
 
-x_grid, y_grid=headDirectionAndPlaceNoWrapNet(test_length, vel, angVel, savePath=None, plot=False, printing=False)
+x_grid, y_grid=headDirectionAndPlaceNoWrapNet(test_length, vel, angVel, savePath=None, plot=False, printing=True)
 
 dt = 1.0
 landmarks = array([])
 ekf,ekfPos = run_localization(
 landmarks, std_vel=0.1, std_steer=np.radians(1),
-std_range=0.3, std_bearing=0.1, plot=False)
+std_range=0.3, std_bearing=0.1, plot=True)
 
 integPos=np.array((x_integ, y_integ))
 integErrPos=np.array((x_integ_err, y_integ_err))
 canPos=np.array((x_grid,y_grid))
 
-outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
+outfile=f'./results/TestEnvironmentFiles/Single_ID_{index}_EKFcomparisonUniformErr_-0.5_0.5.npz'
 np.savez(outfile,integPos=integPos, canPos=canPos, integErrPos= integErrPos, ekfPos=ekfPos)
 
 
@@ -302,7 +307,7 @@ ekfMSE = ((integPos-ekfPos)**2).mean(axis=1)
 canMSE = ((integPos-canPos)**2).mean(axis=1)
 print(f'MSE: naive integ {naiiveIntegMSE}, ekf {ekfMSE}, can {canMSE}')
 
-errors.append([np.sum(naiiveIntegMSE), np.sum(ekfMSE), np.sum(canMSE)])
+
 
 
 

@@ -456,21 +456,24 @@ class attractorNetwork2D:
         max_row=round(activityDecoding(prev_weights[:,maxYPerScale],5,self.N1),0)
         
         # print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
+        wrap_cols=0 
+        
         if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
             wrap_cols=1
-            # print(f'{direction}, wrapcol {wrap_cols}')
+            print(f'{direction}, prev col {prev_max_col}, curr_col {max_col}')
         elif prev_max_col<max_col and (direction>=90 and direction<=270): #left
             wrap_cols=-1
             # print(f'{direction}, prevCol {prev_max_col}, currCol {max_col}')
-        else:
-            wrap_cols=0 
 
-        if prev_max_row>max_row and (direction>=0 and direction<=180): #up 
+        
+        wrap_rows=0 
+ 
+        if prev_max_row>max_row and (direction>=0 and direction<=180) : #up 
             wrap_rows=1
-        elif prev_max_row<max_row and (direction>=180 and direction<=360): #down 
+        elif prev_max_row<max_row and (direction>=180 and direction<=360) : #down 
             wrap_rows=-1
-        else:
-            wrap_rows=0 
+        
+            
 
 
         # actual_delta_col=max_col-prev_max_col
