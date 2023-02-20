@@ -946,7 +946,7 @@ def hierarchicalNetwork2DGridNowrapNet(prev_weights, net,N, vel, direction, iter
        
     return prev_weights, wrap, x_grid_expect, y_grid_expect
 
-def headDirectionAndPlaceNoWrapNet(index, outfile, plot=False, N=100):
+def headDirectionAndPlaceNoWrapNet(test_length, vel, angVel,savePath, plot=False, printing=True, N=100):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #good only at small scale
@@ -957,12 +957,14 @@ def headDirectionAndPlaceNoWrapNet(index, outfile, plot=False, N=100):
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,7.51431074e-04,2,2 #with decimals 200 iters fitness -395 modified
     
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=5,2,7.59471889e-01,5.93846361e-04,1,1 #tuned to reduce error 
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=5,2,7.59471889e-01,5.93846361e-04,1,1 #tuned to reduce error 
     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.015,0.000865888565,1,1 #0.25 scale input, np.random.uniform(0,1,1) error
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000565888565,1,1 #16 scale input, np.random.uniform(10,20,1) error
-    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.04,0.000865888565,1,1 #1 scale input, np.random.uniform(1,2,1) error
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.04,0.000965888565,1,1 #1 scale input, np.random.uniform(1,2,1) error
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000665888565,1,1 #4 scale input, np.random.uniform(2,10,1) error
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+
+    
 
     '''__________________________Storage and initilisation parameters______________________________'''
     scales=[0.25,1,4,16]
@@ -987,17 +989,29 @@ def headDirectionAndPlaceNoWrapNet(index, outfile, plot=False, N=100):
     
 
     '''_______________________________Iterating through simulation velocities_______________________________'''
-    
     for i in range(test_length):   
         '''Path integration'''
-        q[2]+=angVel[i]
-        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
-        x_integ.append(q[0])
-        y_integ.append(q[1])
+        # q[2]+=angVel[i]
+        # q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        # x_integ.append(q[0])
+        # y_integ.append(q[1])
+
+        '''Dynamic network tuning'''
+        # swap_val=5
+        # if vel[i]<=scales[0]*swap_val:
+        #     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.015,0.000865888565,1,1 #0.25 scale input, np.random.uniform(0,1,1) error
+        #     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+        # elif vel[i]>scales[0]*swap_val and vel[i]<=scales[1]*swap_val:
+        #     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.04,0.000865888565,1,1 #1 scale input, np.random.uniform(1,2,1) error
+        #     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+        # elif vel[i]>scales[1]*swap_val and vel[i]<=scales[2]*swap_val:
+        #     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000665888565,1,1 #4 scale input, np.random.uniform(2,10,1) error
+        #     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+        # elif vel[i]>scales[2]*swap_val:
+        #     num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000565888565,1,1 #16 scale input, np.random.uniform(10,20,1) error
+        #     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)   
 
         '''Mutliscale CAN update'''
-        noise = np.random.uniform(0,1,1)
-        vel[i]=np.float64(vel[i]+noise)
         N_dir=360
         theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
         direction=activityDecodingAngle(theta_weights,5,N_dir)
@@ -1013,32 +1027,31 @@ def headDirectionAndPlaceNoWrapNet(index, outfile, plot=False, N=100):
         y_grid.append(y_multiscale_grid+y_grid_expect)
 
         '''Error integrated path'''
-        q_err[2]+=angVel[i]
-        q_err[0],q_err[1]=q_err[0]+vel[i]*np.cos(q_err[2]), q_err[1]+vel[i]*np.sin(q_err[2])
-        x_integ_err.append(q_err[0])
-        y_integ_err.append(q_err[1])
+        # q_err[2]+=angVel[i]
+        # q_err[0],q_err[1]=q_err[0]+vel[i]*np.cos(q_err[2]), q_err[1]+vel[i]*np.sin(q_err[2])
+        # x_integ_err.append(q_err[0])
+        # y_integ_err.append(q_err[1])
 
+        if printing==True:
+            print(np.rad2deg(q[2]), direction)
+            print(f'decoded: {decodedXPerScale}, {decodedYPerScale}')
+            print(f'expected: {x_grid_expect}, {y_grid_expect}')
+            print(f'integ: {x_integ[-1]}, {y_integ[-1]}')
+            print(f'CAN: {x_grid[-1]}, {y_grid[-1]}')
+            print('')
 
-        print(np.rad2deg(q[2]), direction)
-        print(f'decoded: {decodedXPerScale}, {decodedYPerScale}')
-        print(f'expected: {x_grid_expect}, {y_grid_expect}')
-        print(f'integ: {x_integ[-1]}, {y_integ[-1]}')
-        print(f'CAN: {x_grid[-1]}, {y_grid[-1]}')
-        print('')
+    if savePath != None:
+        np.save(savePath, np.array([x_grid, y_grid, x_integ, y_integ, x_integ_err, y_integ_err]))
+    # x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    # y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
 
+    # x_error_integ=np.sum(np.abs(np.array(x_integ_err) - np.array(x_integ)))
+    # y_error_integ=np.sum(np.abs(np.array(y_integ_err) - np.array(y_integ)))
 
-    np.save(outfile, np.array([x_grid, y_grid, x_integ, y_integ, x_integ_err, y_integ_err]))
-    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+    # print(f'Integrated error: {(x_error_integ+y_error_integ)*-1}')
+    # print(f'CAN error: {(x_error+y_error)*-1}')
 
-    x_error_integ=np.sum(np.abs(np.array(x_integ_err) - np.array(x_integ)))
-    y_error_integ=np.sum(np.abs(np.array(y_integ_err) - np.array(y_integ)))
-
-    print(f'Integrated error: {(x_error_integ+y_error_integ)*-1}')
-    print(f'CAN error: {(x_error+y_error)*-1}')
-
-    if plot ==True:
-        
+    if plot ==True:    
         plt.plot(x_integ, y_integ, 'g.')
         plt.plot(x_integ_err, y_integ_err, 'r.')
         plt.plot(x_grid, y_grid, 'b.')
@@ -1046,11 +1059,13 @@ def headDirectionAndPlaceNoWrapNet(index, outfile, plot=False, N=100):
         plt.title('Test Environment 2D space')
         plt.legend(('Path Integration without Error', 'Path Integration with Error', 'Multiscale Grid Decoding'))
         plt.show()
+    else:
+        return x_grid, y_grid
 
 
 
 def plotFromSavedArray(outfile):
-    x_grid,y_grid, x_integ, y_integ = np.load(outfile)
+    x_grid,y_grid, x_integ, y_integ, x_integ_err, y_integ_err= np.load(outfile)
     '''Compute distance'''
     dist=np.sum(vel)
    
@@ -1102,6 +1117,7 @@ def plotSavedMultiplePaths():
         '''plot'''
         axs[i].plot(x_grid,y_grid, 'b.')
         axs[i].plot(x_integ, y_integ, 'g.')
+        axs[i].plot(x_integ_err, y_integ_err, 'r.')
         axs[i].axis('equal')
         axs[i].set_title(f'CAN Err:{round(errorCAN)}m   Integ Err:{round(errorPathIntegration)}')
         # axs[i].legend(['MultiscaleCAN', 'Grid'])
@@ -1131,41 +1147,49 @@ def plotSavedMultiplePaths():
 # vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
 
 '''Running 18 paths with Multiscale CAN'''
-for index in range(18):
-    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-    traverseInfo=np.load(outfile, allow_pickle=True)
-    vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+# for index in range(18):
+#     outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+#     traverseInfo=np.load(outfile, allow_pickle=True)
+#     vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-    scales=[0.25,1,4,16,100,10000]
-    if len(vel)<500:
-        test_length=len(vel)
-    else:
-        test_length=500
+#     scales=[0.25,1,4,16,100,10000]
+#     if len(vel)<500:
+#         test_length=len(vel)
+#     else:
+#         test_length=500
 
-    iterPerScale=int(np.ceil(test_length/4))
-    vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
+#     # iterPerScale=int(np.ceil(test_length/4))
+#     # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
 
-    headDirectionAndPlaceNoWrapNet(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+#     headDirectionAndPlaceNoWrapNet(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+# plotSavedMultiplePaths()
 
-# index=8
-# scales=[0.25,1,4,16,100,10000]
+
+# index=1
+# scales=[0.25,1,4,16]
 # outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
 # traverseInfo=np.load(outfile, allow_pickle=True)
 # vel,angVel=traverseInfo['speeds'], traverseInfo['angVel']
+# # noise=np.random.uniform(0,1,len(vel))
+# # vel+=noise
+
 # if len(vel)<100:
 #     test_length=len(vel)
 # else:
 #     test_length=100
 # # vel=[0.5]*test_length
-# # iterPerScale=int(np.ceil(test_length/4))
+# iterPerScale=int(np.ceil(test_length/4))
 # # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
 # # vel=np.linspace(scales[1]*5,scales[2]*5,test_length)
-# headDirectionAndPlaceNoWrapNet(index, f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy', plot=True)
+# headDirectionAndPlaceNoWrapNet(test_length,index, vel, angVel,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy', plot=False)
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+
+
 
 # headDirectionAndPlaceMultiparameter()
 # headDirectionAndPlace(index)
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting_long{index}.npy')
-# plotSavedMultiplePaths()
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+
 
 
 # 

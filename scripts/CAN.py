@@ -455,7 +455,7 @@ class attractorNetwork2D:
         max_col=round(activityDecoding(prev_weights[maxXPerScale, :],5,self.N2),0)
         max_row=round(activityDecoding(prev_weights[:,maxYPerScale],5,self.N1),0)
         
-        print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
+        # print(f"col_prev_current {prev_max_col, max_col} row_prev_current {prev_max_row, max_row}")
         if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
             wrap_cols=1
             # print(f'{direction}, wrapcol {wrap_cols}')

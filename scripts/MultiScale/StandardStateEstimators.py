@@ -2,92 +2,196 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random  
 import math
+from numpy.random import randn
+from SelectiveMultiScalewithWraparound2D import headDirectionAndPlaceNoWrapNet
 
+
+'''===========================================================Extended Kalman Filter============================================================='''
+from filterpy.kalman import ExtendedKalmanFilter as EKF
+from numpy import array, sqrt
+from math import sqrt, tan, cos, sin, atan2
+import sympy
+from sympy.abc import alpha, x, y, v, w, R, theta
+from sympy import symbols, Matrix
+
+def Hx(x, landmark_pos):
+    """ takes a state variable and returns the measurement
+    that would correspond to that state.
+    """
+    px = landmark_pos[0]
+    py = landmark_pos[1]
+    dist = sqrt((px - x[0, 0])**2 + (py - x[1, 0])**2)
+
+    Hx = array([[dist],
+                [atan2(py - x[1, 0], px - x[0, 0]) - x[2, 0]]])
+    return Hx
+
+def H_of(x, landmark_pos):
+    """ compute Jacobian of H matrix where h(x) computes 
+    the range and bearing to a landmark for state x """
+
+    px = landmark_pos[0]
+    py = landmark_pos[1]
+    hyp = (px - x[0, 0])**2 + (py - x[1, 0])**2
+    dist = sqrt(hyp)
+
+    H = array(
+        [[-(px - x[0, 0]) / dist, -(py - x[1, 0]) / dist, 0],
+         [ (py - x[1, 0]) / hyp,  -(px - x[0, 0]) / hyp, -1]])
+    return H
+
+class RobotEKF(EKF):
+    def __init__(self, dt, wheelbase, std_vel, std_steer):
+        EKF.__init__(self, 3, 2, 2)
+        self.dt = dt
+        self.wheelbase = wheelbase
+        self.std_vel = std_vel
+        self.std_steer = std_steer
+
+        a, x, y, v, w, theta, time = symbols(
+            'a, x, y, v, w, theta, t')
+        d = v*time
+        beta = (d/w)*sympy.tan(a)
+        r = w/sympy.tan(a)
+    
+        self.fxu = Matrix(
+            [[x-r*sympy.sin(theta)+r*sympy.sin(theta+beta)],
+             [y+r*sympy.cos(theta)-r*sympy.cos(theta+beta)],
+             [theta+beta]])
+
+        self.F_j = self.fxu.jacobian(Matrix([x, y, theta]))
+        self.V_j = self.fxu.jacobian(Matrix([v, a]))
+
+        # save dictionary and it's variables for later use
+        self.subs = {x: 0, y: 0, v:0, a:0, 
+                     time:dt, w:wheelbase, theta:0}
+        self.x_x, self.x_y, = x, y 
+        self.v, self.a, self.theta = v, a, theta
+
+    def predict(self, u):
+        self.x = self.move(self.x, u, self.dt)
+        self.subs[self.x_x] = self.x[0, 0]
+        self.subs[self.x_y] = self.x[1, 0]
+
+        self.subs[self.theta] = self.x[2, 0]
+        self.subs[self.v] = u[0]
+        self.subs[self.a] = u[1]
+
+        F = array(self.F_j.evalf(subs=self.subs)).astype(float)
+        V = array(self.V_j.evalf(subs=self.subs)).astype(float)
+
+        # covariance of motion noise in control space
+        M = array([[self.std_vel**2, 0], 
+                   [0, self.std_steer**2]])
+
+        self.P = F @ self.P @ F.T + V @ M @ V.T
+
+    def move(self, x, u, dt):
+        hdg = x[2, 0]
+        vel = u[0]
+        steering_angle = u[1]
+        dist = vel * dt
+
+        if abs(steering_angle) > 0.001: # is robot turning?
+            beta = (dist / self.wheelbase) * tan(steering_angle)
+            r = self.wheelbase / tan(steering_angle) # radius
+
+            dx = np.array([[-r*sin(hdg) + r*sin(hdg + beta)], 
+                           [r*cos(hdg) - r*cos(hdg + beta)], 
+                           [beta]])
+        else: # moving in straight line
+            dx = np.array([[dist*cos(hdg)], 
+                           [dist*sin(hdg)], 
+                           [0]])
+        return x + dx
+
+def residual(a, b):
+    """ compute residual (a-b) between measurements containing 
+    [range, bearing]. Bearing is normalized to [-pi, pi)"""
+    y = a - b
+    y[1] = y[1] % (2 * np.pi)    # force in range [0, 2 pi)
+    if y[1] > np.pi:             # move to [-pi, pi)
+        y[1] -= 2 * np.pi
+    return y
+
+
+def z_landmark(lmark, sim_pos, std_rng, std_brg):
+    x, y = sim_pos[0, 0], sim_pos[1, 0]
+    d = np.sqrt((lmark[0] - x)**2 + (lmark[1] - y)**2)  
+    a = atan2(lmark[1] - y, lmark[0] - x) - sim_pos[2, 0]
+    z = np.array([[d + randn()*std_rng],
+                  [a + randn()*std_brg]])
+    return z
+
+def ekf_update(ekf, z, landmark):
+    ekf.update(z, HJacobian=H_of, Hx=Hx, 
+               residual=residual,
+               args=(landmark), hx_args=(landmark))
+                    
+def run_localization(landmarks, std_vel, std_steer, 
+                     std_range, std_bearing,
+                     step=10, ellipse_step=20, ylim=None, plot=True):
+    ekf = RobotEKF(dt, wheelbase=0.5, std_vel=std_vel, 
+                   std_steer=std_steer)
+    ekf.x = array([[0, 0, 0]]).T # x, y, steer angle
+    ekf.P = np.diag([.1, .1, .1])
+    ekf.R = np.diag([std_range**2, std_bearing**2])
+
+    sim_pos = ekf.x.copy() # simulated position
+    # steering command (vel, steering angle radians)
+    # u = array([1.1, .01]) 
+
+    # plt.figure()
+    # plt.scatter(landmarks[:, 0], landmarks[:, 1],
+                # marker='s', s=60)
+    
+    track = []
+    ekfPos=[]
+    for i in range(test_length):
+        u = array([vel[i], angVel[i]]) 
+        sim_pos = ekf.move(sim_pos, u, dt) # simulate robot
+        track.append(sim_pos)
+
+        x, y = sim_pos[0, 0], sim_pos[1, 0]
+        ekfPos.append((x,y))
+
+        if i % step == 0:
+            ekf.predict(u=u)
+
+            if i % ellipse_step == 0:
+                pass
+                # plot_covariance_ellipse(
+                #     (ekf.x[0,0], ekf.x[1,0]), ekf.P[0:2, 0:2], 
+                #      std=6, facecolor='k', alpha=0.3)
+
+            x, y = sim_pos[0, 0], sim_pos[1, 0]
+            # ekfPos.append((x,y))
+            # for lmark in landmarks:
+            #     z = z_landmark(lmark, sim_pos,
+            #                    std_range, std_bearing)
+            #     ekf_update(ekf, z, lmark)
+
+            if i % ellipse_step == 0:
+                pass
+                # plot_covariance_ellipse(
+                #     (ekf.x[0,0], ekf.x[1,0]), ekf.P[0:2, 0:2],
+                #     std=6, facecolor='g', alpha=0.8)
+    
+    track = np.array(track)
+    if plot==True:
+        plt.plot(track[:, 0], track[:,1], '--',color='k', lw=2)
+        plt.plot(x_integ, y_integ, 'g--')
+        plt.plot(x_integ_err, y_integ_err, 'r')
+        plt.plot(x_grid, y_grid, 'm--')
+        plt.axis('equal')
+        plt.title("EKF Robot localization")
+        if ylim is not None: plt.ylim(*ylim)
+
+   
+    return ekf, np.array(ekfPos).T
 
 
 '''========================================================================================================================'''
-
-class ExtendedKalmanFilter:
-    def __init__(self, state_dim, measurement_dim, process_noise_cov, measurement_noise_cov):
-        self.state_dim = state_dim
-        self.measurement_dim = measurement_dim
-        self.process_noise_cov = process_noise_cov
-        self.measurement_noise_cov = measurement_noise_cov
-        self.state_estimate = np.zeros((state_dim, 1))
-        self.covariance_estimate = np.eye(state_dim)
-
-    def predict(self, state_transition_matrix, control_input):
-        self.state_estimate = np.dot(state_transition_matrix, self.state_estimate) + control_input
-        self.covariance_estimate = np.dot(np.dot(state_transition_matrix, self.covariance_estimate), state_transition_matrix.T) + self.process_noise_cov
-
-    def update(self, measurement, measurement_model):
-        innovation = measurement - np.dot(measurement_model, self.state_estimate)
-        innovation_cov = np.dot(np.dot(measurement_model, self.covariance_estimate), measurement_model.T) + self.measurement_noise_cov
-        kalman_gain = np.dot(np.dot(self.covariance_estimate, measurement_model.T), np.linalg.inv(innovation_cov))
-        self.state_estimate = self.state_estimate + np.dot(kalman_gain, innovation)
-        self.covariance_estimate = self.covariance_estimate - np.dot(np.dot(kalman_gain, measurement_model), self.covariance_estimate)
-
-def EKF_main(speed, angVel):
-    state_dim = 4
-    measurement_dim = 2
-    process_noise_cov = np.eye(state_dim)
-    measurement_noise_cov = np.eye(measurement_dim)
-
-    ekf = ExtendedKalmanFilter(state_dim, measurement_dim, process_noise_cov, measurement_noise_cov)
-
-    state_transition_matrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    # control_input = np.zeros((state_dim, 1))
-    # control_input = np.array([[speed], [speed], [0], [angVel]])
-    measurement_model = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
-    # measurement = np.array([[0], [0]])
-
-    ekf_pos=[]
-    error=1.1
-    q=[0,0,0]
-    for i in range(len(speed)):
-        speed[i]*=error
-        q[0],q[1]=q[0]+speed[i]*np.cos(q[2]), q[1]+speed[i]*np.sin(q[2])
-        q[2]+=angVel[i]
-        control_input = np.array([[speed[i]], [0], [0], [angVel[i]]])
-        measurement = np.array([[q[0]], [q[1]]])
-
-        ekf.predict(state_transition_matrix, control_input)
-        ekf.update(measurement, measurement_model)
-        ekf_pos.append((ekf.state_estimate[0][0], ekf.state_estimate[1][0]))
-
-    return ekf_pos
-
-def particle_filter(speeds,angVel, num_particles=1000):
-    particle_pos=[]
-    # Initialize particles randomly in the space
-    particles = np.random.rand(num_particles, 2)
-
-    # Loop over each time step
-    for i in range(len(angVel)):
-        # Predict the new position of each particle based on the current velocity
-        angle = np.random.normal(angVel[i], 0.1, num_particles)
-        speed = np.random.normal(speeds[i], 0.1, num_particles)
-        particles[:, 0] += np.cos(angle) * speed
-        particles[:, 1] += np.sin(angle) * speed
-
-        # Weight the particles based on some measurement model
-        # In this example, we assume that the measurement is the true position
-        weights = np.ones(num_particles)
-
-        # Resample the particles based on the weights
-        new_particles = np.zeros((num_particles, 2))
-        new_indices = np.random.choice(num_particles, num_particles, p=weights/sum(weights), replace=True)
-        for j, index in enumerate(new_indices):
-            new_particles[j,:] = particles[index,:]
-        
-        particles = new_particles
-
-        # Estimate the position based on the weighted average of the particles
-        estimated_position = np.mean(particles, axis=0)
-        particle_pos.append(estimated_position)
-    
-    return particle_pos
-
 def pathIntegration(speed, angVel):
     q=[0,0,0]
     x_integ,y_integ=[],[]
@@ -99,22 +203,110 @@ def pathIntegration(speed, angVel):
 
     return x_integ, y_integ
 
-# test_length=1000
-# particle_pos=particle_filter( vel[1:test_length], angVel[1:test_length])
-# particle_x,particle_y=zip(*particle_pos)
-# x_integ, y_integ=pathIntegration(vel[1:test_length],angVel[1:test_length])
-# ekf_pos=EKF_main(vel[1:test_length], angVel[1:test_length])
-# ekf_x,ekf_y=zip(*ekf_pos)
+# errors=[]
+# for index in range(18):
+#     outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+#     traverseInfo=np.load(outfile, allow_pickle=True)
+#     vel,angVel=traverseInfo['speeds'], traverseInfo['angVel']
+#     if len(vel)<500:
+#         test_length=len(vel)
+#     else:
+#         test_length=500
+#     x_integ, y_integ=pathIntegration(vel[:test_length], angVel[:test_length])
 
+#     noise=np.random.uniform(0,1,len(vel))
+#     vel+=noise
 
-# plt.plot(x_integ, y_integ,'g.-')
-# plt.plot(ekf_x,ekf_y, 'm-.')
-# # plt.plot(particle_x,particle_y,'b.-')
-# plt.axis('equal')
-# plt.legend(('Path Integration', 'EKF', 'Particle Filter'))
+#     x_integ_err, y_integ_err=pathIntegration(vel[:test_length], angVel[:test_length])
+   
+#     x_grid, y_grid=headDirectionAndPlaceNoWrapNet(test_length, vel, angVel, savePath=None, plot=False, printing=False)
+
+#     dt = 1.0
+#     landmarks = array([])
+#     ekf,ekfPos = run_localization(
+#         landmarks, std_vel=0.1, std_steer=np.radians(1),
+#         std_range=0.3, std_bearing=0.1, plot=False)
+    
+#     integPos=np.array((x_integ, y_integ))
+#     integErrPos=np.array((x_integ_err, y_integ_err))
+#     canPos=np.array((x_grid,y_grid))
+
+#     outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
+#     np.savez(outfile,integPos=integPos, canPos=canPos, integErrPos= integErrPos, ekfPos=ekfPos)
+    
+
+#     naiiveIntegMSE = ((integPos-integErrPos)**2).mean(axis=1)
+#     ekfMSE = ((integPos-ekfPos)**2).mean(axis=1)
+#     canMSE = ((integPos-canPos)**2).mean(axis=1)
+#     print(f'MSE: naive integ {naiiveIntegMSE}, ekf {ekfMSE}, can {canMSE}')
+
+#     errors.append([np.sum(naiiveIntegMSE), np.sum(ekfMSE), np.sum(canMSE)])
+# np.save(f'./results/TestEnvironmentFiles/Errors_EKFcomparisonUniformErr_0_1.npy',np.array(errors))
+
+# errors=np.load(f'./results/TestEnvironmentFiles/Errors_EKFcomparisonUniformErr_0_1.npy')
+# plt.plot(errors[:,0],'y.-')
+# plt.plot(errors[:,1],'k.-')
+# plt.plot(errors[:,2],'m.-')
+# plt.legend(['Naive Interation', 'EKF', 'Multiscale CAN'])
+# plt.title('MSE in position over Multiple Paths')
 # plt.show()
 
-'''========================================================================================================================'''
+index=3
+outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
+ComparisonInfo=np.load(outfile, allow_pickle=True)
+integPos, canPos,integErrPos, ekfPos=ComparisonInfo['integPos'], ComparisonInfo['canPos'], ComparisonInfo['integErrPos'], ComparisonInfo['ekfPos']
+
+plt.plot(ekfPos[0, :], ekfPos[1,:], '--',color='k', lw=2)
+plt.plot(integPos[0, :], integPos[1,:], 'g--')
+plt.plot(integErrPos[0, :], integErrPos[1,:], 'r')
+plt.plot(canPos[0, :], canPos[1,:], 'm--')
+plt.legend(['EKF', 'Ground Truth','Naive Interation','Multiscale CAN'])
+plt.title('Position estimation Comparison [m]')
+plt.axis('equal')
+plt.show()
+
+
+
+outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+traverseInfo=np.load(outfile, allow_pickle=True)
+vel,angVel=traverseInfo['speeds'], traverseInfo['angVel']
+if len(vel)<500:
+    test_length=len(vel)
+else:
+    test_length=500
+x_integ, y_integ=pathIntegration(vel[:test_length], angVel[:test_length])
+
+noise=np.random.uniform(0,1,len(vel))
+vel+=noise
+
+x_integ_err, y_integ_err=pathIntegration(vel[:test_length], angVel[:test_length])
+
+x_grid, y_grid=headDirectionAndPlaceNoWrapNet(test_length, vel, angVel, savePath=None, plot=False, printing=False)
+
+dt = 1.0
+landmarks = array([])
+ekf,ekfPos = run_localization(
+landmarks, std_vel=0.1, std_steer=np.radians(1),
+std_range=0.3, std_bearing=0.1, plot=False)
+
+integPos=np.array((x_integ, y_integ))
+integErrPos=np.array((x_integ_err, y_integ_err))
+canPos=np.array((x_grid,y_grid))
+
+outfile=f'./results/TestEnvironmentFiles/ID_{index}_EKFcomparisonUniformErr_0_1.npz'
+np.savez(outfile,integPos=integPos, canPos=canPos, integErrPos= integErrPos, ekfPos=ekfPos)
+
+
+naiiveIntegMSE = ((integPos-integErrPos)**2).mean(axis=1)
+ekfMSE = ((integPos-ekfPos)**2).mean(axis=1)
+canMSE = ((integPos-canPos)**2).mean(axis=1)
+print(f'MSE: naive integ {naiiveIntegMSE}, ekf {ekfMSE}, can {canMSE}')
+
+errors.append([np.sum(naiiveIntegMSE), np.sum(ekfMSE), np.sum(canMSE)])
+
+
+
+'''============================================================== Particle Filter ============================================================'''
 from filterpy.monte_carlo import systematic_resample
 from numpy.linalg import norm
 from numpy.random import randn
@@ -151,7 +343,6 @@ def predict(particles, u, std, dt=1.):
     particles[:, 0] += np.cos(particles[:, 2]) * dist
     particles[:, 1] += np.sin(particles[:, 2]) * dist
 
-
 def update(particles, weights, z, R, landmarks):
     for i, landmark in enumerate(landmarks):
         distance = np.linalg.norm(particles[:, 0:2] - landmark, axis=1)
@@ -175,7 +366,6 @@ def resample_from_index(particles, weights, indexes):
     particles[:] = particles[indexes]
     weights.resize(len(particles))
     weights.fill (1.0 / len(weights))
-
 
 def run_pf1(N, iters=18, sensor_std_err=.1, 
             do_plot=True, plot_particles=False,
@@ -240,6 +430,126 @@ def run_pf1(N, iters=18, sensor_std_err=.1,
     print('final position error, variance:\n\t', mu - np.array([iters, iters]), var)
     plt.show()
 
-from numpy.random import seed
-seed(2) 
-run_pf1(N=5000, plot_particles=False)
+# from numpy.random import seed
+# seed(2) 
+# run_pf1(N=5000, plot_particles=False)
+
+'''=====================================================    Kalman Filter  ======================================================================='''
+
+from filterpy.kalman import KalmanFilter
+from filterpy.stats import plot_covariance_ellipse
+from scipy.linalg import block_diag
+from filterpy.common import Q_discrete_white_noise
+
+# R_std = 0.35
+# Q_std = 0.04
+
+def tracker1():
+    tracker = KalmanFilter(dim_x=4, dim_z=2)
+    dt = 1.0   # time step
+
+    tracker.F = np.array([[1, dt, 0,  0],
+                          [0,  1, 0,  0],
+                          [0,  0, 1, dt],
+                          [0,  0, 0,  1]])
+    tracker.u = 0.
+    tracker.H = np.array([[1/0.3048, 0, 0, 0],
+                          [0, 0, 1/0.3048, 0]])
+
+    tracker.R = np.eye(2) * R_std**2
+    q = Q_discrete_white_noise(dim=2, dt=dt, var=Q_std**2)
+    tracker.Q = block_diag(q, q)
+    tracker.x = np.array([[0, 0, 0, 0]]).T
+    tracker.P = np.eye(4) * 500.
+    return tracker
+
+def plot_measurements(xs, ys=None, dt=None, color='k', lw=1, label='Measurements',
+                      lines=False, **kwargs):
+    """ Helper function to give a consistent way to display
+    measurements in the book.
+    """
+    if ys is None and dt is not None:
+        ys = xs
+        xs = np.arange(0, len(ys)*dt, dt)
+
+    plt.autoscale(tight=False)
+    if lines:
+        if ys is not None:
+            return plt.plot(xs, ys, color=color, lw=lw, ls='--', label=label, **kwargs)
+        else:
+            return plt.plot(xs, color=color, lw=lw, ls='--', label=label, **kwargs)
+    else:
+        if ys is not None:
+            return plt.scatter(xs, ys, edgecolor=color, facecolor='none',
+                        lw=2, label=label, **kwargs),
+        else:
+            return plt.scatter(range(len(xs)), xs, edgecolor=color, facecolor='none',
+                        lw=2, label=label, **kwargs),
+
+def plot_filter(xs, ys=None, dt=None, c='C0', label='Filter', var=None, **kwargs):
+    """ plot result of KF with color `c`, optionally displaying the variance
+    of `xs`. Returns the list of lines generated by plt.plot()"""
+
+    if ys is None and dt is not None:
+        ys = xs
+        xs = np.arange(0, len(ys) * dt, dt)
+    if ys is None:
+        ys = xs
+        xs = range(len(ys))
+
+    lines = plt.plot(xs, ys, color=c, label=label, **kwargs)
+    if var is None:
+        return lines
+
+    var = np.asarray(var)
+    std = np.sqrt(var)
+    std_top = ys+std
+    std_btm = ys-std
+
+    plt.plot(xs, ys+std, linestyle=':', color='k', lw=2)
+    plt.plot(xs, ys-std, linestyle=':', color='k', lw=2)
+    plt.fill_between(xs, std_btm, std_top,
+                     facecolor='yellow', alpha=0.2)
+
+    return lines
+
+class PosSensor(object):
+    def __init__(self, pos=(0, 0), vel=(0, 0), noise_std=1.):
+        self.vel = vel
+        self.noise_std = noise_std
+        self.pos = [pos[0], pos[1]]
+        self.theta=0
+        
+    def read(self, vel, angVel):
+        
+        self.pos[0] += (vel*np.cos(self.theta))
+        self.pos[1] += (vel*np.sin(self.theta))
+        self.theta += angVel
+
+        
+        return [self.pos[0] ,
+                self.pos[1]]
+# simulate robot movement
+# N = 300
+# sensor = PosSensor((0, 0), (1,np.deg2rad(5)), noise_std=R_std)
+# zs = np.array([sensor.read(vel[i], angVel[i]) for i in range(N)])
+
+# # run filter
+# robot_tracker = tracker1()
+# mu, cov, _, _ = robot_tracker.batch_filter(zs)
+
+# for x, P in zip(mu, cov):
+#     # covariance of x and y
+#     # cov = np.array([[P[0, 0], P[2, 0]], 
+#     #                 [P[0, 2], P[2, 2]]])
+#     cov=np.diag(np.array([0.1,0.1]))
+#     mean = (x[0, 0], x[2, 0])
+    # plot_covariance_ellipse(mean, cov=cov, fc='g', std=3, alpha=0.5)
+    
+#plot results
+# zs *= .3048 # convert to meters
+# plot_filter(mu[:, 0], mu[:, 2])
+# plot_measurements(zs[:, 0], zs[:, 1])
+# plt.legend(loc=2)
+# # plt.xlim(0, 20)
+# plt.show()
