@@ -969,6 +969,7 @@ def hierarchicalNetwork2DGridNowrapNet(prev_weights, net,N, vel, direction, iter
     
     for i in range(len(wrap_cols)):
         x_grid_expect+=wrap_cols[i]*N*scales[i]
+    for i in range(len(wrap_rows)):
         y_grid_expect+=wrap_rows[i]*N*scales[i]
 
     wrap=0

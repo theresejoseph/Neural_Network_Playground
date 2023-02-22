@@ -327,27 +327,31 @@ def attractorGridcell_fitness(genome):
 
     prev_weights=np.zeros((N,N))
     network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
-    prev_weights=network.excitations(50,50)
-    x,y=50,50
-    dirs=np.arange(0,90)
-    speeds=np.linspace(0.1,1.1,90)
-    x_integ, y_integ=[50],[50]
-    x_grid, y_grid=[50], [50]
+    prev_weights=network.excitations(0,0)
+    x,y=0,0
+    dirs=np.arange(0,360)
+    speeds=np.random.uniform(-10,10,360)
+    x_integ, y_integ=[],[]
+    x_grid, y_grid=[], []
 
-    
+    x_grid_expect,y_grid_expect=0,0
     for i in range(len(speeds)):
         for j in range(iterations): 
-            prev_weights,wrap_cols, wrap_rows=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i], current_scale=0, wrap_counter=[0,0,0,0,0,0])
+            prev_weights,wrap_cols, wrap_rows=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+            
+            x_grid_expect+=wrap_cols*N
+            y_grid_expect+=wrap_rows*N
 
         
         #grid cell output 
-        x_grid.append(np.argmax(np.max(prev_weights, axis=1)))
-        y_grid.append(np.argmax(np.max(prev_weights, axis=0)))
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)),np.argmax(np.max(prev_weights, axis=0))
+        x_grid.append(can.activityDecoding(prev_weights[maxXPerScale,:],5,N)+x_grid_expect)
+        y_grid.append(can.activityDecoding(prev_weights[:,maxYPerScale],5,N)+y_grid_expect)
 
         #integrated output
         x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
-        x_integ.append(round(x))
-        y_integ.append(round(y))
+        x_integ.append(x)
+        y_integ.append(x)
 
 
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
@@ -950,7 +954,8 @@ class GeneticAlgorithm:
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
     # filename=f'../results/GA_MultiScale/tuningGridNew1.npy'
-    filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+    # filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+    filename=f'../results/GA_MultiScale/place_randomInput.npy'
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -963,9 +968,13 @@ def runGA1D(plot=False):
     # ranges = [[1,10],[1,10],[0.1,1],[0,0.1],[1,10],[1,10]]
     # fitnessFunc=MultiResolutionFeedthrough2D
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
-    ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
-    fitnessFunc=headDirectionFitness
+    # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1))])
+    # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
+    # fitnessFunc=headDirectionFitness
+
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.0005), int(np.random.normal(0,1))])
+    ranges = [[1,20],[1,20],[0.05,4],[0,0.005],[1,4]]
+    fitnessFunc= attractorGridcell_fitness
 
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
     # ranges = [[1,10],[1,10],[0,1],[0,0.0005],[1,5], [1,5]]
@@ -999,7 +1008,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    # runGA1D(plot=False)
+    runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
