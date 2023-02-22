@@ -23,6 +23,22 @@ import CAN as can
 import json 
 from DataHandling import saveOrLoadNp  
 
+def pathIntegration(speed, angVel):
+    q=[0,0,0]
+    x_integ,y_integ=[],[]
+    for i in range(len(speed)):
+        q[0],q[1]=q[0]+speed[i]*np.cos(q[2]), q[1]+speed[i]*np.sin(q[2])
+        q[2]+=angVel[i]
+        x_integ.append(round(q[0],4))
+        y_integ.append(round(q[1],4))
+
+    return x_integ, y_integ
+
+def errorTwoCoordinateLists(x1, y1, x2, y2):
+    x_error=np.sum(np.abs(np.array(x1) - np.array(x2)))
+    y_error=np.sum(np.abs(np.array(y1) - np.array(y2)))
+
+    return (x_error+y_error)
 
 def scale_selection(input,scales, swap_val=1):
     if len(scales)==1:
@@ -953,17 +969,17 @@ def hierarchicalNetwork2DGridNowrapNet(prev_weights, net,N, vel, direction, iter
         y_grid_expect+=wrap_rows[i]*N*scales[i]
 
     wrap=0
-    if np.any(wrap_cols!=0):
-        wrap=1
-        print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
-    if np.any(wrap_rows!=0):
-        wrap=1
-        print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    # if np.any(wrap_cols!=0):
+    #     wrap=1
+    #     print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
+    # if np.any(wrap_rows!=0):
+    #     wrap=1
+    #     print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
 
        
     return prev_weights, wrap, x_grid_expect, y_grid_expect
 
-def headDirectionAndPlaceNoWrapNet(test_length, vel, angVel,savePath, plot=False, printing=True, N=100):
+def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, plot=False, printing=True, N=100):
     global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,8,5.47157578e-01 ,3.62745653e-04, 2, 2 #good only at small scale
@@ -1059,22 +1075,16 @@ def headDirectionAndPlaceNoWrapNet(test_length, vel, angVel,savePath, plot=False
 
     if savePath != None:
         np.save(savePath, np.array([x_grid, y_grid, x_integ, y_integ, x_integ_err, y_integ_err]))
-    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-
-    # x_error_integ=np.sum(np.abs(np.array(x_integ_err) - np.array(x_integ)))
-    # y_error_integ=np.sum(np.abs(np.array(y_integ_err) - np.array(y_integ)))
-
-    # print(f'Integrated error: {(x_error_integ+y_error_integ)*-1}')
-    print(f'CAN error: {(x_error+y_error)*-1}')
+    
+    print(f'CAN error: {errorTwoCoordinateLists(x_integ,y_integ, x_grid, y_grid)}')
 
     if plot ==True:    
         plt.plot(x_integ, y_integ, 'g.')
-        plt.plot(x_integ_err, y_integ_err, 'y.')
+        # plt.plot(x_integ_err, y_integ_err, 'y.')
         plt.plot(x_grid, y_grid, 'b.')
         plt.axis('equal')
         plt.title('Test Environment 2D space')
-        plt.legend(('Path Integration without Error', 'Path Integration with head direction network', 'Multiscale Grid Decoding'))
+        plt.legend(('Path Integration without Error','Multiscale Grid Decoding'))
         plt.show()
     else:
         return x_grid, y_grid
@@ -1182,26 +1192,57 @@ def plotSavedMultiplePaths():
 # plotSavedMultiplePaths()
 
 '''Running single path'''
-index=1
-scales=[0.25,0.5,1,2,4,8,16]
+
+# scales=[0.25,0.5,1,2,4,8,16]
 # scales=[0.25,1,4,16]
 # scales=[1]
-outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-traverseInfo=np.load(outfile, allow_pickle=True)
-vel,angVel=traverseInfo['speeds'], traverseInfo['angVel']
-# noise=np.random.uniform(0,1,len(vel))
-# vel+=noise
 
-if len(vel)<500:
-    test_length=len(vel)
-else:
-    test_length=500
 # vel=[0.5]*test_length
 # iterPerScale=int(np.ceil(test_length/4))
 # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
 # vel=np.linspace(scales[1]*5,scales[2]*5,test_length)
-vel=np.random.uniform(0,20,test_length)
-headDirectionAndPlaceNoWrapNet(test_length, vel, angVel,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npz',plot=True)
+
+''' Benefits of Multiscale '''
+def mutliVs_single(filepath, index, desiredTestLength):
+    outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
+    traverseInfo=np.load(outfile, allow_pickle=True)
+    angVel= traverseInfo['angVel']
+  
+    if len(angVel)<desiredTestLength:
+        test_length=len(angVel)
+    else:
+        test_length=desiredTestLength
+
+    errors=[]
+    for i in range(1,21):
+        vel=np.random.uniform(0,i,test_length)
+        true_x,true_y=pathIntegration(vel,angVel)
+
+        scales=[1]
+        single_x,single_y=headDirectionAndPlaceNoWrapNet(scales,test_length, vel, angVel,None,plot=False, printing=False)
+        singleError=errorTwoCoordinateLists(true_x,true_y, single_x, single_y)
+
+        scales=[0.25,1,4,16]
+        multi_x,multi_y=headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,None,plot=False, printing=False)
+        multipleError=errorTwoCoordinateLists(true_x,true_y, multi_x, multi_y)
+
+        errors.append([singleError,multipleError])
+
+    np.save(filepath, errors)
+
+index=0
+filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors.npy'
+# mutliVs_single(filepath, index, 500)
+
+# singleErrors, multipleErrors = zip(*np.load(filepath))
+# plt.plot(singleErrors, 'b.-')
+# plt.plot(multipleErrors, 'm.-')
+# # plt.axis('equal')
+# plt.legend(['Single Network Error', 'Multiscale Networks Error'])
+# plt.xlabel('Upper Limit of Velocity Range [m/s]')
+# plt.ylabel('Error [Sum of Absolute Differences]')
+# plt.title('Comparison of Single versus Multiscale Networks')
+# plt.show()
 # plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
 
 
