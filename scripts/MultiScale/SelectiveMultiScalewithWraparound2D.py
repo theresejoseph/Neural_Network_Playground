@@ -22,6 +22,9 @@ import CAN as can
 # import pykitti
 import json 
 from DataHandling import saveOrLoadNp  
+# import scienceplots
+plt.style.use(['science','ieee'])
+
 
 def pathIntegration(speed, angVel):
     q=[0,0,0]
@@ -1234,16 +1237,19 @@ index=0
 filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors.npy'
 # mutliVs_single(filepath, index, 500)
 
-# singleErrors, multipleErrors = zip(*np.load(filepath))
-# plt.plot(singleErrors, 'b.-')
-# plt.plot(multipleErrors, 'm.-')
-# # plt.axis('equal')
-# plt.legend(['Single Network Error', 'Multiscale Networks Error'])
-# plt.xlabel('Upper Limit of Velocity Range [m/s]')
-# plt.ylabel('Error [Sum of Absolute Differences]')
-# plt.title('Comparison of Single versus Multiscale Networks')
-# plt.show()
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+plt.figure()
+
+singleErrors, multipleErrors = zip(*np.load(filepath))
+plt.plot(singleErrors, 'b')
+plt.plot(multipleErrors, 'm')
+# plt.axis('equal')
+plt.legend(['Single Network Error', 'Multiscale Networks Error'])
+plt.xlabel('Upper Limit of Velocity Range [m/s]')
+plt.ylabel('Error [Sum of Absolute Differences]')
+plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
+plt.tight_layout()
+plt.show()
+plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
 
 
 
