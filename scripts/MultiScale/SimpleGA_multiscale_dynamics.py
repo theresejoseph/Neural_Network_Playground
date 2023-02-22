@@ -330,7 +330,7 @@ def attractorGridcell_fitness(genome):
     prev_weights=network.excitations(0,0)
     x,y=0,0
     dirs=np.arange(0,360)
-    speeds=np.random.uniform(-10,10,360)
+    speeds=np.random.uniform(-5,5,360)
     x_integ, y_integ=[],[]
     x_grid, y_grid=[], []
 
@@ -351,7 +351,7 @@ def attractorGridcell_fitness(genome):
         #integrated output
         x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
         x_integ.append(x)
-        y_integ.append(x)
+        y_integ.append(y)
 
 
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
@@ -972,8 +972,8 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirectionFitness
 
-    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.0005), int(np.random.normal(0,1))])
-    ranges = [[1,20],[1,20],[0.05,4],[0,0.005],[1,4]]
+    mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.00005), int(np.random.normal(0,1))])
+    ranges = [[1,20],[1,20],[0.05,4],[0,0.0005],[1,4]]
     fitnessFunc= attractorGridcell_fitness
 
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])

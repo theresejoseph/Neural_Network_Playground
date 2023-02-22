@@ -460,7 +460,7 @@ class attractorNetwork2D:
         
         if prev_max_col>max_col and (direction<=90 or direction>=270): #right 
             wrap_cols=1
-            print(f'{direction}, prev col {prev_max_col}, curr_col {max_col}')
+            # print(f'{direction}, prev col {prev_max_col}, curr_col {max_col}')
         elif prev_max_col<max_col and (direction>=90 and direction<=270): #left
             wrap_cols=-1
             # print(f'{direction}, prevCol {prev_max_col}, currCol {max_col}')
