@@ -1235,11 +1235,11 @@ def mutliVs_single(filepath, index, desiredTestLength):
     np.save(filepath, errors)
 
 index=0
-filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors.npy'
-# mutliVs_single(filepath, index, 500)
+filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
+mutliVs_single(filepath, index, 500)
+
 
 plt.figure()
-
 singleErrors, multipleErrors = zip(*np.load(filepath))
 plt.plot(singleErrors, 'b')
 plt.plot(multipleErrors, 'm')
@@ -1250,7 +1250,7 @@ plt.ylabel('Error [Sum of Absolute Differences]')
 plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
 plt.tight_layout()
 plt.show()
-plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
 
 
 
