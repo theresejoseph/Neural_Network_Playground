@@ -23,7 +23,8 @@ import CAN as can
 import json 
 from DataHandling import saveOrLoadNp  
 # import scienceplots
-plt.style.use(['science','ieee'])
+# plt.style.use(['science','ieee'])
+plt.style.use(['science','no-latex'])
 
 
 def pathIntegration(speed, angVel):
@@ -1236,7 +1237,7 @@ def mutliVs_single(filepath, index, desiredTestLength):
 
 index=0
 filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
-mutliVs_single(filepath, index, 500)
+# mutliVs_single(filepath, index, 500)
 
 
 plt.figure()
