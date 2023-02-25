@@ -8,8 +8,10 @@ from matplotlib.artist import Artist
 from mpl_toolkits.mplot3d import Axes3D 
 from scipy import signal
 import time 
+import sys 
+sys.path.append('./scripts')
 
-from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D
+from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D, activityDecoding
 
 '''Parameters'''
 # N=[100, 60] #number of neurons
@@ -536,7 +538,7 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 
     ax0.set_title(filename)
     # error[error==0]=np.nan
-    pos= ax0.imshow(error)
+    pos= ax0.imshow(norm_error)
     fig.colorbar(pos)
     ax0.set_xlabel('Magnitude')
     ax0.set_ylabel('Inhibition')
@@ -571,28 +573,95 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
 
 # visualiseMultiResolutionTranslation(data_x,data_y,0.005,0.2537)
 '''1D Grid Search'''
-data_x=np.concatenate([np.arange(0,1,0.01), np.arange(1,11,0.1), np.arange(11,111,1), np.arange(111,1111,10), np.arange(1111,11111,100)])
-data_y=np.zeros(len(data_x))
-# print(np.arange(56.61,566.61,10))
-filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_40steps_eveSmallerRange.npy'
-n_steps=40
-broke_error=100000
-func=MultiResolution1D
-scale=[0.01,0.1,1,10,100]
+# data_x=np.concatenate([np.arange(0,1,0.01), np.arange(1,11,0.1), np.arange(11,111,1), np.arange(111,1111,10), np.arange(1111,11111,100)])
+# data_y=np.zeros(len(data_x))
+# # print(np.arange(56.61,566.61,10))
+# filename=f'./results/GridSearch_MultiScale/1D_attractor_allunit_40steps_eveSmallerRange.npy'
+# n_steps=40
+# broke_error=100000
+# func=MultiResolution1D
+# scale=[0.01,0.1,1,10,100]
 # visualiseMultiResolutionTranslation(data_x,data_y,0.7692,0.0064,scale)
 
 # gridSearch(filename,n_steps,func,scale,0.6,1,0,0.2)
 # plottingGridSearch(filename,n_steps,broke_error,0,1,0,0.25)
 '''2D Gridsearch'''
-data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
-data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
-scale=[0.1,1,10]
+# data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+# data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+# scale=[0.1,1,10]
 # print(MultiResolution2D(data_x,data_y,0.005,0.0005))
-visualiseMultiResolutionTranslation2D(data_x,data_y,0.005,0.006923)
+# visualiseMultiResolutionTranslation2D(data_x,data_y,0.005,0.006923)
 
-filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_50steps_smallerRange.npy'
-n_steps=40
-broke_error=100000
-func=MultiResolution2D
+# filename=f'./results/GridSearch_MultiScale/2D_attractor_allunits_50steps_smallerRange.npy'
+# n_steps=40
+# broke_error=100000
+# func=MultiResolution2D
 # gridSearch(filename,n_steps,func,scale,0.005,0.01,0.005,0.4)
-plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)
+# plottingGridSearch(filename,n_steps,broke_error,0.005,0.01,0.005,0.4)
+
+'''2D Gridcell Gridsearch'''
+def attractorGridcell_fitness(speeds,activity_mag,inhibit_scale):
+    N=100
+    num_links=10 #int
+    excite=10 #int
+    # iterations=int(genome[4])
+
+    prev_weights=np.zeros((N,N))
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+    prev_weights=network.excitations(0,0)
+    x,y=0,0
+    dirs=np.arange(0,360,6)
+    # speeds=np.random.uniform(-5,5,360)
+    x_integ, y_integ=[],[]
+    x_grid, y_grid=[], []
+
+    x_grid_expect,y_grid_expect=0,0
+    for i in range(len(speeds)):
+        prev_weights,wrap_rows, wrap_cols=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+        
+        x_grid_expect+=wrap_cols*N
+        y_grid_expect+=wrap_rows*N
+
+        
+        
+        #grid cell output 
+        maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)),np.argmax(np.max(prev_weights, axis=0))
+        x_grid.append(activityDecoding(prev_weights[maxXPerScale,:],5,N)+x_grid_expect)
+        y_grid.append(activityDecoding(prev_weights[:,maxYPerScale],5,N)+y_grid_expect)
+
+      
+        #integrated output
+        x,y=x+(speeds[i]*np.cos(np.deg2rad(dirs[i]))), y+(speeds[i]*np.sin(np.deg2rad(dirs[i])))
+        x_integ.append(x)
+        y_integ.append(y)
+
+    # plt.plot(x_integ,y_integ,'g.')
+    # plt.plot(x_grid,y_grid,'m.')
+    # plt.show()
+    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
+    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
+
+
+    return (x_error+y_error)
+
+def gridSearchAttractorGridcell(filename,n_steps,error_func,speeds,lower_inh,upper_inh,lower_mag,upper_mag):
+    error=np.zeros((n_steps,n_steps))
+    inhibit= list(np.linspace(lower_inh,upper_inh,n_steps))
+    magnitude= list(np.linspace(lower_mag,upper_mag,n_steps))
+    for i,inh in enumerate(inhibit):
+        for j,mag in enumerate(magnitude):
+            # print(mag,inh)
+            t=time.time()
+            error[i,j]=error_func(speeds,mag,inh)
+            print(i,j,error[i,j], time.time()-t)
+    with open(filename, 'wb') as f:
+        np.save(f, np.array(error))
+
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitnessfuncfixed.npy'
+n_steps=20
+broke_error=100000
+speeds=np.random.uniform(0,5,360//6) 
+# attractorGridcell_fitness(speeds,2,0.001)
+lower_inh,upper_inh,lower_mag,upper_mag=0.00001,0.001,0.01,5
+gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
+plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)
