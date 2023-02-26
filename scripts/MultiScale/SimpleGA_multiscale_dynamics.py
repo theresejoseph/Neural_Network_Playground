@@ -330,30 +330,34 @@ def attractorGridcell_fitness(genome):
     prev_weights=network.excitations(0,0)
     x,y=0,0
     dirs=np.arange(0,360)
-    speeds=np.random.uniform(-5,5,360)
+    speeds=np.random.uniform(0,5,360)
     x_integ, y_integ=[],[]
     x_grid, y_grid=[], []
 
     x_grid_expect,y_grid_expect=0,0
     for i in range(len(speeds)):
-        for j in range(iterations): 
-            prev_weights,wrap_cols, wrap_rows=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
+        for j in range(iterations):
+            prev_weights,wrap_rows, wrap_cols=network.update_weights_dynamics(prev_weights, dirs[i], speeds[i])
             
             x_grid_expect+=wrap_cols*N
             y_grid_expect+=wrap_rows*N
 
+        
         
         #grid cell output 
         maxXPerScale, maxYPerScale = np.argmax(np.max(prev_weights, axis=1)),np.argmax(np.max(prev_weights, axis=0))
         x_grid.append(can.activityDecoding(prev_weights[maxXPerScale,:],5,N)+x_grid_expect)
         y_grid.append(can.activityDecoding(prev_weights[:,maxYPerScale],5,N)+y_grid_expect)
 
+      
         #integrated output
-        x,y=x+speeds[i]*np.sin(np.deg2rad(dirs[i])), y+speeds[i]*np.cos(np.deg2rad(dirs[i]))
+        x,y=x+(speeds[i]*np.cos(np.deg2rad(dirs[i]))), y+(speeds[i]*np.sin(np.deg2rad(dirs[i])))
         x_integ.append(x)
         y_integ.append(y)
 
-
+    # plt.plot(x_integ,y_integ,'g.')
+    # plt.plot(x_grid,y_grid,'m.')
+    # plt.show()
     x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
     y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
 
@@ -835,7 +839,7 @@ def headDirectionAndPlaceNew(genome):
 
 '''Implementation'''
 class GeneticAlgorithm:
-    def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges,mutate_amount):
+    def __init__(self,num_gens,population_size,filename,fitnessFunc, ranges):
         self.num_gens=num_gens
         self.population_size=population_size
         self.filename=filename
@@ -956,8 +960,9 @@ class GeneticAlgorithm:
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
     # filename=f'../results/GA_MultiScale/tuningGridNew1.npy'
-    # filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
-    filename=f'../results/GA_MultiScale/place_randomInput.npy'
+    filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+    # filename=f'../results/GA_MultiScale/place_randomInput.npy'
+
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
     # fitnessFunc=CAN_tuningShiftAccuracywithWraparound
@@ -1009,7 +1014,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
+    # runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
@@ -1033,104 +1038,104 @@ if __name__ == '__main__':
 
 # mutate_amount=np.array([int(np.random.normal(0,5)), int(np.random.normal(0,5)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.05)])
 '''1D'''
-def visualiseMultiResolutionTranslation(genome):
-    N=int(genome[0])
-    num_links=int(genome[1])
-    excite=int(genome[2])
-    activity_mag=genome[3]
-    inhibit_scale=genome[4]
+# def visualiseMultiResolutionTranslation(genome):
+#     N=int(genome[0])
+#     num_links=int(genome[1])
+#     excite=int(genome[2])
+#     activity_mag=genome[3]
+#     inhibit_scale=genome[4]
 
-    data_x=np.arange(0,200,1)
-    data_y=np.zeros(len(data_x))
+#     data_x=np.arange(0,200,1)
+#     data_y=np.zeros(len(data_x))
 
-    curr_parameter=[0,0]
-    # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
-    '''initlising network and animate figures'''
-    fig = plt.figure(figsize=(6, 6))
-    ax10 = plt.subplot2grid(shape=(6, 1), loc=(0, 0), rowspan=1,colspan=1)
-    ax11 = plt.subplot2grid(shape=(6, 1), loc=(1, 0), rowspan=1,colspan=1)
-    ax12 = plt.subplot2grid(shape=(6, 1), loc=(2, 0), rowspan=1,colspan=1)
-    ax13 = plt.subplot2grid(shape=(6, 1), loc=(3, 0), rowspan=1,colspan=1)
-    ax14 = plt.subplot2grid(shape=(6, 1), loc=(4, 0), rowspan=1,colspan=1)
-    axtxt1 = plt.subplot2grid(shape=(6, 1), loc=(5, 0), rowspan=1,colspan=1)
-    fig.tight_layout()
+#     curr_parameter=[0,0]
+#     # global prev_weights, num_links, excite, activity_mag,inhibit_scale, curr_parameter
+#     '''initlising network and animate figures'''
+#     fig = plt.figure(figsize=(6, 6))
+#     ax10 = plt.subplot2grid(shape=(6, 1), loc=(0, 0), rowspan=1,colspan=1)
+#     ax11 = plt.subplot2grid(shape=(6, 1), loc=(1, 0), rowspan=1,colspan=1)
+#     ax12 = plt.subplot2grid(shape=(6, 1), loc=(2, 0), rowspan=1,colspan=1)
+#     ax13 = plt.subplot2grid(shape=(6, 1), loc=(3, 0), rowspan=1,colspan=1)
+#     ax14 = plt.subplot2grid(shape=(6, 1), loc=(4, 0), rowspan=1,colspan=1)
+#     axtxt1 = plt.subplot2grid(shape=(6, 1), loc=(5, 0), rowspan=1,colspan=1)
+#     fig.tight_layout()
 
 
-    net=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
-    prev_weights_trans=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
-    for n in range(len(prev_weights_trans)):
-        prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links)
+#     net=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
+#     prev_weights_trans=[np.zeros(N), np.zeros(N), np.zeros(N),np.zeros(N), np.zeros(N)]
+#     for n in range(len(prev_weights_trans)):
+#         prev_weights_trans[n][net.activation(0)]=net.full_weights(num_links)
 
-    def multiResolutionUpdate(input,prev_weights,net): 
-        scale = [0.01, 0.1, 1, 10, 100]
-        delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
-        split_output=np.zeros((len(delta)))
-        '''updating network'''    
-        for n in range(len(delta)):
-            prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
-            prev_weights[n][prev_weights[n][:]<0]=0
-            split_output[n]=np.argmax(prev_weights[n][:])
+#     def multiResolutionUpdate(input,prev_weights,net): 
+#         scale = [0.01, 0.1, 1, 10, 100]
+#         delta = [(input/scale[0]), (input/scale[1]), (input/scale[2]), (input/scale[3]), (input/scale[4])]
+#         split_output=np.zeros((len(delta)))
+#         '''updating network'''    
+#         for n in range(len(delta)):
+#             prev_weights[n][:]= net.update_weights_dynamics(prev_weights[n][:],delta[n])
+#             prev_weights[n][prev_weights[n][:]<0]=0
+#             split_output[n]=np.argmax(prev_weights[n][:])
         
-        decoded=np.sum(split_output*scale)*np.sign(input) 
+#         decoded=np.sum(split_output*scale)*np.sign(input) 
 
-        ax10.set_title(str(scale[0])+" Scale",fontsize=9)
-        ax11.set_title(str(scale[1])+" Scale",fontsize=9)
-        ax12.set_title(str(scale[2])+" Scale",fontsize=9)
-        ax13.set_title(str(scale[3])+" Scale",fontsize=9)
-        ax14.set_title(str(scale[4])+" Scale",fontsize=9)
+#         ax10.set_title(str(scale[0])+" Scale",fontsize=9)
+#         ax11.set_title(str(scale[1])+" Scale",fontsize=9)
+#         ax12.set_title(str(scale[2])+" Scale",fontsize=9)
+#         ax13.set_title(str(scale[3])+" Scale",fontsize=9)
+#         ax14.set_title(str(scale[4])+" Scale",fontsize=9)
 
-        return decoded, split_output
+#         return decoded, split_output
     
-    def animate(i):
-        # global prev_weights_trans, num_links, excite,inhibit_scale
-        ax10.clear(),ax11.clear(),ax12.clear(),ax13.clear(),ax14.clear(),axtxt1.clear()
+#     def animate(i):
+#         # global prev_weights_trans, num_links, excite,inhibit_scale
+#         ax10.clear(),ax11.clear(),ax12.clear(),ax13.clear(),ax14.clear(),axtxt1.clear()
         
-        if i>=2:
-            '''encoding mangnitude and direction of movement'''
-            x0=data_x[i-2]
-            x1=data_x[i-1]
-            x2=data_x[i]
-            y0=data_y[i-2]
-            y1=data_y[i-1]
-            y2=data_y[i]
+#         if i>=2:
+#             '''encoding mangnitude and direction of movement'''
+#             x0=data_x[i-2]
+#             x1=data_x[i-1]
+#             x2=data_x[i]
+#             y0=data_y[i-2]
+#             y1=data_y[i-1]
+#             y2=data_y[i]
             
-            translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
-            rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
+#             translation=np.sqrt(((x2-x1)**2)+((y2-y1)**2))#translation
+#             rotation=((np.rad2deg(math.atan2(y2-y1,x2-x1)) - np.rad2deg(math.atan2(y1-y0,x1-x0))))#%360     #angle
 
-            net0=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
-            decoded_translation,split_trans=multiResolutionUpdate(translation,prev_weights_trans,net0)
+#             net0=attractorNetworkScaling(N,num_links,excite, activity_mag,inhibit_scale)
+#             decoded_translation,split_trans=multiResolutionUpdate(translation,prev_weights_trans,net0)
     
-            curr_parameter[0]=curr_parameter[0]+translation    
-            print(f"{str(i)}  translation {translation} input output {round(curr_parameter[0],3)}  {str(decoded_translation )}  ")
+#             curr_parameter[0]=curr_parameter[0]+translation    
+#             print(f"{str(i)}  translation {translation} input output {round(curr_parameter[0],3)}  {str(decoded_translation )}  ")
             
             
-            axtxt1.text(0,0.5,f"Input Trans: {round(x2,3)}, Shift: {round(translation,4)}, Decoded Trans: {round(decoded_translation,3)}", c='r')
-            # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
-            axtxt1.axis('off')
-            axtxt1.text(0,0,"Decoded Position of Each Network: " + str(split_trans), c='r')
+#             axtxt1.text(0,0.5,f"Input Trans: {round(x2,3)}, Shift: {round(translation,4)}, Decoded Trans: {round(decoded_translation,3)}", c='r')
+#             # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
+#             axtxt1.axis('off')
+#             axtxt1.text(0,0,"Decoded Position of Each Network: " + str(split_trans), c='r')
 
-            ax10.bar(np.arange(N),prev_weights_trans[0][:],color='aqua')
-            ax10.get_xaxis().set_visible(False)
-            ax10.spines[['top', 'bottom', 'right']].set_visible(False)
+#             ax10.bar(np.arange(N),prev_weights_trans[0][:],color='aqua')
+#             ax10.get_xaxis().set_visible(False)
+#             ax10.spines[['top', 'bottom', 'right']].set_visible(False)
 
-            ax11.bar(np.arange(N),prev_weights_trans[1][:],color='green')
-            ax11.get_xaxis().set_visible(False)
-            ax11.spines[['top', 'bottom', 'right']].set_visible(False)
+#             ax11.bar(np.arange(N),prev_weights_trans[1][:],color='green')
+#             ax11.get_xaxis().set_visible(False)
+#             ax11.spines[['top', 'bottom', 'right']].set_visible(False)
 
-            ax12.bar(np.arange(N),prev_weights_trans[2][:],color='blue')
-            ax12.get_xaxis().set_visible(False)
-            ax12.spines[['top', 'bottom', 'right']].set_visible(False)
+#             ax12.bar(np.arange(N),prev_weights_trans[2][:],color='blue')
+#             ax12.get_xaxis().set_visible(False)
+#             ax12.spines[['top', 'bottom', 'right']].set_visible(False)
         
-            ax13.bar(np.arange(N),prev_weights_trans[3][:],color='purple')
-            ax13.get_xaxis().set_visible(False)
-            ax13.spines[['top', 'bottom', 'right']].set_visible(False)
+#             ax13.bar(np.arange(N),prev_weights_trans[3][:],color='purple')
+#             ax13.get_xaxis().set_visible(False)
+#             ax13.spines[['top', 'bottom', 'right']].set_visible(False)
             
-            ax14.bar(np.arange(N),prev_weights_trans[4][:],color='pink')
-            ax14.get_xaxis().set_visible(False)
-            ax14.spines[['top', 'bottom', 'right']].set_visible(False)
+#             ax14.bar(np.arange(N),prev_weights_trans[4][:],color='pink')
+#             ax14.get_xaxis().set_visible(False)
+#             ax14.spines[['top', 'bottom', 'right']].set_visible(False)
 
-    ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
-    plt.show()
+#     ani = FuncAnimation(fig, animate, interval=1,frames=len(data_x),repeat=False)
+#     plt.show()
 
 # fittest=[1.48000000e+02, 1.20000000e+01, 1.00000000e+00, 7.07215044e-02, 4.74091433e-01]
 # fittest=[1.67000000e+02, 2.00000000e+00, 3.00000000e+00, 9.23424531e-02, 5.20268520e-01]
@@ -1156,106 +1161,106 @@ def visualiseMultiResolutionTranslation(genome):
 # GeneticAlgorithm(population,num_gens,population_size,filename,fitnessFunc,ranges,mutate_amount)
 
 
-def visualiseMultiResolutionTranslation2D(genome):
-    global error
-    '''initlising network and animate figures'''
-    fig = plt.figure(figsize=(8, 4))
-    ax10 = plt.subplot2grid(shape=(6, 3), loc=(0, 0), rowspan=5,colspan=1)
-    ax11 = plt.subplot2grid(shape=(6, 3), loc=(0, 1), rowspan=5,colspan=1)
-    ax12 = plt.subplot2grid(shape=(6, 3), loc=(0, 2), rowspan=5,colspan=1)
-    axtxt1 = plt.subplot2grid(shape=(6,3), loc=(5, 0), rowspan=1,colspan=3)
-    fig.tight_layout()
+# def visualiseMultiResolutionTranslation2D(genome):
+#     global error
+#     '''initlising network and animate figures'''
+#     fig = plt.figure(figsize=(8, 4))
+#     ax10 = plt.subplot2grid(shape=(6, 3), loc=(0, 0), rowspan=5,colspan=1)
+#     ax11 = plt.subplot2grid(shape=(6, 3), loc=(0, 1), rowspan=5,colspan=1)
+#     ax12 = plt.subplot2grid(shape=(6, 3), loc=(0, 2), rowspan=5,colspan=1)
+#     axtxt1 = plt.subplot2grid(shape=(6,3), loc=(5, 0), rowspan=1,colspan=3)
+#     fig.tight_layout()
 
-    N1=100
-    N2=100
-    num_links1=int(genome[0])
-    excite1=int(genome[1])
-    activity_mag1=genome[2]
-    inhibit_scale1=genome[3]
+#     N1=100
+#     N2=100
+#     num_links1=int(genome[0])
+#     excite1=int(genome[1])
+#     activity_mag1=genome[2]
+#     inhibit_scale1=genome[3]
 
-    num_links2=int(genome[4])
-    excite2=int(genome[5])
-    activity_mag2=genome[6]
-    inhibit_scale2=genome[7]
+#     num_links2=int(genome[4])
+#     excite2=int(genome[5])
+#     activity_mag2=genome[6]
+#     inhibit_scale2=genome[7]
 
-    num_links3=int(genome[8])
-    excite3=int(genome[9])
-    activity_mag3=genome[10]
-    inhibit_scale3=genome[11]
+#     num_links3=int(genome[8])
+#     excite3=int(genome[9])
+#     activity_mag3=genome[10]
+#     inhibit_scale3=genome[11]
 
-    data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
-    data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+#     data_x=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
+#     data_y=np.concatenate([ np.arange(0,10.1,0.1), np.arange(10.1,101.1,1), np.arange(101.1,1111.1,10)])
 
-    # data_x=np.arange(1,1000,1)
-    # data_y=np.arange(1,1000,1)
+#     # data_x=np.arange(1,1000,1)
+#     # data_y=np.arange(1,1000,1)
 
-    scale = [ 0.1, 1, 10]
-    error=0
+#     scale = [ 0.1, 1, 10]
+#     error=0
     
-    '''initiliase network'''
-    net=[attractorNetwork2D(N1,N2,num_links1,excite1,activity_mag1,inhibit_scale1),attractorNetwork2D(N1,N2,num_links2,excite2,activity_mag2,inhibit_scale2),attractorNetwork2D(N1,N2,num_links3,excite3,activity_mag3,inhibit_scale3)]
-    prev_weights=[net[0].neuron_activation(0,0), net[1].neuron_activation(0,0), net[2].neuron_activation(0,0)]
+#     '''initiliase network'''
+#     net=[attractorNetwork2D(N1,N2,num_links1,excite1,activity_mag1,inhibit_scale1),attractorNetwork2D(N1,N2,num_links2,excite2,activity_mag2,inhibit_scale2),attractorNetwork2D(N1,N2,num_links3,excite3,activity_mag3,inhibit_scale3)]
+#     prev_weights=[net[0].neuron_activation(0,0), net[1].neuron_activation(0,0), net[2].neuron_activation(0,0)]
 
-    delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
-    split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
+#     delta_peak_rows, delta_peak_cols=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
+#     split_output_row,split_output_col=np.zeros((len(data_x),len(scale))), np.zeros((len(data_x),len(scale)))
 
-    def animate(i):
-        global error
-        i=i+2
-        ax10.clear(),ax11.clear(),ax12.clear(), axtxt1.clear()
+#     def animate(i):
+#         global error
+#         i=i+2
+#         ax10.clear(),ax11.clear(),ax12.clear(), axtxt1.clear()
     
-        '''encoding mangnitude movement into multiple scales'''
-        x1, x2=data_x[i-1], data_x[i]
-        y1, y2= data_y[i-1], data_y[i]
+#         '''encoding mangnitude movement into multiple scales'''
+#         x1, x2=data_x[i-1], data_x[i]
+#         y1, y2= data_y[i-1], data_y[i]
 
-        input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
+#         input_idx=np.argmin(np.abs(np.asarray(scale)-(x2-x1)))
 
-        delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
-        delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
+#         delta_col = [((x2-x1)/scale[0]), ((x2-x1)/scale[1]), ((x2-x1)/scale[2])]
+#         delta_row = [((y2-y1)/scale[0]), ((y2-y1)/scale[1]), ((y2-y1)/scale[2])]
         
-        '''updating network'''    
-        for n in range(len(delta_col)):
-            prev_weights[n][:]= net[n].update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
-            prev_weights[n][prev_weights[n][:]<0]=0
-            row_index,col_index=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
-            split_output_row[i,n]=row_index
-            split_output_col[i,n]=col_index
+#         '''updating network'''    
+#         for n in range(len(delta_col)):
+#             prev_weights[n][:]= net[n].update_weights_dynamics(prev_weights[n][:],delta_row[n],delta_col[n])
+#             prev_weights[n][prev_weights[n][:]<0]=0
+#             row_index,col_index=np.unravel_index(np.argmax(prev_weights[n][:]), np.shape(prev_weights[n][:]))
+#             split_output_row[i,n]=row_index
+#             split_output_col[i,n]=col_index
 
-        delta_peak_rows[i,:]=np.abs(split_output_row[i,:]-split_output_row[i-1,:])
-        delta_peak_cols[i,:]=np.abs(split_output_col[i,:]-split_output_col[i-1,:])
+#         delta_peak_rows[i,:]=np.abs(split_output_row[i,:]-split_output_row[i-1,:])
+#         delta_peak_cols[i,:]=np.abs(split_output_col[i,:]-split_output_col[i-1,:])
 
-        decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
-        decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
+#         decoded_row=np.sum(split_output_row*scale)*np.sign((y2-y1)) 
+#         decoded_col=np.sum(split_output_col*scale)*np.sign((x2-x1)) 
         
-        for j in range(len(scale)):
-            if j != input_idx:
-                error+=np.sum([peak[j] for peak in delta_peak_rows])
-                error+=np.sum([peak[j] for peak in delta_peak_cols])
-            else:
-                error-=delta_peak_rows[i,j]
-                error-=delta_peak_cols[i,j]
+#         for j in range(len(scale)):
+#             if j != input_idx:
+#                 error+=np.sum([peak[j] for peak in delta_peak_rows])
+#                 error+=np.sum([peak[j] for peak in delta_peak_cols])
+#             else:
+#                 error-=delta_peak_rows[i,j]
+#                 error-=delta_peak_cols[i,j]
         
         
-        ax10.set_title(str(scale[0])+" Scale",fontsize=9)
-        ax11.set_title(str(scale[1])+" Scale",fontsize=9)
-        ax12.set_title(str(scale[2])+" Scale",fontsize=9)
-        axtxt1.text(0,1,f"Input Trans: {round(x2,3), round(y2,3)}, Shift: {round(x2-x1,2)},{round(y2-y1,2)}, Decoded Trans: {round(decoded_col), round(decoded_row)}", c='r')
-        # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
-        axtxt1.axis('off')
-        axtxt1.text(0,0,f"Decoded Position of Each Network: {split_output_col[i]}, {split_output_row[i]}", c='r')
+#         ax10.set_title(str(scale[0])+" Scale",fontsize=9)
+#         ax11.set_title(str(scale[1])+" Scale",fontsize=9)
+#         ax12.set_title(str(scale[2])+" Scale",fontsize=9)
+#         axtxt1.text(0,1,f"Input Trans: {round(x2,3), round(y2,3)}, Shift: {round(x2-x1,2)},{round(y2-y1,2)}, Decoded Trans: {round(decoded_col), round(decoded_row)}", c='r')
+#         # axtxt.text(0,0,"Input Rot: " +str(round(rotation,3))+ " " + str(round(decoded_rotation,3)), c='m')
+#         axtxt1.axis('off')
+#         axtxt1.text(0,0,f"Decoded Position of Each Network: {split_output_col[i]}, {split_output_row[i]}", c='r')
 
-        ax10.imshow(prev_weights[0][:])
-        ax10.invert_yaxis()
+#         ax10.imshow(prev_weights[0][:])
+#         ax10.invert_yaxis()
 
-        ax11.imshow(prev_weights[1][:])
-        ax11.invert_yaxis()
+#         ax11.imshow(prev_weights[1][:])
+#         ax11.invert_yaxis()
 
-        ax12.imshow(prev_weights[2][:])
-        ax12.invert_yaxis()
+#         ax12.imshow(prev_weights[2][:])
+#         ax12.invert_yaxis()
         
-    # return error
-    ani = FuncAnimation(fig, animate, interval=100,frames=len(data_x)-2,repeat=False)
-    plt.show()
+#     # return error
+#     ani = FuncAnimation(fig, animate, interval=100,frames=len(data_x)-2,repeat=False)
+#     plt.show()
 
 
 '''2D'''

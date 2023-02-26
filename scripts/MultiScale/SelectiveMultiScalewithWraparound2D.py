@@ -283,12 +283,12 @@ def headDirection(theta_weights, angVel, init_angle):
     N=360
     # num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0281834545, 2
     num_links,excite,activity_mag,inhibit_scale, iterations=16, 17, 2.16818183,  0.0381834545, 2
+    num_links,excite,activity_mag,inhibit_scale, iterations=13,4,2.70983783e+00,4.84668851e-02,2
     net=attractorNetwork(N,num_links,excite, activity_mag,inhibit_scale)
     
     if theata_called_iters==0:
         theta_weights[net.activation(init_angle)]=net.full_weights(num_links)
         theata_called_iters+=1
-
 
     for j in range(iterations):
         theta_weights=net.update_weights_dynamics(theta_weights,angVel)
@@ -965,23 +965,23 @@ def hierarchicalNetwork2DGridNowrapNet(prev_weights, net,N, vel, direction, iter
     for i in range(iterations):
         prev_weights[cs_idx][:], wrap_rows_cs, wrap_cols_cs= net.update_weights_dynamics(prev_weights[cs_idx][:],direction, delta[cs_idx])
         prev_weights[cs_idx][prev_weights[cs_idx][:]<0]=0
-        wrap_rows[cs_idx]+=wrap_rows_cs
-        wrap_cols[cs_idx]+=wrap_cols_cs
+        # wrap_rows[cs_idx]+=wrap_rows_cs
+        # wrap_cols[cs_idx]+=wrap_cols_cs
+        x_grid_expect+=wrap_cols_cs*N*scales[cs_idx]
+        y_grid_expect+=wrap_rows_cs*N*scales[cs_idx]
     
-    for i in range(len(wrap_cols)):
-        x_grid_expect+=wrap_cols[i]*N*scales[i]
-    for i in range(len(wrap_rows)):
-        y_grid_expect+=wrap_rows[i]*N*scales[i]
+    # for i in range(len(wrap_cols)):
+    #     x_grid_expect+=wrap_cols[i]*N*scales[i]
+    # for i in range(len(wrap_rows)):
+    #     y_grid_expect+=wrap_rows[i]*N*scales[i]
 
-    wrap=0
-    # if np.any(wrap_cols!=0):
-    #     wrap=1
-    #     print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols}")
-    # if np.any(wrap_rows!=0):
-    #     wrap=1
-    #     print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows}")
+    
+        if np.any(wrap_cols_cs!=0):
+            print(f"------------------------------------------------------------------------------------------------------wrap_cols {wrap_cols_cs}, {scales[cs_idx]}")
+        if np.any(wrap_rows_cs!=0):
+            print(f"------------------------------------------------------------------------------------------------------wrap_rows {wrap_rows_cs}, {scales[cs_idx]}")
 
-       
+    wrap=0   
     return prev_weights, wrap, x_grid_expect, y_grid_expect
 
 def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, plot=False, printing=True, N=100):
@@ -993,8 +993,9 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395 modified
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395 modified
     
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,10,1,0.0008,2,1 #with decimals 200 iters fitness -395 modified
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=5,7,9.59471889e-01,2.93846361e-04,1,1 #tuned to reduce error 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.015,0.000865888565,1,1 #0.25 scale input, np.random.uniform(0,1,1) error
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000565888565,1,1 #16 scale input, np.random.uniform(10,20,1) error
@@ -1027,7 +1028,7 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
     
 
     '''_______________________________Iterating through simulation velocities_______________________________'''
-    for i in range(test_length):   
+    for i in range(1,test_length):   
         '''Path integration'''
         q[2]+=angVel[i]
         q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
@@ -1065,13 +1066,14 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
         y_grid.append(y_multiscale_grid+y_grid_expect)
 
         '''Error integrated path'''
-        # q_err[2]+=angVel[i]
+        q_err[2]+=angVel[i]
         q_err[0],q_err[1]=q_err[0]+vel[i]*np.cos(np.deg2rad(direction)), q_err[1]+vel[i]*np.sin(np.deg2rad(direction))
         x_integ_err.append(q_err[0])
         y_integ_err.append(q_err[1])
 
         if printing==True:
-            # print(np.rad2deg(q[2]), direction)
+            print(f'dir: {np.rad2deg(q[2])}, {direction}')
+            print(f'vel: {vel[i]}')
             print(f'decoded: {decodedXPerScale}, {decodedYPerScale}')
             print(f'expected: {x_grid_expect}, {y_grid_expect}')
             print(f'integ: {x_integ[-1]}, {y_integ[-1]}')
@@ -1096,7 +1098,7 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
 
 
 
-def plotFromSavedArray(outfile):
+def plotFromSavedArray(outfile,savePath):
     x_grid,y_grid, x_integ, y_integ, x_integ_err, y_integ_err= np.load(outfile)
     '''Compute distance'''
     dist=np.sum(vel)
@@ -1107,18 +1109,23 @@ def plotFromSavedArray(outfile):
     error=((x_error+y_error)*-1)/len(x_grid)
 
     '''Plot'''
-    plt.plot(x_integ, y_integ, 'g.')
-    plt.plot(x_grid, y_grid, 'b.')
+    fig, axs = plt.subplots(1,1,figsize=(8, 8))
+    plt.title('Kitti Dataset Trajectory Tracking')
+    plt.plot(x_integ, y_integ, 'g--')
+    plt.plot(x_grid, y_grid, 'm.')
     # plt.plot(wrap_x, wrap_y,'r*')
     plt.axis('equal')
-    plt.title(f'Distance:{round(dist)}m   Error:{round(error)}m/iter   Iterations:{len(x_integ)}')
-    plt.legend(('Path Integration', 'Multiscale Grid Decoding'))
-    plt.show()
+    # plt.title(f'Distance:{round(dist)}m   Error:{round(error)}m/iter   Iterations:{len(x_integ)}')
+    plt.legend(('Path Integration', 'Multiscale CAN'))
+    plt.savefig(savePath)
 
 def plotSavedMultiplePaths():
     fig, axs = plt.subplots(6,3,figsize=(10, 8))
     fig.legend(['MultiscaleCAN', 'Grid'])
     fig.tight_layout(pad=2.0)
+    fig.suptitle('Tracking Simulated Trajectories through Berlin')
+    # handles, labels = axs.get_legend_handles_labels()
+    # fig.legend(handles, labels, loc='upper center')
     axs=axs.ravel()
     for i in range(18):
         '''distance'''
@@ -1132,7 +1139,8 @@ def plotSavedMultiplePaths():
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{i}.npy'
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTuned_{i}.npy'
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathLonger_{i}.npy'
-        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{i}.npy'
+        # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{i}.npy'
+        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_{i}.npy'
         x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(outfile)
         # print(np.load(outfile)[0])
 
@@ -1147,14 +1155,15 @@ def plotSavedMultiplePaths():
 
 
         '''plot'''
-        axs[i].plot(x_grid,y_grid, 'b.')
-        axs[i].plot(x_integ, y_integ, 'g.')
-        axs[i].plot(x_integ_err, y_integ_err, 'r.')
+        l1=axs[i].plot(x_grid,y_grid, 'm-',label='MultiscaleCAN')
+        l2=axs[i].plot(x_integ, y_integ, 'g--', label='Naiive Integration')
+        # axs[i].plot(x_integ_err, y_integ_err, 'r.')
         axs[i].axis('equal')
-        axs[i].set_title(f'CAN Err:{round(errorCAN)}m   Integ Err:{round(errorPathIntegration)}')
-        # axs[i].legend(['MultiscaleCAN', 'Grid'])
-
-    plt.show()
+        # axs[i].set_title(f'CAN Err:{round(errorCAN)}m   Integ Err:{round(errorPathIntegration)}')
+        # axs[i].legend(['MultiscaleCAN', 'Naiive Integration'])
+    plt.subplots_adjust(top=0.93)
+    fig.legend([l1, l2], labels=['Multiscale CAN', 'Naiive Integration'],loc="upper right")
+    plt.savefig('./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20.png')
 
 
 # particle_pos=particle_filter( vel[1:test_length], angVel[1:test_length])
@@ -1184,7 +1193,7 @@ def plotSavedMultiplePaths():
 #     traverseInfo=np.load(outfile, allow_pickle=True)
 #     vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-#     scales=[0.25,1,4,16,100,10000]
+#     scales=[0.25,1,4,16]
 #     if len(vel)<500:
 #         test_length=len(vel)
 #     else:
@@ -1192,8 +1201,8 @@ def plotSavedMultiplePaths():
 
 #     # iterPerScale=int(np.ceil(test_length/4))
 #     # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
-
-#     headDirectionAndPlaceNoWrapNet(index,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+#     vel=np.random.uniform(0,20,test_length) 
+#     headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_{index}.npy', printing=False)
 # plotSavedMultiplePaths()
 
 '''Running single path'''
@@ -1206,6 +1215,12 @@ def plotSavedMultiplePaths():
 # iterPerScale=int(np.ceil(test_length/4))
 # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
 # vel=np.linspace(scales[1]*5,scales[2]*5,test_length)
+# headDirectionAndPlaceMultiparameter()
+# headDirectionAndPlace(index)
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+
+
 
 ''' Benefits of Multiscale '''
 def mutliVs_single(filepath, index, desiredTestLength):
@@ -1235,30 +1250,126 @@ def mutliVs_single(filepath, index, desiredTestLength):
 
     np.save(filepath, errors)
 
-index=0
-filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
+# index=0
+# filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
 # mutliVs_single(filepath, index, 500)
 
 
-plt.figure()
-singleErrors, multipleErrors = zip(*np.load(filepath))
-plt.plot(singleErrors, 'b')
-plt.plot(multipleErrors, 'm')
-# plt.axis('equal')
-plt.legend(['Single Network Error', 'Multiscale Networks Error'])
-plt.xlabel('Upper Limit of Velocity Range [m/s]')
-plt.ylabel('Error [Sum of Absolute Differences]')
-plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
-plt.tight_layout()
-plt.show()
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+# plt.figure()
+# singleErrors, multipleErrors = zip(*np.load(filepath))
+# plt.plot(singleErrors, 'b')
+# plt.plot(multipleErrors, 'm')
+# plt.legend(['Single Network Error', 'Multiscale Networks Error'])
+# plt.xlabel('Upper Limit of Velocity Range [m/s]')
+# plt.ylabel('Error [Sum of Absolute Differences]')
+# plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
+# plt.tight_layout()
+# plt.show()
 
 
 
-# headDirectionAndPlaceMultiparameter()
-# headDirectionAndPlace(index)
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
+''' Kitti Odometry'''
+def data_processing():
+    poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
+    gt = np.zeros((len(poses), 3, 4))
+    for i in range(len(poses)):
+        gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
+    return gt
 
+def testing_Conversion(sparse_gt):
+    # length=len(sparse_gt[:,:,3][:,0])
+    data_x=sparse_gt[:, :, 3][:,0]#[:200]
+    data_y=sparse_gt[:, :, 3][:,2]#[:200]
+    delta1,delta2=[],[]
+    for i in range(1,len(data_x)):
+        x0=data_x[i-2]
+        x1=data_x[i-1]
+        x2=data_x[i]
+        y0=data_y[i-2]
+        y1=data_y[i-1]
+        y2=data_y[i]
 
+        delta1.append(np.sqrt(((x2-x1)**2)+((y2-y1)**2))) #translation
+        delta2.append((math.atan2(y2-y1,x2-x1)) - (math.atan2(y1-y0,x1-x0)))  
 
-# 
+    print(np.array(delta1).shape,np.array(delta2).shape)
+
+    # print(dirs)
+    # delta2=np.transpose(np.diff(dirs))
+    # print(delta1,delta2)
+    np.save('./results/TestEnvironmentFiles/kittiVels.npy', np.array([delta1,delta2]))
+
+sparse_gt=data_processing()#[0::4]
+testing_Conversion(sparse_gt)
+# scales=[1,2,4,8,16]
+scales=[0.25,1,4,16]
+scales=[1]
+vel,angVel=np.load('./results/TestEnvironmentFiles/kittiVels.npy')
+if len(vel)<500:
+    test_length=len(vel)
+else:
+    test_length=500
+
+test_length=len(vel)
+# headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
+plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy','./results/TestEnvironmentFiles/KittiPath9.png')
+
+# def angdiff( th1, th2):
+#     d = th1 - th2
+#     d = np.mod(d+np.pi, 2*np.pi) - np.pi
+#     return d
+
+# def testing_Conversion_kitti(sparse_gt):
+#     length=len(sparse_gt[:,:,3][:,0])
+#     curr_x, curr_y, x, y=np.zeros(length),np.zeros(length),np.zeros(length),np.zeros(length)
+#     curr_x, curr_y, x[0], y[0]= [0],[0],0,0
+#     curr_theta=np.deg2rad(90)
+#     data_x=sparse_gt[:, :, 3][:,0]#[:200]
+#     data_y=sparse_gt[:, :, 3][:,2]#[:200]
+#     for i in range(2,len(data_x)):
+#         x0=data_x[i-2]
+#         x1=data_x[i-1]
+#         x2=data_x[i]
+#         y0=data_y[i-2]
+#         y1=data_y[i-1]
+#         y2=data_y[i]
+
+#         # delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+#         # # if (x2-x1)==0:
+#         # #     assert False 
+#         # #     # delta2=np.pi/2
+#         # # else:
+#         # angle2=(math.atan2(y2-y1,x2-x1)) #angle
+#         # angle1=(math.atan2(y1-y0,x1-x0)) 
+
+#         delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
+#         delta2=((math.atan2(y2-y1,x2-x1)) - (math.atan2(y1-y0,x1-x0)))  
+
+        
+#         curr_x.append(curr_x[-1]+(delta1*np.cos(curr_theta)))
+#         curr_y.append(curr_y[-1]+(delta1*np.sin(curr_theta)))
+#         curr_theta+=delta2
+
+#         x[i]=x[i-1]+(x2-x1)
+#         y[i]=y[i-1]+(y2-y1)
+
+#         print(delta1, curr_theta)
+
+#     fig = plt.figure(figsize=(13, 4))
+#     ax0 = fig.add_subplot(1, 2, 1)
+#     ax1 = fig.add_subplot(1, 2, 2)
+
+#     ax1.set_title('Converted')
+#     ax1.scatter(curr_x, curr_y,c='b',s=15)
+#     # ax1.set_xlim([-300,300])
+#     # ax1.set_ylim([-100,500])
+
+#     ax0.set_title('Original')
+#     ax0.scatter(x, y,c='b',s=15)
+#     # ax0.set_xlim([-300,300])
+#     # ax0.set_ylim([-100,500])
+
+    
+#     plt.savefig('./results/TestEnvironmentFiles/testingKitti')
+
+# testing_Conversion_kitti(data_processing())

@@ -12,7 +12,7 @@ import sys
 sys.path.append('./scripts')
 
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D, activityDecoding
-plt.style.use(['science','no-latex'])
+plt.style.use(['science','ieee'])
 
 '''Parameters'''
 # N=[100, 60] #number of neurons
@@ -547,7 +547,7 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
     ax0.set_xticks(np.arange(n_steps), [round(a,4) for a in magnitude],rotation=90)
     # ax0.grid(True)
 
-    plt.show()
+    plt.savefig('./results/PaperFigures/activityMagInhi.png')
 
     return zeros 
 
