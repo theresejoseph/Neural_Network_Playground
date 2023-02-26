@@ -12,6 +12,7 @@ import sys
 sys.path.append('./scripts')
 
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D, activityDecoding
+plt.style.use(['science','no-latex'])
 
 '''Parameters'''
 # N=[100, 60] #number of neurons
@@ -534,14 +535,14 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
     zeros=np.vstack((np.where(error==0)[0],np.where(error==0)[1]))
     # print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
     print(error)
-    print(inhibit[15],magnitude[0])
+    
 
-    ax0.set_title(filename)
+    ax0.set_title('Gridsearch of Motion Confidence Versus Inhibiton')
     # error[error==0]=np.nan
-    pos= ax0.imshow(norm_error)
+    pos= ax0.imshow(error, cmap='turbo')
     fig.colorbar(pos)
-    ax0.set_xlabel('Magnitude')
-    ax0.set_ylabel('Inhibition')
+    ax0.set_xlabel('Motion Confidence')
+    ax0.set_ylabel('Inhibition Factor')
     ax0.set_yticks(np.arange(n_steps),[round(a,4) for a in inhibit])
     ax0.set_xticks(np.arange(n_steps), [round(a,4) for a in magnitude],rotation=90)
     # ax0.grid(True)
@@ -652,16 +653,25 @@ def gridSearchAttractorGridcell(filename,n_steps,error_func,speeds,lower_inh,upp
         for j,mag in enumerate(magnitude):
             # print(mag,inh)
             t=time.time()
-            error[i,j]=error_func(speeds,mag,inh)
+            try:
+                error[i,j]=error_func(speeds,mag,inh)
+            except Exception as e:
+                error[i,j]=np.nan
             print(i,j,error[i,j], time.time()-t)
     with open(filename, 'wb') as f:
         np.save(f, np.array(error))
 
 filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitnessfuncfixed.npy'
-n_steps=20
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitnessfuncfixed2.npy'
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitnessfuncfixed3.npy'
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1.npy'
+# filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_highermag.npy'
+# filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_lowerinhnpy'
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel1.npy'
+n_steps=10
 broke_error=100000
-speeds=np.random.uniform(0,5,360//6) 
+speeds=np.random.uniform(0,1,360//6) 
 # attractorGridcell_fitness(speeds,2,0.001)
-lower_inh,upper_inh,lower_mag,upper_mag=0.00001,0.001,0.01,5
-gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
+lower_inh,upper_inh,lower_mag,upper_mag=0.0001,0.001,0.1,1
+# gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
 plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)
