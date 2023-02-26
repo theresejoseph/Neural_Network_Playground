@@ -1325,14 +1325,14 @@ x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePat
 fig, (ax1,ax2) = plt.subplots(1,2,figsize=(6, 3))
 fig.suptitle('Multiscale vs. Single Scale Kitti Odometry Path')
 plt.subplots_adjust(bottom=0.2)
-ax1.plot(x_integM, y_integM, 'g--')
-l1=ax1.plot(x_gridM, y_gridM, 'm-')
+l2,=ax1.plot(x_gridM, y_gridM, 'm-')
+l1,=ax1.plot(x_integM, y_integM, 'g--')
 ax1.axis('equal')
 
-l3=ax2.plot(x_integS, y_integS, 'g--')
-l2=ax2.plot(x_gridS, y_gridS, 'b-')
+l3,=ax2.plot(x_gridS, y_gridS, 'b-')
+l4,=ax2.plot(x_integS, y_integS, 'g--')
 ax2.axis('equal')
 
-fig.legend([l1, l2,l3], labels=['Multiscale CAN', 'Single scale CAN','Naiive Integration'],loc='lower center',ncol=3)
+fig.legend((l2, l3, l4), ('Multiscale CAN', 'Single scale CAN','Naiive Integration'),loc='lower center',ncol=3)
 plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
 
