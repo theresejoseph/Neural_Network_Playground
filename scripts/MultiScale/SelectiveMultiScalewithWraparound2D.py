@@ -1120,9 +1120,9 @@ def plotFromSavedArray(outfile,savePath):
     plt.savefig(savePath)
 
 def plotSavedMultiplePaths():
-    fig, axs = plt.subplots(6,3,figsize=(10, 8))
+    fig, axs = plt.subplots(6,3,figsize=(6, 6))
     fig.legend(['MultiscaleCAN', 'Grid'])
-    fig.tight_layout(pad=2.0)
+    fig.tight_layout(pad=0.75)
     fig.suptitle('Tracking Simulated Trajectories through Berlin')
     # handles, labels = axs.get_legend_handles_labels()
     # fig.legend(handles, labels, loc='upper center')
@@ -1161,8 +1161,9 @@ def plotSavedMultiplePaths():
         axs[i].axis('equal')
         # axs[i].set_title(f'CAN Err:{round(errorCAN)}m   Integ Err:{round(errorPathIntegration)}')
         # axs[i].legend(['MultiscaleCAN', 'Naiive Integration'])
+    plt.subplots_adjust(bottom=0.1)
     plt.subplots_adjust(top=0.93)
-    fig.legend([l1, l2], labels=['Multiscale CAN', 'Naiive Integration'],loc="upper right")
+    fig.legend([l1, l2], labels=['Multiscale CAN', 'Naiive Integration'],loc="lower center", ncol=2)
     plt.savefig('./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20.png')
 
 
@@ -1314,83 +1315,24 @@ test_length=len(vel)
 # headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
 # plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
 
+#PLOTTING
 multiPath=f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy'
 singlePath=f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy'
 
 x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
 x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
 
-fig, (ax1,ax2) = plt.subplots(1,2,figsize=(10, 6))
-ax1.set_title('Kitti Multiscale Trajectory Tracking')
+fig, (ax1,ax2) = plt.subplots(1,2,figsize=(6, 3))
+fig.suptitle('Multiscale vs. Single Scale Kitti Odometry Path')
+plt.subplots_adjust(bottom=0.2)
 ax1.plot(x_integM, y_integM, 'g--')
-ax1.plot(x_gridM, y_gridM, 'm-')
+l1=ax1.plot(x_gridM, y_gridM, 'm-')
 ax1.axis('equal')
-ax1.legend(('Path Integration', 'Multiscale CAN'))
 
-ax2.set_title('Kitti Single Scale Trajectory Tracking')
-ax2.plot(x_integS, y_integS, 'g--')
-ax2.plot(x_gridS, y_gridS, 'b-')
+l3=ax2.plot(x_integS, y_integS, 'g--')
+l2=ax2.plot(x_gridS, y_gridS, 'b-')
 ax2.axis('equal')
-ax2.legend(('Path Integration', 'Single Scale CAN'))
 
+fig.legend([l1, l2,l3], labels=['Multiscale CAN', 'Single scale CAN','Naiive Integration'],loc='lower center',ncol=3)
 plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
 
-# def angdiff( th1, th2):
-#     d = th1 - th2
-#     d = np.mod(d+np.pi, 2*np.pi) - np.pi
-#     return d
-
-# def testing_Conversion_kitti(sparse_gt):
-#     length=len(sparse_gt[:,:,3][:,0])
-#     curr_x, curr_y, x, y=np.zeros(length),np.zeros(length),np.zeros(length),np.zeros(length)
-#     curr_x, curr_y, x[0], y[0]= [0],[0],0,0
-#     curr_theta=np.deg2rad(90)
-#     data_x=sparse_gt[:, :, 3][:,0]#[:200]
-#     data_y=sparse_gt[:, :, 3][:,2]#[:200]
-#     for i in range(2,len(data_x)):
-#         x0=data_x[i-2]
-#         x1=data_x[i-1]
-#         x2=data_x[i]
-#         y0=data_y[i-2]
-#         y1=data_y[i-1]
-#         y2=data_y[i]
-
-#         # delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-#         # # if (x2-x1)==0:
-#         # #     assert False 
-#         # #     # delta2=np.pi/2
-#         # # else:
-#         # angle2=(math.atan2(y2-y1,x2-x1)) #angle
-#         # angle1=(math.atan2(y1-y0,x1-x0)) 
-
-#         delta1=np.sqrt(((x2-x1)**2)+((y2-y1)**2)) #translation
-#         delta2=((math.atan2(y2-y1,x2-x1)) - (math.atan2(y1-y0,x1-x0)))  
-
-        
-#         curr_x.append(curr_x[-1]+(delta1*np.cos(curr_theta)))
-#         curr_y.append(curr_y[-1]+(delta1*np.sin(curr_theta)))
-#         curr_theta+=delta2
-
-#         x[i]=x[i-1]+(x2-x1)
-#         y[i]=y[i-1]+(y2-y1)
-
-#         print(delta1, curr_theta)
-
-#     fig = plt.figure(figsize=(13, 4))
-#     ax0 = fig.add_subplot(1, 2, 1)
-#     ax1 = fig.add_subplot(1, 2, 2)
-
-#     ax1.set_title('Converted')
-#     ax1.scatter(curr_x, curr_y,c='b',s=15)
-#     # ax1.set_xlim([-300,300])
-#     # ax1.set_ylim([-100,500])
-
-#     ax0.set_title('Original')
-#     ax0.scatter(x, y,c='b',s=15)
-#     # ax0.set_xlim([-300,300])
-#     # ax0.set_ylim([-100,500])
-
-    
-#     plt.savefig('./results/TestEnvironmentFiles/testingKitti')
-
-# testing_Conversion_kitti(data_processing())
