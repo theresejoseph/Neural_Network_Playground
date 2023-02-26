@@ -12,7 +12,8 @@ import sys
 sys.path.append('./scripts')
 
 from CAN import  attractorNetworkSettling, attractorNetwork, attractorNetworkScaling, attractorNetwork2D, activityDecoding
-plt.style.use(['science','ieee'])
+# plt.style.use(['science','ieee'])
+plt.style.use(['science','no-latex'])
 
 '''Parameters'''
 # N=[100, 60] #number of neurons
@@ -530,17 +531,18 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
         error[error==broke_error]=np.nan
         norm_error=error/np.linalg.norm(error)
 
-    fig, ax0=plt.subplots(figsize=(10, 7), ncols=1)
+    fig, ax0=plt.subplots(figsize=(5, 5), ncols=1)
 
     zeros=np.vstack((np.where(error==0)[0],np.where(error==0)[1]))
     # print(inhibit[zeros[0,0]],magnitude[zeros[1,0]])
     print(error)
     
 
-    ax0.set_title('Gridsearch of Motion Confidence Versus Inhibiton')
+    ax0.set_title('Gridsearch of Confidence Vs. Inhibiton')
     # error[error==0]=np.nan
     pos= ax0.imshow(error, cmap='turbo')
-    fig.colorbar(pos)
+    cbar=fig.colorbar(pos)
+    cbar.set_label('Error (Sum of Absolute Differences)')
     ax0.set_xlabel('Motion Confidence')
     ax0.set_ylabel('Inhibition Factor')
     ax0.set_yticks(np.arange(n_steps),[round(a,4) for a in inhibit])
