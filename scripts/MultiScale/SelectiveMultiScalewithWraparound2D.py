@@ -1312,7 +1312,28 @@ else:
 
 test_length=len(vel)
 # headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
-plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
+# plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
+
+multiPath=f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy'
+singlePath=f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy'
+
+x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
+x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
+
+fig, (ax1,ax2) = plt.subplots(1,2,figsize=(10, 6))
+ax1.set_title('Kitti Multiscale Trajectory Tracking')
+ax1.plot(x_integM, y_integM, 'g--')
+ax1.plot(x_gridM, y_gridM, 'm-')
+ax1.axis('equal')
+ax1.legend(('Path Integration', 'Multiscale CAN'))
+
+ax2.set_title('Kitti Single Scale Trajectory Tracking')
+ax2.plot(x_integS, y_integS, 'g--')
+ax2.plot(x_gridS, y_gridS, 'b-')
+ax2.axis('equal')
+ax2.legend(('Path Integration', 'Single Scale CAN'))
+
+plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
 
 # def angdiff( th1, th2):
 #     d = th1 - th2
