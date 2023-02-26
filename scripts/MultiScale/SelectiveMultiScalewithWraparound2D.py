@@ -1112,7 +1112,7 @@ def plotFromSavedArray(outfile,savePath):
     fig, axs = plt.subplots(1,1,figsize=(8, 8))
     plt.title('Kitti Dataset Trajectory Tracking')
     plt.plot(x_integ, y_integ, 'g--')
-    plt.plot(x_grid, y_grid, 'm.')
+    plt.plot(x_grid, y_grid, 'm-')
     # plt.plot(wrap_x, wrap_y,'r*')
     plt.axis('equal')
     # plt.title(f'Distance:{round(dist)}m   Error:{round(error)}m/iter   Iterations:{len(x_integ)}')
@@ -1312,7 +1312,7 @@ else:
 
 test_length=len(vel)
 # headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
-plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy','./results/TestEnvironmentFiles/KittiPath9.png')
+plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
 
 # def angdiff( th1, th2):
 #     d = th1 - th2
