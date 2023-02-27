@@ -1251,21 +1251,21 @@ def mutliVs_single(filepath, index, desiredTestLength):
 
     np.save(filepath, errors)
 
-# index=0
-# filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
+index=0
+filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
 # mutliVs_single(filepath, index, 500)
 
 
-# plt.figure()
-# singleErrors, multipleErrors = zip(*np.load(filepath))
-# plt.plot(singleErrors, 'b')
-# plt.plot(multipleErrors, 'm')
-# plt.legend(['Single Network Error', 'Multiscale Networks Error'])
-# plt.xlabel('Upper Limit of Velocity Range [m/s]')
-# plt.ylabel('Error [Sum of Absolute Differences]')
-# plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
-# plt.tight_layout()
-# plt.show()
+plt.figure(figsize=(4,3))
+singleErrors, multipleErrors = zip(*np.load(filepath))
+plt.plot(singleErrors, 'b')
+plt.plot(multipleErrors, 'm')
+plt.legend(['Single Network Error', 'Multiscale Networks Error'])
+plt.xlabel('Maximum Velocity [m/s]')
+plt.ylabel('Total Absolute Error [SAD]')
+plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
+plt.tight_layout()
+plt.savefig('./results/PaperFigures/SingleVsMultiNetwork.png')
 
 
 
@@ -1315,24 +1315,24 @@ test_length=len(vel)
 # headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
 # plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
 
-#PLOTTING
-multiPath=f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy'
-singlePath=f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy'
+#'''PLOTTING SIGNLE vs MULTI'''
+# multiPath=f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy'
+# singlePath=f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy'
 
-x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
-x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
+# x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
+# x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
 
-fig, (ax1,ax2) = plt.subplots(1,2,figsize=(6, 3))
-fig.suptitle('Multiscale vs. Single Scale Kitti Odometry Path')
-plt.subplots_adjust(bottom=0.2)
-l2,=ax1.plot(x_gridM, y_gridM, 'm-')
-l1,=ax1.plot(x_integM, y_integM, 'g--')
-ax1.axis('equal')
+# fig, (ax1,ax2) = plt.subplots(1,2,figsize=(6, 3))
+# fig.suptitle('Multiscale vs. Single Scale Kitti Odometry Path')
+# plt.subplots_adjust(bottom=0.2)
+# l2,=ax1.plot(x_gridM, y_gridM, 'm-')
+# l1,=ax1.plot(x_integM, y_integM, 'g--')
+# ax1.axis('equal')
 
-l3,=ax2.plot(x_gridS, y_gridS, 'b-')
-l4,=ax2.plot(x_integS, y_integS, 'g--')
-ax2.axis('equal')
+# l3,=ax2.plot(x_gridS, y_gridS, 'b-')
+# l4,=ax2.plot(x_integS, y_integS, 'g--')
+# ax2.axis('equal')
 
-fig.legend((l2, l3, l4), ('Multiscale CAN', 'Single scale CAN','Naiive Integration'),loc='lower center',ncol=3)
-plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
+# fig.legend((l2, l3, l4), ('Multiscale CAN', 'Single scale CAN','Naiive Integration'),loc='lower center',ncol=3)
+# plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
 

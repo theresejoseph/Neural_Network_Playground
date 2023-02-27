@@ -873,7 +873,7 @@ class GeneticAlgorithm:
         # if random value is greater than 1-probabilty, then mutate the gene
         # if no genes are mutated then require one (pick randomly)
         # amount of mutation = value + gaussian (with varience)
-        mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.00005), int(np.random.normal(0,1))])
+        mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.1), np.random.normal(0,0.0005), int(np.random.normal(0,1))])
     
         mutate_prob=np.array([random.random() for i in range(len(genome))])
         mutate_indexs=np.argwhere(mutate_prob<=0.2)
@@ -891,12 +891,12 @@ class GeneticAlgorithm:
     
     def process_element(self, i, population):
         # return self.fitnessFunc(population[i])
-        # try:
-        fit=self.fitnessFunc(population[i])
-        print(i, fit)
-        return fit
-        # except Exception as e:
-        #     return -10000000000
+        try:
+            fit=self.fitnessFunc(population[i])
+            print(i, fit)
+            return fit
+        except Exception as e:
+            return -10000000000
 
 
     def sortByFitness(self,population,topK):
@@ -960,8 +960,8 @@ class GeneticAlgorithm:
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
     # filename=f'../results/GA_MultiScale/tuningGridNew1.npy'
-    filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
-    # filename=f'../results/GA_MultiScale/place_randomInput.npy'
+    # filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+    filename=f'../results/GA_MultiScale/place_randomInput.npy'
 
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
     # ranges = [[1,10],[1,10],[0.1,4],[0,0.1],[1,10],[1,10],[0.1,4],[0,0.1]]
@@ -979,7 +979,7 @@ def runGA1D(plot=False):
     # ranges = [[1,20],[1,20],[0.05,4],[0,0.1],[1,2]]
     # fitnessFunc=headDirectionFitness
 
-    ranges = [[1,20],[1,20],[0.05,4],[0,0.0005],[1,4]]
+    ranges = [[1,20],[1,20],[0.05,4],[0,0.005],[1,4]]
     fitnessFunc= attractorGridcell_fitness
 
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.005), np.random.normal(0,0.00005), int(np.random.normal(0,1)), int(np.random.normal(0,1))])
@@ -1014,7 +1014,7 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    # runGA1D(plot=False)
+    runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

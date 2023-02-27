@@ -523,7 +523,7 @@ def gridSearch(filename,n_steps,error_func,scale,lower_inh,upper_inh,lower_mag,u
     with open(filename, 'wb') as f:
         np.save(f, np.array(error))
 
-def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag):
+def plottingGridSearch(filename,savePath,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag):
     inhibit= list(np.linspace(lower_inh,upper_inh,n_steps))
     magnitude= list(np.linspace(lower_mag,upper_mag,n_steps))
     with open(filename, 'rb') as f:
@@ -549,7 +549,7 @@ def plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_ma
     ax0.set_xticks(np.arange(n_steps), [round(a,4) for a in magnitude],rotation=90)
     # ax0.grid(True)
 
-    plt.savefig('./results/PaperFigures/activityMagInhi.png')
+    plt.savefig(savePath)
 
     return zeros 
 
@@ -669,11 +669,14 @@ filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitn
 filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_highermag.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_lowerinhnpy'
-filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel1.npy'
-n_steps=10
-broke_error=100000
-speeds=np.random.uniform(0,1,360//6) 
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange3.npy'
+
+savePath='./results/PaperFigures/activityMagInhi_largeRange3.png'
+np.random.seed(10)
+n_steps=5
+broke_error=10000000
+speeds=np.random.uniform(0,2,360//6) 
 # attractorGridcell_fitness(speeds,2,0.001)
-lower_inh,upper_inh,lower_mag,upper_mag=0.0001,0.001,0.1,1
-# gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
-plottingGridSearch(filename,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)
+lower_inh,upper_inh,lower_mag,upper_mag=0.00001,0.002,0.1,1
+gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
+plottingGridSearch(filename,savePath,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)
