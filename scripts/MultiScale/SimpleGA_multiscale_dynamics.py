@@ -19,7 +19,7 @@ from functools import partial
 import logging
 # import scienceplots
 # plt.rcParams.update(plt.rcParamsDefault)
-plt.style.use(['science', 'ieee'])
+plt.style.use(['science', 'no-latex'])
 # plt.rcParams['text.usetex'] = True
 # print(plt.style.available)
 
@@ -960,7 +960,7 @@ class GeneticAlgorithm:
 def runGA1D(plot=False):
     #[num_links, excitation width, activity magnitude,inhibition scale]
     # filename=f'../results/GA_MultiScale/tuningGridNew1.npy'
-    # filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+    filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
     filename=f'../results/GA_MultiScale/place_randomInput.npy'
 
     # mutate_amount=np.array([int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05), int(np.random.normal(0,1)), int(np.random.normal(0,1)), np.random.normal(0,0.05), np.random.normal(0,0.05)])
@@ -1001,20 +1001,20 @@ def runGA1D(plot=False):
         std_1=np.array([np.std(fit) for fit in data[:,:,-1]])
 
         x = np.arange(len(mean_1))
-        plt.plot(x, mean_1, 'g-', label='Head Direction Network Tuning with Genetic Algorithm')
-        plt.fill_between(x, mean_1 - std_1, mean_1 + std_1, color='g', alpha=0.2)
+        plt.plot(x, mean_1, color='teal', label='2D Network Tuning with Genetic Algorithm')
+        plt.fill_between(x, mean_1 - std_1, mean_1 + std_1, color='teal', alpha=0.2)
         plt.xlabel('Generation')
-        plt.ylabel('Fitness [Sum of Absolute Differences]')
-        plt.title('Head Direction Network Tuning')
+        plt.ylabel('Fitness [-SAD]')
+        plt.title('2D Network Tuning')
         plt.tight_layout()
-        plt.show()
+        plt.savefig('../results/GA_MultiScale/2DTuning.pdf')
         print(data[-1,0,:])
     else:
         GeneticAlgorithm(num_gens,population_size,filename,fitnessFunc,ranges).implimentGA()
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
+    # runGA1D(plot=False)
     runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):

@@ -669,14 +669,14 @@ filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitn
 filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_highermag.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_lowerinhnpy'
-filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange3.npy'
+filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange.npy'
 
-savePath='./results/PaperFigures/activityMagInhi_largeRange3.png'
+savePath='./results/PaperFigures/activityMagInhi_largeRange.pdf'
 np.random.seed(10)
 n_steps=5
 broke_error=10000000
 speeds=np.random.uniform(0,2,360//6) 
 # attractorGridcell_fitness(speeds,2,0.001)
 lower_inh,upper_inh,lower_mag,upper_mag=0.00001,0.002,0.1,1
-gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
+# gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
 plottingGridSearch(filename,savePath,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)
