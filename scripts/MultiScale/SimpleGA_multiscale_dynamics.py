@@ -1014,8 +1014,8 @@ def runGA1D(plot=False):
 
 if __name__ == '__main__':
     freeze_support()
-    runGA1D(plot=False)
-    runGA1D(plot=True)
+    # runGA1D(plot=False)
+    # runGA1D(plot=True)
 
 # def decodedPosAfterupdate(weights,input):
 # genome=[1,1,2.20759901e-01,2.34033865e-04,2] # training 1
@@ -1269,3 +1269,39 @@ if __name__ == '__main__':
 # fittest3=[ 7.40000000e+01,7.80000000e+01,2.00000000e+00,1.07922584e-01,7.02904729e-03,-8.80000000e+01]
 # fittest=[5.00000000e+00,3.00000000e+00,2.23220121e-02,3.62736020e-03,1.10000000e+01,3.00000000e+00,2.39987795e-02,5.51246640e-04,4.00000000e+00,2.00000000e+00,2.73989154e-01,2.03594051e-03,-4.34000000e+02]
 # visualiseMultiResolutionTranslation2D(fittest)
+
+filename=f'../results/GA_MultiScale/headDirection_randomInput.npy'
+with open(filename, 'rb') as f:
+    data = np.load(f)
+    mean_1=np.array([np.mean(fit) for fit in data[:,:,-1]])
+    std_1=np.array([np.std(fit) for fit in data[:,:,-1]])
+
+    
+
+filename=f'../results/GA_MultiScale/place_randomInput.npy'
+with open(filename, 'rb') as f:
+    data = np.load(f)
+    mean_2=np.array([np.mean(fit) for fit in data[:15,:,-1]])
+    std_2=np.array([np.std(fit) for fit in data[:15,:,-1]])
+
+fig, (ax1,ax2) = plt.subplots(1,2,figsize=(4, 2),sharey='row')
+plt.tight_layout()
+
+
+x1 = np.arange(len(mean_1))
+ax1.plot(x1, mean_1, 'g-', label='Head Direction Network Tuning with Genetic Algorithm')
+ax1.fill_between(x1, mean_1 - std_1, mean_1 + std_1, color='g', alpha=0.2)
+ax1.set_xlabel('Generations')
+ax1.set_ylabel('Fitness [-SAD]')
+ax1.set_title('Head Direction Network Tuning')
+# ax1.tight_layout()
+
+x2 = np.arange(len(mean_2))
+ax2.plot(x2, mean_2, color='teal', label='Head Direction Network Tuning with Genetic Algorithm')
+ax2.fill_between(x2, mean_2 - std_2, mean_2 + std_2, color='teal', alpha=0.2)
+ax2.set_xlabel('Generations')
+# ax2.set_ylabel('Fitness [-SAD]')
+ax2.set_title('Multiscale Network Tuning')
+# ax2.tight_layout()
+
+plt.savefig('../results/PaperFigures/HeadDirectionandMultiscaleNetworkTuning1.png')

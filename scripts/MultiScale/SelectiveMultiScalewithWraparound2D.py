@@ -23,8 +23,9 @@ import CAN as can
 import json 
 from DataHandling import saveOrLoadNp  
 # import scienceplots
-# plt.style.use(['science','ieee'])
-plt.style.use(['science','no-latex'])
+plt.style.use(['science','ieee'])
+# plt.style.use(['science','no-latex'])
+
 
 
 def pathIntegration(speed, angVel):
@@ -38,11 +39,23 @@ def pathIntegration(speed, angVel):
 
     return x_integ, y_integ
 
-def errorTwoCoordinateLists(x1, y1, x2, y2):
-    x_error=np.sum(np.abs(np.array(x1) - np.array(x2)))
-    y_error=np.sum(np.abs(np.array(y1) - np.array(y2)))
+def errorTwoCoordinateLists(x_pi, y_pi, x2, y2, errDistri=False):
+    '''RMSE error'''
+    err=[]
+    x_err_sum,y_err_sum=0,0
+    for i in range(len(x2)):
+        x_err_sum+=(x_pi[i]-x2[i])**2
+        y_err_sum+=(y_pi[i]-y2[i])**2
+        if errDistri== True:
+            err.append(np.abs(x_pi[i]-x2[i])+ np.abs(y_pi[i]-y2[i]))
 
-    return (x_error+y_error)
+    x_error=np.sqrt(x_err_sum/len(x2))
+    y_error=np.sqrt(y_err_sum/len(y2))
+
+    if errDistri==True:
+        return np.array(err)#np.cumsum(np.array(err))
+    else:
+        return (x_error+y_error)
 
 def scale_selection(input,scales, swap_val=1):
     if len(scales)==1:
@@ -993,9 +1006,9 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=7,1,2.59532708e-01 ,2.84252467e-04,4,3 #without decimals 1000 iters fitness -5000
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395
-    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395 modified
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395 modified
     
-    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,10,1,0.0008,2,1 #with decimals 200 iters fitness -395 modified
+    # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,10,1,0.0008,2,1 #with decimals 200 iters fitness -395 modified
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=5,7,9.59471889e-01,2.93846361e-04,1,1 #tuned to reduce error 
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.015,0.000865888565,1,1 #0.25 scale input, np.random.uniform(0,1,1) error
     # num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=3,5,0.05,0.000565888565,1,1 #16 scale input, np.random.uniform(10,20,1) error
@@ -1104,12 +1117,10 @@ def plotFromSavedArray(outfile,savePath):
     dist=np.sum(vel)
    
     '''Compute error'''
-    x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-    y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-    error=((x_error+y_error)*-1)/len(x_grid)
+    error=errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid)
 
     '''Plot'''
-    fig, axs = plt.subplots(1,1,figsize=(8, 8))
+    fig, axs = plt.subplots(1,1,figsize=(4, 3))
     plt.title('Kitti Dataset Trajectory Tracking')
     plt.plot(x_integ, y_integ, 'g--')
     plt.plot(x_grid, y_grid, 'm-')
@@ -1119,52 +1130,52 @@ def plotFromSavedArray(outfile,savePath):
     plt.legend(('Path Integration', 'Multiscale CAN'))
     plt.savefig(savePath)
 
-def plotSavedMultiplePaths():
-    fig, axs = plt.subplots(6,3,figsize=(6, 6))
+
+def plotSavedMultiplePaths(length,outfile,pathfile,savepath,figrows,figcols,randomSeedVariation):
+    fig, axs = plt.subplots(figrows,figcols,figsize=(4, 4))
     fig.legend(['MultiscaleCAN', 'Grid'])
-    fig.tight_layout(pad=0.75)
+    fig.tight_layout(pad=1)
     fig.suptitle('Tracking Simulated Trajectories through Berlin')
-    # handles, labels = axs.get_legend_handles_labels()
-    # fig.legend(handles, labels, loc='upper center')
     axs=axs.ravel()
-    for i in range(18):
-        '''distance'''
-        outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{i}.npz'
-        traverseInfo=np.load(outfile, allow_pickle=True)
-        dist=np.sum(traverseInfo['speeds'])
-
-
+    errors,distance=[],[]
+    for i in range(length):
         '''error'''
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePath{i}.npy'         
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathChangedFeedthrough_{i}.npy'
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTuned_{i}.npy'
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathLonger_{i}.npy'
         # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{i}.npy'
-        outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_{i}.npy'
-        x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(outfile)
-        # print(np.load(outfile)[0])
+        # outfile=f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_{i}.npy'
+        x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(pathfile+f'{i}.npy')
 
-
-        x_error=np.sum(np.abs(np.array(x_grid) - np.array(x_integ)))
-        y_error=np.sum(np.abs(np.array(y_grid) - np.array(y_integ)))
-        errorCAN=((x_error+y_error)*-1)
-
-        x_error_integ=np.sum(np.abs(np.array(x_integ_err) - np.array(x_integ)))
-        y_error_integ=np.sum(np.abs(np.array(y_integ_err) - np.array(y_integ)))
-        errorPathIntegration=((x_error_integ+y_error_integ)*-1)
+        '''distance'''
+        # traverseInfo=np.load(outfile+f'{i}.npz', allow_pickle=True)
+        # dist=np.sum(traverseInfo['speeds'])
+        np.random.seed(i*randomSeedVariation)
+        vel=np.random.uniform(0,20,len(x_grid)) 
+        dist=np.sum(vel)
+ 
+        # print(f'RMSE:{errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid)}, Distance {dist}')
+        print(errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid))
+        # print(dist)
 
 
         '''plot'''
-        l1=axs[i].plot(x_grid,y_grid, 'm-',label='MultiscaleCAN')
-        l2=axs[i].plot(x_integ, y_integ, 'g--', label='Naiive Integration')
+        l1,=axs[i].plot(x_grid,y_grid, 'm-',label='MultiscaleCAN')
+        l2,=axs[i].plot(x_integ, y_integ, 'g--')
         # axs[i].plot(x_integ_err, y_integ_err, 'r.')
         axs[i].axis('equal')
         # axs[i].set_title(f'CAN Err:{round(errorCAN)}m   Integ Err:{round(errorPathIntegration)}')
         # axs[i].legend(['MultiscaleCAN', 'Naiive Integration'])
+    # print(np.array(errors).T)
+    # print('')
+    # print(np.array(distance).T)
+    # print('')
     plt.subplots_adjust(bottom=0.1)
     plt.subplots_adjust(top=0.93)
-    fig.legend([l1, l2], labels=['Multiscale CAN', 'Naiive Integration'],loc="lower center", ncol=2)
-    plt.savefig('./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20.png')
+    fig.legend((l1, l2), ('Multiscale CAN', 'Ground Truth'),loc="lower center", ncol=2)
+    plt.savefig(savepath)
+
 
 
 # particle_pos=particle_filter( vel[1:test_length], angVel[1:test_length])
@@ -1189,37 +1200,149 @@ def plotSavedMultiplePaths():
 # vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
 
 '''Running 18 paths with Multiscale CAN'''
-# for index in range(18):
-#     outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{index}.npz'
-#     traverseInfo=np.load(outfile, allow_pickle=True)
-#     vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+def runningAllPathsFromACity(length,outfilePart,pathFile,randomSeedVariation):
+    for index in range(length):
+        outfile=outfilePart+f'{index}.npz'
+        traverseInfo=np.load(outfile, allow_pickle=True)
+        vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
 
-#     scales=[0.25,1,4,16]
-#     if len(vel)<500:
-#         test_length=len(vel)
-#     else:
-#         test_length=500
+        # scales=[0.25,1,4,16]
+        scales=[1]
+        if len(vel)<1000:
+            test_length=len(vel)
+        else:
+            test_length=1000
 
-#     # iterPerScale=int(np.ceil(test_length/4))
-#     # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
-#     vel=np.random.uniform(0,20,test_length) 
-#     headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_{index}.npy', printing=False)
-# plotSavedMultiplePaths()
+        # iterPerScale=int(np.ceil(test_length/4))
+        # vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
+        np.random.seed(index*randomSeedVariation)
+        vel=np.random.uniform(0,20,test_length) 
+        headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,pathfile+f'{index}.npy', printing=False)
 
-'''Running single path'''
+# Brisbane = 7, Japan =4, NYC=7, Berlin=9
 
-# scales=[0.25,0.5,1,2,4,8,16]
-# scales=[0.25,1,4,16]
-# scales=[1]
+length=18
+outfile='./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath'
+pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_'
+savepath='./results/PaperFigures/MultipathTrackingSpeeds0to20_Berlin.pdf'
+# pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeedsOG_'
+# savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeedsOG_Berlin.png'
+# pathfile='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscalePathwithSpeeds_'
+# savepath='./results/TestEnvironmentFiles/SinglepathTrackingSpeeds_Berlin.png'
+# runningAllPathsFromACity(length,outfile,pathfile,1)
+plotSavedMultiplePaths(length,outfile,pathfile,savepath,6,3,1)
 
-# vel=[0.5]*test_length
-# iterPerScale=int(np.ceil(test_length/4))
-# vel=np.concatenate([np.linspace(0,scales[0]*5,iterPerScale), np.linspace(scales[0]*5,scales[1]*5,iterPerScale), np.linspace(scales[1]*5,scales[2]*5,iterPerScale), np.linspace(scales[2]*5,scales[3]*5,iterPerScale)])
-# vel=np.linspace(scales[1]*5,scales[2]*5,test_length)
-# headDirectionAndPlaceMultiparameter()
-# headDirectionAndPlace(index)
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithUniformErr_{index}.npy')
-# plotFromSavedArray(f'./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathTesting{index}.npy')
+length=7
+outfile='./results/TestEnvironmentFiles/TraverseInfo/NYC'
+pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleNYC'
+savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20_NYC.png'
+# pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleNYC_OG'
+# savepath='./results/TestEnvironmentFiles/MultipathTrackingOG_NYC.png'
+# pathfile='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscaleNYC_'
+# savepath='./results/TestEnvironmentFiles/SinglepathTracking_NYC.png'
+# runningAllPathsFromACity(length,outfile,pathfile,2)
+# plotSavedMultiplePaths(length,outfile,pathfile,savepath,3,3,2)
+
+length=4
+outfile='./results/TestEnvironmentFiles/TraverseInfo/Japan'
+pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleJapan'
+savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20_Japan.png'
+# pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleJapanOG'
+# savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeedsOG_Japan.png'
+# pathfile='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscaleJapan'
+# savepath='./results/TestEnvironmentFiles/SinglepathTrackingSpeeds_Japan.png'
+# runningAllPathsFromACity(length,outfile,pathfile,3)
+# plotSavedMultiplePaths(length,outfile,pathfile,savepath,2,2,3)
+
+length=7
+outfile='./results/TestEnvironmentFiles/TraverseInfo/Brisbane'
+pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleBrisbane'
+savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeeds0to20_Brisbane.png'
+# pathfile='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscaleBrisbaneOG'
+# savepath='./results/TestEnvironmentFiles/MultipathTrackingSpeedsOG_Brisbane.png'
+# pathfile='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscaleBrisbane'
+# savepath='./results/TestEnvironmentFiles/SinglepathTrackingSpeeds_Brisbane.png'
+# runningAllPathsFromACity(length,outfile,pathfile,4)
+# plotSavedMultiplePaths(length,outfile,pathfile,savepath,3,3,4)
+
+'''Cumalitive error Distribution'''
+# outfile=f'./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath{1}.npz'
+# traverseInfo=np.load(outfile, allow_pickle=True)
+# angVel= traverseInfo['angVel']
+# if len(angVel)<1000:
+#     test_length=len(angVel)
+# else:
+#     test_length=1000
+# vel=np.random.uniform(0,20,test_length)
+
+scales=[1]
+singlePath='./results/TestEnvironmentFiles/CumaliSingle_20speed_berlin1.npy'
+# single_x,single_y=headDirectionAndPlaceNoWrapNet(scales,test_length, vel, angVel,singlePath,plot=False, printing=False)
+
+scales=[0.25,1,4,16]
+multiPath='./results/TestEnvironmentFiles/CumaliMulti_20speed_berlin1.npy'
+# multi_x,multi_y=headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,multiPath,plot=False, printing=False)
+
+x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
+x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
+multipleError=errorTwoCoordinateLists(x_integM, y_integM,x_gridM,y_gridM,errDistri=True)
+singleError=errorTwoCoordinateLists(x_integS, y_integS,x_gridS,y_gridS,errDistri=True)
+
+fig,(ax1,ax2) = plt.subplots(1,2,figsize=(3.2, 1.7))
+fig.legend(['MultiscaleCAN', 'Grid'])
+fig.tight_layout()
+fig.suptitle('ATE Error Over Time',y=1.07)
+ax1.bar(np.arange(999),singleError, color='royalblue', width=1)
+ax1.set_xlabel('Berlin Trajectories')
+ax1.set_ylabel('ATE [m]')
+ax2.bar(np.arange(999),multipleError,  color='mediumorchid',width=1)
+ax2.set_xlabel('Berlin Trajectories')
+plt.subplots_adjust(top=0.9)
+fig.legend(('Single scale','Multiscale'),loc='upper center', bbox_to_anchor=(0.5,1.03),ncol=2)
+plt.savefig('./results/PaperFigures/errorOverTim.pdf')
+
+'''Local Error segments'''
+def plotMultiplePathsErrorDistribution(length,pathfileSingle,pathfileMulti,savepath,randomSeedVariation):
+    fig = plt.subplots(1,1,figsize=(3.2, 1.8))
+    # fig.legend(['MultiscaleCAN', 'Grid'])
+    # fig.tight_layout()
+    # fig.suptitle('ATE within 18 Trajectories through Berlin',y=1.05)
+
+    errorSingle,erroMulti=[],[]
+    for i in range(length):
+        x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(pathfileSingle+f'{i}.npy')
+        errorSingle.append(errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid))
+ 
+    for i in range(length):
+        x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(pathfileMulti+f'{i}.npy')
+        erroMulti.append(errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid))
+#  
+    # ax1.bar(np.arange(length),errorSingle, color='royalblue', width=1)
+    # ax1.set_xlabel('Berlin Trajectories')
+    # ax1.set_ylabel('ATE [m]')
+    # ax2.bar(np.arange(length),erroMulti,  color='mediumorchid',width=1)
+    # ax2.set_xlabel('Berlin Trajectories')
+    # plt.subplots_adjust(top=0.9)
+    # fig.legend(('Single scale','Multiscale'),loc='upper center', bbox_to_anchor=(0.5,1.01),ncol=2)
+    # plt.figure(figsize=(2.7,2))
+    plt.subplots_adjust(bottom=0.2)
+    plt.bar(np.arange(length),errorSingle,color='royalblue')
+    plt.bar(np.arange(length),erroMulti, color='mediumorchid')
+    plt.legend(['Single-scale', 'Multiscale'],ncol=2,loc='best')
+    plt.xlabel('Berlin Trajectories',y=0)
+    plt.ylabel('ATE [m]')
+    plt.ylim([0,12000])
+    plt.title('ATE within 18 Trajectories through Berlin')
+    # plt.tight_layout()
+    
+    plt.savefig(savepath)
+
+
+# length=18
+# pathfileMulti='./results/TestEnvironmentFiles/MultiscaleCAN/TestMultiscalePathwithSpeeds0to20_'
+# pathfileSingle='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscalePathwithSpeeds_'
+# savepath='./results/PaperFigures/ErrorDistributionLocalSegmentsOnefig.pdf'
+# plotMultiplePathsErrorDistribution(length,pathfileSingle,pathfileMulti,savepath,1)
 
 
 
@@ -1251,27 +1374,25 @@ def mutliVs_single(filepath, index, desiredTestLength):
 
     np.save(filepath, errors)
 
-index=0
-filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors2.npy'
-# mutliVs_single(filepath, index, 500)
-
-
-plt.figure(figsize=(4,3))
-singleErrors, multipleErrors = zip(*np.load(filepath))
-plt.plot(singleErrors, 'b')
-plt.plot(multipleErrors, 'm')
-plt.legend(['Single Network Error', 'Multiscale Networks Error'])
-plt.xlabel('Maximum Velocity [m/s]')
-plt.ylabel('Total Absolute Error [SAD]')
-plt.title('Comparison of Single versus Multiscale Networks', y=1.08)
-plt.tight_layout()
-plt.savefig('./results/PaperFigures/SingleVsMultiNetwork.png')
+# index=0
+# filepath=f'./results/TestEnvironmentFiles/MultiscaleVersus SingleScale/Path{index}_singleVSmultiErrors3.npy'
+# # mutliVs_single(filepath, index, 500)
+# plt.figure(figsize=(2.7,2))
+# singleErrors, multipleErrors = zip(*np.load(filepath))
+# plt.plot(singleErrors, 'b')
+# plt.plot(multipleErrors, 'm')
+# plt.legend(['Single-scale', 'Multiscale'])
+# plt.xlabel('Maximum velocity within Test Trajectory')
+# plt.ylabel('ATE [m] ')
+# plt.title('Network Perfomance over Large Velocity Ranges')
+# plt.tight_layout()
+# plt.savefig('./results/PaperFigures/SingleVsMultiNetworkRMSE.pdf')
 
 
 
 ''' Kitti Odometry'''
-def data_processing():
-    poses = pd.read_csv('./data/dataset/poses/00.txt', delimiter=' ', header=None)
+def data_processing(index):
+    poses = pd.read_csv(f'./data/dataset/poses/'+index, delimiter=' ', header=None)
     gt = np.zeros((len(poses), 3, 4))
     for i in range(len(poses)):
         gt[i] = np.array(poses.iloc[i]).reshape((3, 4))
@@ -1300,29 +1421,34 @@ def testing_Conversion(sparse_gt):
     # print(delta1,delta2)
     np.save('./results/TestEnvironmentFiles/kittiVels.npy', np.array([delta1,delta2]))
 
-sparse_gt=data_processing()#[0::4]
+# for i in range(10):
+sparse_gt=data_processing(f'00.txt')#[0::4]
 testing_Conversion(sparse_gt)
 # scales=[1,2,4,8,16]
-scales=[0.25,1,4,16]
-scales=[1]
-vel,angVel=np.load('./results/TestEnvironmentFiles/kittiVels.npy')
-if len(vel)<500:
-    test_length=len(vel)
-else:
-    test_length=500
+# scales=[0.25,1,4,16]
+# scales=[1]
+# vel,angVel=np.load('./results/TestEnvironmentFiles/kittiVels.npy')
+# if len(vel)<500:
+#     test_length=len(vel)
+# else:
+#     test_length=500
 
-test_length=len(vel)
+# test_length=len(vel)
 # headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy', printing=False)
+
 # plotFromSavedArray(f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy','./results/TestEnvironmentFiles/KittiPath7_nosparse_scaleMultipier2.png')
 
-#'''PLOTTING SIGNLE vs MULTI'''
+'''PLOTTING SIGNLE vs MULTI'''
 # multiPath=f'./results/TestEnvironmentFiles/kittiPath_nosparse.npy'
 # singlePath=f'./results/TestEnvironmentFiles/kittiPath_nosparse_singleScale.npy'
 
 # x_gridM,y_gridM, x_integM, y_integM, x_integ_err, y_integ_err= np.load(multiPath)
 # x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePath)
 
-# fig, (ax1,ax2) = plt.subplots(1,2,figsize=(6, 3))
+# print(errorTwoCoordinateLists(x_integS, y_integS,x_gridS,y_gridS))
+# print(np.sum(vel))
+
+# fig, (ax1,ax2) = plt.subplots(1,2,figsize=(3.4, 1.9))
 # fig.suptitle('Multiscale vs. Single Scale Kitti Odometry Path')
 # plt.subplots_adjust(bottom=0.2)
 # l2,=ax1.plot(x_gridM, y_gridM, 'm-')
@@ -1333,6 +1459,6 @@ test_length=len(vel)
 # l4,=ax2.plot(x_integS, y_integS, 'g--')
 # ax2.axis('equal')
 
-# fig.legend((l2, l3, l4), ('Multiscale CAN', 'Single scale CAN','Naiive Integration'),loc='lower center',ncol=3)
-# plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.png')
+# fig.legend((l2, l3, l4), ('Multiscale CAN', 'Single scale CAN','Ground Truth'),loc='lower center',ncol=3)
+# plt.savefig('./results/TestEnvironmentFiles/KittiSinglevsMulti.pdf')
 
