@@ -1109,6 +1109,93 @@ def headDirectionAndPlaceNoWrapNet(scales, test_length, vel, angVel,savePath, pl
     else:
         return x_grid, y_grid
 
+def headDirectionAndPlaceNoWrapNetAnimate(scales, test_length, vel, angVel,savePath, plot=False, printing=True, N=100):
+    global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
+
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,2,1.10262708e-01,6.51431074e-04,3,2 #with decimals 200 iters fitness -395 modified
+    num_links,excite,activity_mag,inhibit_scale, iterations, wrap_iterations=10,10,1,0.0008,2,1
+    network=attractorNetwork2D(N,N,num_links,excite, activity_mag,inhibit_scale)
+
+    
+
+    '''__________________________Storage and initilisation parameters______________________________'''
+    # scales=[0.25,1,4,16]
+    theta_weights=np.zeros(360)
+    theata_called_iters=0
+    # start_x, start_y=(50*scales[3])+(50*scales[4])+(50*scales[5]),(50*scales[3])+(50*scales[4])+(50*scales[5])
+    wrap_counter=[0,0,0,0,0,0]
+    x_grid, y_grid=[], []
+    x_grid_expect, y_grid_expect =0,0
+    x_integ, y_integ=[],[]
+    q=[0,0,0]
+    x_integ_err, y_integ_err=[],[]
+    q_err=[0,0,0]
+
+    '''__________________________Initilising scales in the center and at the edge_____________________________'''
+    prev_weights=[np.zeros((N,N)) for _ in range(len(scales))]
+    for n in range(len(scales)):
+        for m in range(iterations):
+            prev_weights[n]=network.excitations(0,0)
+            prev_weights[n]=network.update_weights_dynamics_row_col(prev_weights[n][:], 0, 0)
+            prev_weights[n][prev_weights[n][:]<0]=0
+    
+
+    '''_______________________________Iterating through simulation velocities_______________________________'''
+    fig, axs = plt.subplots(1,4,figsize=(5, 3)) 
+    def animate(i):  
+        global theata_called_iters,theta_weights, prev_weights, q, wrap_counter, current_i, x_grid_expect, y_grid_expect 
+
+        '''Path integration'''
+        q[2]+=angVel[i]
+        q[0],q[1]=q[0]+vel[i]*np.cos(q[2]), q[1]+vel[i]*np.sin(q[2])
+        x_integ.append(q[0])
+        y_integ.append(q[1])
+
+
+        '''Mutliscale CAN update'''
+        N_dir=360
+        theta_weights=headDirection(theta_weights, np.rad2deg(angVel[i]), 0)
+        direction=activityDecodingAngle(theta_weights,5,N_dir)
+        prev_weights, wrap, x_grid_expect, y_grid_expect= hierarchicalNetwork2DGridNowrapNet(prev_weights, network, N, vel[i], direction, iterations,wrap_iterations, x_grid_expect, y_grid_expect, scales)
+
+        '''1D method for decoding'''
+        maxXPerScale, maxYPerScale = np.array([np.argmax(np.max(prev_weights[m], axis=1)) for m in range(len(scales))]), np.array([np.argmax(np.max(prev_weights[m], axis=0)) for m in range(len(scales))])
+        decodedXPerScale=[activityDecoding(prev_weights[m][maxXPerScale[m], :],5,N)*scales[m] for m in range(len(scales))]
+        decodedYPerScale=[activityDecoding(prev_weights[m][:,maxYPerScale[m]],5,N)*scales[m] for m in range(len(scales))]
+        x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale), np.sum(decodedYPerScale)
+        # x_multiscale_grid, y_multiscale_grid=np.sum(decodedXPerScale[0:3]+x_grid_expect[3:6]), np.sum(decodedYPerScale[0:3]+y_grid_expect[3:6])
+        x_grid.append(x_multiscale_grid+x_grid_expect)
+        y_grid.append(y_multiscale_grid+y_grid_expect)
+
+        '''Error integrated path'''
+        q_err[2]+=angVel[i]
+        q_err[0],q_err[1]=q_err[0]+vel[i]*np.cos(np.deg2rad(direction)), q_err[1]+vel[i]*np.sin(np.deg2rad(direction))
+        x_integ_err.append(q_err[0])
+        y_integ_err.append(q_err[1])
+
+        if printing==True:
+            print(f'dir: {np.rad2deg(q[2])}, {direction}')
+            print(f'vel: {vel[i]}')
+            print(f'decoded: {decodedXPerScale}, {decodedYPerScale}')
+            print(f'expected: {x_grid_expect}, {y_grid_expect}')
+            print(f'integ: {x_integ[-1]}, {y_integ[-1]}')
+            print(f'CAN: {x_grid[-1]}, {y_grid[-1]}')
+            print('')
+
+        for k in range(4):
+            axs[k].clear()
+            axs[k].imshow(prev_weights[k][:][:], cmap='jet')#(np.arange(N),prev_weights[k][:],color=colors[k])
+            axs[k].spines[['top', 'left', 'right']].set_visible(False)
+            axs[k].invert_yaxis()
+
+    ani = FuncAnimation(fig, animate, interval=1,frames=test_length,repeat=False)
+    # plt.show()
+
+    writergif = animation.PillowWriter(fps=30) 
+    ani.save(savePath, writer=writergif)
+
+    print(f'CAN error: {errorTwoCoordinateLists(x_integ,y_integ, x_grid, y_grid)}')
+
 
 
 def plotFromSavedArray(outfile,savePath):
@@ -1129,7 +1216,6 @@ def plotFromSavedArray(outfile,savePath):
     # plt.title(f'Distance:{round(dist)}m   Error:{round(error)}m/iter   Iterations:{len(x_integ)}')
     plt.legend(('Path Integration', 'Multiscale CAN'))
     plt.savefig(savePath)
-
 
 def plotSavedMultiplePaths(length,outfile,pathfile,savepath,figrows,figcols,randomSeedVariation):
     fig, axs = plt.subplots(figrows,figcols,figsize=(4, 4))
@@ -1193,11 +1279,30 @@ def plotSavedMultiplePaths(length,outfile,pathfile,savepath,figrows,figcols,rand
 # plt.show()
 
 
-
 # kinemVelFile='./results/TestEnvironmentFiles/TraverseInfo/testEnvPathVelocities2.npy'
 # kinemAngVelFile='./results/TestEnvironmentFiles/TraverseInfo/testEnvPathAngVelocities2.npy'
 # vel,angVel=np.load(kinemVelFile), np.load(kinemAngVelFile)
 # vel=np.concatenate([np.linspace(0,scales[0]*5,test_length//5), np.linspace(scales[0]*5,scales[1]*5,test_length//5), np.linspace(scales[1]*5,scales[2]*5,test_length//5), np.linspace(scales[2]*5,scales[3]*5,test_length//5), np.linspace(scales[3]*5,scales[4]*5,test_length//5)])
+
+index=0
+outfilePart='./results/TestEnvironmentFiles/TraverseInfo/BerlineEnvPath'
+outfile=outfilePart+f'{index}.npz'
+traverseInfo=np.load(outfile, allow_pickle=True)
+vel,angVel,truePos, startPose=traverseInfo['speeds'], traverseInfo['angVel'], traverseInfo['truePos'], traverseInfo['startPose']
+
+scales=[0.25,1,4,16]
+# scales=[1]
+if len(vel)<100:
+    test_length=len(vel)
+else:
+    test_length=100
+
+savePath="./results/GIFs/BerlinPathMultiscaleAttractor4scales2.gif" 
+np.random.seed(index)
+angVel=[np.deg2rad(3.6)]*test_length
+# vel=np.concatenate((np.random.uniform(0,2,test_length//2) , np.random.uniform(4,40,test_length//2)))
+vel=np.concatenate(([0.4]*(test_length//4),[1.75]*(test_length//4),[7]*(test_length//4),[32]*(test_length//4)))
+headDirectionAndPlaceNoWrapNetAnimate(scales, test_length, vel, angVel,savePath)
 
 '''Running 18 paths with Multiscale CAN'''
 def runningAllPathsFromACity(length,outfilePart,pathFile,randomSeedVariation):
@@ -1230,7 +1335,7 @@ savepath='./results/PaperFigures/MultipathTrackingSpeeds0to20_Berlin.pdf'
 # pathfile='./results/TestEnvironmentFiles/SinglescaleCAN/TestMultiscalePathwithSpeeds_'
 # savepath='./results/TestEnvironmentFiles/SinglepathTrackingSpeeds_Berlin.png'
 # runningAllPathsFromACity(length,outfile,pathfile,1)
-plotSavedMultiplePaths(length,outfile,pathfile,savepath,6,3,1)
+# plotSavedMultiplePaths(length,outfile,pathfile,savepath,6,3,1)
 
 length=7
 outfile='./results/TestEnvironmentFiles/TraverseInfo/NYC'
@@ -1288,18 +1393,18 @@ x_gridS,y_gridS, x_integS, y_integS, x_integ_err, y_integ_err= np.load(singlePat
 multipleError=errorTwoCoordinateLists(x_integM, y_integM,x_gridM,y_gridM,errDistri=True)
 singleError=errorTwoCoordinateLists(x_integS, y_integS,x_gridS,y_gridS,errDistri=True)
 
-fig,(ax1,ax2) = plt.subplots(1,2,figsize=(3.2, 1.7))
-fig.legend(['MultiscaleCAN', 'Grid'])
-fig.tight_layout()
-fig.suptitle('ATE Error Over Time',y=1.07)
-ax1.bar(np.arange(999),singleError, color='royalblue', width=1)
-ax1.set_xlabel('Berlin Trajectories')
-ax1.set_ylabel('ATE [m]')
-ax2.bar(np.arange(999),multipleError,  color='mediumorchid',width=1)
-ax2.set_xlabel('Berlin Trajectories')
-plt.subplots_adjust(top=0.9)
-fig.legend(('Single scale','Multiscale'),loc='upper center', bbox_to_anchor=(0.5,1.03),ncol=2)
-plt.savefig('./results/PaperFigures/errorOverTim.pdf')
+# fig,(ax1,ax2) = plt.subplots(1,2,figsize=(3.2, 1.7))
+# fig.legend(['MultiscaleCAN', 'Grid'])
+# fig.tight_layout()
+# fig.suptitle('ATE Error Over Time',y=1.07)
+# ax1.bar(np.arange(999),singleError, color='royalblue', width=1)
+# ax1.set_xlabel('Berlin Trajectories')
+# ax1.set_ylabel('ATE [m]')
+# ax2.bar(np.arange(999),multipleError,  color='mediumorchid',width=1)
+# ax2.set_xlabel('Berlin Trajectories')
+# plt.subplots_adjust(top=0.9)
+# fig.legend(('Single scale','Multiscale'),loc='upper center', bbox_to_anchor=(0.5,1.03),ncol=2)
+# plt.savefig('./results/PaperFigures/errorOverTim.pdf')
 
 '''Local Error segments'''
 def plotMultiplePathsErrorDistribution(length,pathfileSingle,pathfileMulti,savepath,randomSeedVariation):
@@ -1316,7 +1421,7 @@ def plotMultiplePathsErrorDistribution(length,pathfileSingle,pathfileMulti,savep
     for i in range(length):
         x_grid,y_grid,x_integ, y_integ, x_integ_err, y_integ_err = np.load(pathfileMulti+f'{i}.npy')
         erroMulti.append(errorTwoCoordinateLists(x_integ, y_integ,x_grid,y_grid))
-#  
+ 
     # ax1.bar(np.arange(length),errorSingle, color='royalblue', width=1)
     # ax1.set_xlabel('Berlin Trajectories')
     # ax1.set_ylabel('ATE [m]')

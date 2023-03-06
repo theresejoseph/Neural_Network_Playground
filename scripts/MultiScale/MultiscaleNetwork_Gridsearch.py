@@ -669,17 +669,14 @@ filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_20steps_fitn
 filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_highermag.npy'
 # filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_5steps_fitnessfuncfixed_vel1_lowerinhnpy'
-filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5.npy'
+# filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange3.npy'
 
-# filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange.npy'
-# savePath='./results/PaperFigures/activityMagInhi_1.png'
+savePath='./results/PaperFigures/activityMagInhi_largeRange3.png'
 
-filename=f'./results/GridSearch_MultiScale/2D_attractor_singleScale_10steps_fitnessfuncfixed_vel5_largeRange2.npy'
-savePath='./results/PaperFigures/activityMagInhi_2.png'
-n_steps=10
-broke_error=100000
-speeds=np.random.uniform(0,5,360//6) 
+n_steps=5
+broke_error=10000000
+speeds=np.random.uniform(0,2,360//6) 
 # attractorGridcell_fitness(speeds,2,0.001)
-lower_inh,upper_inh,lower_mag,upper_mag=0.00002,0.002,0.1,1
-gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
+lower_inh,upper_inh,lower_mag,upper_mag=0.00001,0.002,0.1,1
+# gridSearchAttractorGridcell(filename,n_steps,attractorGridcell_fitness,speeds,lower_inh,upper_inh,lower_mag,upper_mag)
 plottingGridSearch(filename,savePath,n_steps,broke_error,lower_inh,upper_inh,lower_mag,upper_mag)

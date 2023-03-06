@@ -28,7 +28,7 @@ lndmrk_confidence=1
 input_error=0
 
 #landmarks
-inc=40 # increment angle for landmarks 
+inc=5 # increment angle for landmarks 
 ang_rate=1 #deg per iteration for the robot
 radius=1.8  #meter
 landmark_dect_toler=6
@@ -226,6 +226,7 @@ def selfMotion_Landmark(radius,inc,iters):
             net=attractorNetwork(delta+input_error,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
             curr_theta=net.theta_update(curr_theta)
             prev_weights, landmark_weights, selfmotion_weights=net.update_weights(prev_weights,curr_theta)
+            prev_weights=prev_weights>0
             #predicting theta
             theta_pred,x,y=activity_center(prev_weights)
 
@@ -285,7 +286,7 @@ def selfMotion_Landmark(radius,inc,iters):
     ani = anim.FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
     plt.show()
 
-    # f = r"/home/therese/Documents/Neural_Network_Playground/results/animation.gif" 
+    # f =f"./results/GIFs/HDanimation.gif" 
     # writergif = anim.PillowWriter(fps=10) 
     # ani.save(f, writer=writergif)
 
@@ -394,10 +395,114 @@ def landmark_learning(radius,inc,iters):
     ani = FuncAnimation(fig, animate, frames=iters, interval= 1, repeat=False, blit=True)
     plt.show()
 
+def selfMotion_HD_Network(radius,inc,iters):
+    # Landmarks position and angle -> every inc degrees with radius of 1.8m
+    mark_x=[]
+    mark_y=[]
+    lndmrk_angles=[]
+    for phi in range (0,360,inc):
+        mark_x.append(radius * math.cos(np.deg2rad(phi)) )
+        mark_y.append(radius * math.sin(np.deg2rad(phi)))
+        lndmrk_angles.append(phi)
+    lndmrks=np.stack((np.array(mark_x),np.array(mark_y)),axis=1)
+
+    # create the figure and axes objects
+    plt.style.use(['science', 'ieee'])
+    fig = plt.figure(figsize=(6,4))
+    gs = fig.add_gridspec(2,2)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
+    # fig.tight_layout(pad=5.0)
+    # ax4= fig.add_subplot(gs[2, :])
+    # ax5= fig.add_subplot(gs[3, :])
+    # fig.tight_layout()
+    def animate(i):
+        if i >= 1:
+            global prev_weights, inhbit_val, lndmrk_confidence, curr_theta, prediction, current, landmark_weights, input_error
+            ax1.clear(), ax2.clear(), ax3.clear()
+            #  ax4.clear(), ax5.clear()
+            ax1.scatter(mark_x, mark_y, marker=".", c='k') #landmarks 
+            '''calculating values'''
+            #detecting landmark
+            # if any(i < landmark_dect_toler for i in abs(np.array(lndmrk_angles)-curr_theta)):
+            #     lndmrk_id=np.argmin(abs(np.array(lndmrk_angles)-curr_theta))
+            #     lndmrk_neuron=int(lndmrk_angles[lndmrk_id])
+            #     ax1.scatter(lndmrks[lndmrk_id,0], lndmrks[lndmrk_id,1], marker="*", c='r')
+            #     print("landmark:" + str(lndmrk_neuron))
+            # else: 
+            lndmrk_neuron=None 
+            # shifting network with delta
+            net=attractorNetwork(delta+input_error,lndmrk_neuron,N,inhbit_val,num_links,lndmrk_confidence)
+            curr_theta=net.theta_update(curr_theta)
+            prev_weights, landmark_weights, selfmotion_weights=net.update_weights(prev_weights,curr_theta)
+            #predicting theta
+            theta_pred,x,y=activity_center(prev_weights)
+
+            '''plotting and printing results'''
+            #plotting robot arena
+            ax1.set_title('Robot Arena')
+            ax1.grid(True)
+            ax1. set_aspect('equal')
+            ax1.set_xlim([-2,2])
+            ax1.set_ylim([-2,2])
+            # ax1.set_xlabel('x axis [m]')
+            # ax1.set_ylabel('y axis [m]')
+            ax1.arrow(0,0,0.5*np.cos(np.deg2rad(curr_theta)),0.5*np.sin(np.deg2rad(curr_theta)),width=0.04, color='green') #robot angle
+
+            #plotting arrows of bumps
+            ax2.set_title('Head Direction Activity')
+            ax2.set_xlim([-0.2*12,0.2*12])
+            ax2.set_ylim([-0.2*12,0.2*12])
+            ax2. set_aspect('equal')
+            # ax2.set_xlabel('x axis [m]')
+            # ax2.set_ylabel('y axis [m]')
+            for j in range(0,N):
+                ax2.arrow(0,0,x[j]*10,y[j]*10, color='royalblue')
+
+            # plotting activity for self motion 
+            ax3.set_title('Attractor Network Dynamics')
+            ax3.bar(neurons, prev_weights,color='royalblue',width=0.8,label='Selfmotion Activity')
+            ax3.set_ylim([-0.2,0.5])
+            ax3.set_xlabel('Neurons')
+            ax3.set_ylabel('Activity Weight')
+
+            # ax4.set_title('Self Motion and Landmark Activity')
+            # ax4.bar(neurons, selfmotion_weights,width=0.8, color='purple')
+            # ax4.set_ylim([-0.2,0.5])
+
+            #plotting activity for landmark 
+            # if landmark_weights is not None:
+            #     # ax5.set_title('Landmark Activity')
+            #     ax3.bar(neurons, landmark_weights,width=0.8, label='Landmark Activity',color='red')
+            #     # ax5.set_ylim([-0.2,0.5])
+            # ax3.legend()
+                
+
+
+            #plotting error and printing parameters
+            #print("activity center: "+ str(theta_pred) + "---model input: " + str(int(curr_theta)) + "---true angle: "+ str(i*delta % 360))
+            #print(theta_pred)
+            # prediction.append(abs((i*delta % 360) - theta_pred))
+            # current.append(abs((i*delta % 360) -curr_theta))
+
+            # line1, =ax5.plot(np.arange(len(prediction)),np.array(prediction),'b-')
+            # line2, =ax5.plot(np.arange(len(current)),np.array(current),'r-')
+            # ax5.set_title('Error from true angle')
+            # ax5.legend([line1, line2], ['prediction error', 'input error'])
+
+    '''animation for driving in a circle'''
+    ani = anim.FuncAnimation(fig, animate, frames=iters, interval= sim_speed, repeat=False)
+    # plt.show()
+
+    f =f"./results/GIFs/HDanimation.gif" 
+    writergif = anim.PillowWriter(fps=10) 
+    ani.save(f, writer=writergif)
+
 ##### TEST AREA #####  
 
-selfMotion_Landmark(radius,inc,iters)  #online learning 
-
+# selfMotion_Landmark(radius,inc,iters)  #online learning 
+selfMotion_HD_Network(radius,inc,iters)
 # delta=+10
 # landmark_dect_toler=5
 # input_error=0.005
