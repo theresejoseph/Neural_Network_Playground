@@ -12,7 +12,7 @@ from matplotlib.patches import Rectangle
 from multiprocessing import Process, Pool
 from multiprocessing.dummy import freeze_support
 import multiprocessing
-
+import sys 
 from carRacer import  FrictionDetector, CarRacing
 from CAN import activityDecoding, activityDecodingAngle, attractorNetworkSettling
 
