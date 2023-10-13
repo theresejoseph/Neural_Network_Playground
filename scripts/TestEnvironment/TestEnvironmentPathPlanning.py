@@ -93,12 +93,15 @@ def remove_consecutive_duplicates(coords):
     return filtered
 
 
-def rescalePath(paths, path_idx, img, scale, pxlPerMeter):
+def rescalePath(paths, path_idx, img, scale, pxlPerMeter, multipath):
     
     #convert path to image
-    path_x, path_y = zip(*paths[path_idx])
-    pathImg=np.zeros((np.shape(img)))
-    pathImg[(path_y, path_x)]=1
+    if multipath==True:
+        path_x, path_y = zip(*paths[path_idx])
+    elif multipath==False:
+        path_x, path_y = zip(*paths)
+    # pathImg=np.zeros((np.shape(img)))
+    # pathImg[(path_y, path_x)]=1
 
     if scale != 1:
         # scale down path image by given percentage 
@@ -106,27 +109,38 @@ def rescalePath(paths, path_idx, img, scale, pxlPerMeter):
         height = int(img.shape[0] * scale)
         dim = (width, height)
         newImg= cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-        pathImgRescaled=cv2.resize(pathImg, dim, interpolation = cv2.INTER_AREA)
+        # pathImgRescaled=cv2.resize(pathImg, dim, interpolation = cv2.INTER_AREA)
+
+        scaledCoords=[(np.round(path_x[i]*scale),np.round(path_y[i]*scale)) for i in range(len(path_x))]
+        filteredCoord=remove_consecutive_duplicates(scaledCoords)
+        print(np.shape(filteredCoord))
+        path_x, path_y =zip(*filteredCoord)
     
     else:
-        newImg=path_idx
+        newImg=img
         
-        
+    
     #identify new path from rescaled image 
     # pathImgRescaled[pathImgRescaled>0]=1
     # newYpath, newXpath=np.where(pathImgRescaled==1)
-    return [np.round(x*scale) for x in path_x], [np.round(y*scale) for y in path_y], newImg, pxlPerMeter*scale 
+    return path_x, path_y , newImg, pxlPerMeter*scale 
 
 
+def rescaleImg(img, scale):
+    width = int(img.shape[1] * scale)
+    height = int(img.shape[0] * scale)
+    dim = (width, height)
+    newImg= cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 
+    return newImg
 
 normalise_angle = lambda angle: atan2(sin(angle), cos(angle))
 
 
 class Vehicle:
     def __init__(self, path_x, path_y, throttle, dt,\
-        control_gain, softening_gain, yaw_rate_gain, steering_damp_gain, max_steer, \
-        c_r: float, c_a: float, wheelbase=2.96, \
+        control_gain=40, softening_gain=2.0, yaw_rate_gain=0.20, steering_damp_gain=0.0, max_steer=np.deg2rad(45), \
+        c_r: float=0.01, c_a: float=2.0, wheelbase=2.96, \
         overall_length=4.97, overall_width=1.964, rear_overhang=0.0, tyre_diameter=0.4826, \
         tyre_width=0.265, axle_track=1.7):
       
@@ -430,8 +444,9 @@ def runSimulation(path_x, path_y, path_img):
         annotation.set_text(f'{car.x:.1f}, {car.y:.1f}')
         annotation.set_position((car.x, car.y + 5))
 
-        plt.title(f'{car.dt*frame:.2f}s', loc='right')
-        plt.xlabel(f'Speed: {car.v:.2f} m/s', loc='left')
+        ax.set_title(f'{car.dt*frame:.2f}s', loc='right')
+        ax.set_xlabel(f'Speed: {car.v:.2f} m/s', loc='left')
+        plt.grid(False)
         # plt.savefig(f'image/visualisation_{frame:03}.png', dpi=300)
 
         return car_outline, front_right_wheel, rear_right_wheel, front_left_wheel, rear_left_wheel, rear_axle, target,
@@ -442,11 +457,11 @@ def runSimulation(path_x, path_y, path_img):
     trueCarPos=[]
 
     # Simulation Parameters
-    fps = 20
+    fps = 30
     dt = 1/fps
     map_size_x = 70
     map_size_y = 40
-    frames = 5000
+    frames = 500
     loop = False
     car  = Vehicle(path_x, path_y,100, dt)
     interval = car.dt * 10**3
@@ -456,7 +471,8 @@ def runSimulation(path_x, path_y, path_img):
     ax.set_aspect('equal')
 
     ax.plot(path_x, path_y, '--', color='gold')
-    ax.imshow(path_img, cmap='gray')
+    ax.imshow(path_img)
+    ax.grid('off')
 
     empty              = ([], [])
     target,            = ax.plot(*empty, '+r')
@@ -471,7 +487,7 @@ def runSimulation(path_x, path_y, path_img):
 
     ani = FuncAnimation(fig, animate, frames=frames, init_func=lambda: None, interval=interval, repeat=loop)
         # anim.save('animation.gif', writer='imagemagick', fps=50)
-    plt.grid()
+    # plt.grid()
     plt.show()
 
 
@@ -497,12 +513,18 @@ def pathIntegration(speed, angVel, startPose):
 
 '''Initialising Image'''
 # map_path = './results/TestEnvironmentFiles/TestingMaps/berlin_5kmrad_0.2Line_100pdi.png'
-map_path = './results/TestEnvironmentFiles/TestingMaps/japan_5kmrad_1Line_300pdi.png'
+# map_path = './results/TestEnvironmentFiles/TestingMaps/japan_5kmrad_1Line_300pdi.png'
 # map_path = './results/TestEnvironmentFiles/TestingMaps/newyork_5kmrad_1Line_300pdi.png'
 # map_path = './results/TestEnvironmentFiles/TestingMaps/brisbane_5kmrad_1Line_300pdi.png'
-img=np.array(Image.open(map_path).convert("L"))
 
-meterWidth=5000
+map_path='./results/TestEnvironmentFiles/TestingMaps/berlin_10kmrad_0.2Line_100dpi.png'
+scale=0.5
+img=np.array(Image.open(map_path).convert("L"))
+img=rescaleImg(img, scale)
+imgColor=plt.imread(map_path)
+imgColor=rescaleImg(imgColor, scale)
+
+meterWidth=10000
 pxlPerMeter= img.shape[0]/meterWidth
 
 img[img<255]= 0 
@@ -514,14 +536,18 @@ img[img==255]=1
 '''Generate Paths'''
 # num_locations=20
 # findPathsthroughRandomPoints(img,num_locations)
-pathfile='./results/TestEnvironmentFiles/Paths/japan_5kmrad_300pdi_1line.npy'
-findPathsthroughRandomPoints(img,20,pathfile)
+# pathfile='./results/TestEnvironmentFiles/Paths/japan_5kmrad_300pdi_1line.npy'
+# findPathsthroughRandomPoints(img,20,pathfile)
 
-pathfile='./results/TestEnvironmentFiles/Paths/newyork_5kmrad_300pdi_1line.npy'
-findPathsthroughRandomPoints(img,20,pathfile)
+# pathfile='./results/TestEnvironmentFiles/Paths/newyork_5kmrad_300pdi_1line.npy'
+# findPathsthroughRandomPoints(img,20,pathfile)
 
-pathfile='./results/TestEnvironmentFiles/Paths/brisbane_5kmrad_300pdi_1line.npy'
-findPathsthroughRandomPoints(img,20,pathfile)
+# pathfile='./results/TestEnvironmentFiles/Paths/brisbane_5kmrad_300pdi_1line.npy'
+# findPathsthroughRandomPoints(img,20,pathfile)
+
+# pathfile='./results/TestEnvironmentFiles/Paths/berlinCloseup.npy'
+pathfile='./results/TestEnvironmentFiles/Paths/berlin_10kmrad_0.2Line_100.npy'
+findPathsthroughRandomPoints(img,2,pathfile)
 
 '''Original'''
 # pathfile='./results/TestEnvironmentFiles/Paths/testEnvPath1_5kmrad_100pdi_0.2line.npy'
@@ -535,20 +561,25 @@ findPathsthroughRandomPoints(img,20,pathfile)
 # print(f"scaled width{np.shape(path_img)[0], np.shape(path_img)[1]}, pxlPerMeter{np.shape(path_img)[0]/meterWidth, np.shape(path_img)[1]/meterWidth}")
 # path= remove_consecutive_duplicates(list(zip(path_x, path_y)))
 
-# path_x, path_y = zip(*np.load(pathfile)[0])
-# plt.imshow(img, cmap='gray')
+# path_x, path_y = zip(*np.load(pathfile,allow_pickle=True)[0])
+# plt.imshow(imgColor)
 # plt.plot(path_x, path_y, 'r-')
 # plt.grid('off')
 # plt.show()
 
 '''Run Simulation'''
-# runSimulation(path_x, path_y, path_img)
+paths=np.load(pathfile, allow_pickle=True)
+print(np.shape(paths))
+path_scale=1
+path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, 0, imgColor, path_scale, pxlPerMeter, multipath=True)
+runSimulation(path_x, path_y, path_img)
 
-paths=np.load(pathfile)
-for i in range(len(paths)-1):
-    scale=1
-    path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, i, img, scale, pxlPerMeter)
-    noVisualisationDrive(path_x, path_y, f'./results/TestEnvironmentFiles/TraverseInfo/Japan{i}.npz', frames=len(path_x)*3)
+
+# for i in range(len(paths)-1):
+#     scale=1
+#     path_x, path_y, path_img, currentPxlPerMeter= rescalePath(paths, i, img, scale, pxlPerMeter)
+#     # noVisualisationDrive(path_x, path_y, f'./results/TestEnvironmentFiles/TraverseInfo/Japan{i}.npz', frames=len(path_x)*3)
+#     runSimulation(path_x, path_y, path_img)
 
 # paths=np.load(pathfile)
 # scale,index=1,0

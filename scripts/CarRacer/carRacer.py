@@ -432,6 +432,7 @@ class CarRacing(gym.Env, EzPickle):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
+        
         self._destroy()
         self.reward = 0.0
         self.prev_reward = 0.0

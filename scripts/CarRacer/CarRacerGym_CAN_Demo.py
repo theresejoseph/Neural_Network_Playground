@@ -59,9 +59,9 @@ def driving_func(queue):
                if event.key == pygame.K_DOWN:
                   a[2] = 0
                
-
    env = CarRacing()
    env.render()
+   
    isopen = True
    
    while isopen:
@@ -157,7 +157,7 @@ def matplotlib_func(queue):
    excite.valtext.set_color("white")
    excite.label.set_color('white')
 
-   N = wig.Slider(Nax, 'Neurons', 20, 150, 100, valstep=10, color='#008000',track_color='white')
+   N = wig.Slider(Nax, 'Neurons', 20, 150, 60, valstep=10, color='#008000',track_color='white')
    N.valtext.set_color("white")
    N.label.set_color('white')
 

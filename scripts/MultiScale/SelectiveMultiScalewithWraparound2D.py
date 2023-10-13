@@ -23,8 +23,8 @@ import CAN as can
 import json 
 from DataHandling import saveOrLoadNp  
 # import scienceplots
-plt.style.use(['science','ieee'])
-# plt.style.use(['science','no-latex'])
+# plt.style.use(['science','ieee'])
+plt.style.use(['science','no-latex'])
 
 
 
